@@ -51,30 +51,40 @@ export async function synthesizeNarration(input: {
   }
 
   const hash = hashNarration(text, input.voiceId);
-  const { audio, captions, durationSec } = await synthesizeWithWordBoundaries(
-    text,
-    input.voiceId,
+
+  // Edge-TTS قد يرفض الاتصال مؤقتاً (403/429 حسب الشبكة) — نعيد المحاولة
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const { audio, captions, durationSec } = await synthesizeWithWordBoundaries(
+        text,
+        input.voiceId,
+      );
+      if (audio.length === 0) {
+        throw new Error("empty-audio");
+      }
+      if (captions.length === 0) {
+        const estimated = Math.min(audio.length / 6000, SHORT_MAX_SECONDS);
+        return {
+          audio,
+          captions: distributeCaptionsEvenly(text, estimated),
+          durationSec: Number(estimated.toFixed(3)),
+          hash,
+        };
+      }
+      const capped = Math.min(durationSec, SHORT_MAX_SECONDS);
+      const kept = captions.filter((c) => c.start < capped);
+      return { audio, captions: kept, durationSec: capped, hash };
+    } catch (err) {
+      lastError = err as Error;
+      await new Promise((r) => setTimeout(r, attempt * 2000));
+    }
+  }
+
+  throw new Error(
+    "تعذر الاتصال بخدمة التعليق الصوتي من هذه الشبكة. تحقق من الإنترنت وأعد المحاولة بعد دقيقة. " +
+      `(${(lastError as Error)?.message ?? "unknown"})`,
   );
-
-  if (audio.length === 0) {
-    throw new Error("فشل توليد الصوت — أعد المحاولة");
-  }
-
-  // Fallback إذا لم تصل حدود الكلمات: قدّر المدة من حجم mp3 (48kbit ≈ 6KB/s)
-  if (captions.length === 0) {
-    const estimated = Math.min(audio.length / 6000, SHORT_MAX_SECONDS);
-    return {
-      audio,
-      captions: distributeCaptionsEvenly(text, estimated),
-      durationSec: Number(estimated.toFixed(3)),
-      hash,
-    };
-  }
-
-  const capped = Math.min(durationSec, SHORT_MAX_SECONDS);
-  // قص الكابشن عند سقف 60 ثانية
-  const kept = captions.filter((c) => c.start < capped);
-  return { audio, captions: kept, durationSec: capped, hash };
 }
 
 /** يبحث في الكاش (Blob ثم محلي) قبل التوليد */
