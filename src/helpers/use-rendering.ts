@@ -1,6 +1,4 @@
 import { useCallback, useMemo, useState } from "react";
-import { z } from "zod";
-import { CompositionProps } from "../../types/constants";
 import { SSEMessage } from "../../types/schema";
 
 export type State =
@@ -23,10 +21,7 @@ export type State =
       status: "done";
     };
 
-export const useRendering = (
-  id: string,
-  inputProps: z.infer<typeof CompositionProps>,
-) => {
+export const useRendering = (id: string, inputProps: unknown) => {
   const [state, setState] = useState<State>({
     status: "init",
   });

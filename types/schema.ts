@@ -1,9 +1,21 @@
 import { z } from "zod";
 import { CompositionProps } from "./constants";
+import { SHORT_COMP_NAME, ShortProps } from "./shorts";
 
 export const RenderRequest = z.object({
   id: z.string(),
   inputProps: CompositionProps,
+});
+
+/** طلب render عام: MyComp القديم أو ShortsComp الجديد */
+export const AnyRenderRequest = z.object({
+  id: z.string(),
+  inputProps: z.unknown(),
+});
+
+export const ShortRenderRequest = z.object({
+  id: z.literal(SHORT_COMP_NAME),
+  inputProps: ShortProps,
 });
 
 export type RenderResponse =

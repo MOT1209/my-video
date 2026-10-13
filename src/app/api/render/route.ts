@@ -5,8 +5,9 @@ import {
   uploadToVercelBlob,
 } from "@remotion/vercel";
 import { waitUntil } from "@vercel/functions";
-import { COMP_NAME } from "../../../../types/constants";
-import { RenderRequest } from "../../../../types/schema";
+import { COMP_NAME, CompositionProps } from "../../../../types/constants";
+import { AnyRenderRequest } from "../../../../types/schema";
+import { SHORT_COMP_NAME, ShortProps } from "../../../../types/shorts";
 import {
   bundleRemotionProject,
   formatSSE,
@@ -27,7 +28,20 @@ export async function POST(req: Request) {
   }
 
   const payload = await req.json();
-  const body = RenderRequest.parse(payload);
+  const body = AnyRenderRequest.parse(payload);
+
+  // تحقق من inputProps حسب التكوين المطلوب (MyComp القديم أو ShortsComp الجديد)
+  let compositionId: string;
+  let inputProps: unknown;
+  if (body.id === SHORT_COMP_NAME) {
+    compositionId = SHORT_COMP_NAME;
+    inputProps = ShortProps.parse(body.inputProps);
+  } else if (body.id === COMP_NAME) {
+    compositionId = COMP_NAME;
+    inputProps = CompositionProps.parse(body.inputProps);
+  } else {
+    throw new Error(`Unknown composition id: ${body.id}`);
+  }
 
   const send = async (message: RenderProgress) => {
     await writer.write(encoder.encode(formatSSE(message)));
@@ -56,8 +70,8 @@ export async function POST(req: Request) {
 
       const { sandboxFilePath, contentType } = await renderMediaOnVercel({
         sandbox,
-        compositionId: COMP_NAME,
-        inputProps: body.inputProps,
+        compositionId,
+        inputProps: inputProps as Record<string, unknown>,
         onProgress: async (update) => {
           switch (update.stage) {
             case "opening-browser":
