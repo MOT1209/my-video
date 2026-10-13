@@ -117,7 +117,7 @@ export async function POST(req: Request) {
 
       await send({ type: "done", url, size });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       await send({ type: "error", message: (err as Error).message });
     } finally {
       await sandbox?.stop().catch(() => {});

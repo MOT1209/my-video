@@ -1,4 +1,6 @@
-# my-video
+# my-video — Shorts عمودية 9:16 (Remotion + Next.js)
+
+تطبيق توليد فيديوهات Shorts عمودية: Hook + مشاهد + تعليق صوتي Edge-TTS + كابشن كلمة-كلمة، معاينة عبر `@remotion/player` وتصيير عبر Vercel Sandbox + تخزين Blob.
 
 <img src="https://github.com/remotion-dev/template-next/assets/1629785/9092db5f-7c0c-4d38-97c4-5f5a61f5cc098" />
 <br/>
@@ -9,6 +11,20 @@
 This is a Next.js template for building programmatic video apps with [`@remotion/player`](https://remotion.dev/player) and rendering via [Vercel Sandbox](https://vercel.com/docs/functions/sandbox).
 
 Tailwind CSS is included. Videos are rendered in a Vercel Sandbox environment and stored in [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) storage.
+
+## سير عمل Shorts
+
+1. افتح التبويب `Shorts عمودي 9:16` في الصفحة الرئيسية.
+2. اكتب **الخطاف** (حتى 120 حرف — أول 2.5 ثانية) والمشاهد (سطر = مشهد، حتى 12 مشهد، 280 حرف للمشهد).
+3. اختر الثيم (`dark` / `paper` / `neon` / `news` / `quotes`) والصوت (عربي: زارية/حامد، إنجليزي: Ava/Andrew).
+4. اضغط **توليد الصوت** — يُولّد mp3 عبر Edge-TTS مع كابشن بمستوى الكلمة، ويُحفظ في الكاش (Blob إن توفر وإلا `public/audio`).
+5. عاين الفيديو 9:16 (1080×1920، 30fps) — المدة تُحسب من آخر كلمة + ثانية أمان، بسقف 60 ثانية ليوتيوب Shorts.
+6. اضغط **تصيير الفيديو** — يُصيّر عبر `/api/render` ويُرفع إلى Blob مع رابط تحميل.
+
+ملاحظات:
+- النص الكامل = Hook + المشاهد، الحد 1000 حرف (`MAX_TTS_CHARS` في `src/lib/tts.ts`).
+- الكاش بمفتاح hash (`voiceId::text`) — نفس النص لا يُولّد مرتين.
+- بدون `BLOB_READ_WRITE_TOKEN` يعمل الصوت محلياً لكن التصيير يفشل.
 
 ## Getting Started
 
