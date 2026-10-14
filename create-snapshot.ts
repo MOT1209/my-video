@@ -25,6 +25,7 @@ try {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
+    allowOverwrite: true,
     token: blobToken,
   });
   await del(probe.url, { token: blobToken });
@@ -59,6 +60,7 @@ await put(getSnapshotBlobKey(), JSON.stringify({ snapshotId }), {
   access: "public",
   contentType: "application/json",
   addRandomSuffix: false,
+  allowOverwrite: true,
   token: blobToken,
 });
 

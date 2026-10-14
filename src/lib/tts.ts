@@ -136,6 +136,7 @@ export async function putAudioCache(
         access: "public",
         contentType: "audio/mpeg",
         addRandomSuffix: false,
+        allowOverwrite: true,
         token: blobToken,
       }),
       put(
@@ -145,6 +146,7 @@ export async function putAudioCache(
           access: "public",
           contentType: "application/json",
           addRandomSuffix: false,
+          allowOverwrite: true,
           token: blobToken,
         },
       ),
@@ -155,6 +157,7 @@ export async function putAudioCache(
       access: "public",
       contentType: "application/json",
       addRandomSuffix: false,
+      allowOverwrite: true,
       token: blobToken,
     });
     return meta;
