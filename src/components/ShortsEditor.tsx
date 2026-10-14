@@ -270,6 +270,7 @@ export const ShortsEditor: React.FC = () => {
           fps={SHORT_FPS}
           compositionWidth={SHORT_WIDTH}
           compositionHeight={SHORT_HEIGHT}
+          acknowledgeRemotionLicense
           style={{ width: "100%" }}
           controls
           autoPlay

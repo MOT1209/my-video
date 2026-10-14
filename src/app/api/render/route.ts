@@ -10,6 +10,11 @@ import { COMP_NAME, CompositionProps } from "../../../../types/constants";
 import { AnyRenderRequest } from "../../../../types/schema";
 import { SHORT_COMP_NAME, ShortProps } from "../../../../types/shorts";
 import {
+  checkRateLimit,
+  clientIp,
+  rateLimitedResponse,
+} from "../../../lib/rate-limit";
+import {
   bundleRemotionProject,
   formatSSE,
   type RenderProgress,
@@ -28,7 +33,14 @@ function friendlyRenderError(err: unknown): string {
   return message;
 }
 
-export async function POST(req: Request) {  const encoder = new TextEncoder();
+export async function POST(req: Request) {
+  // التصيير مكلف (دقائق sandbox): 5 عمليات لكل IP كل ساعة.
+  const verdict = checkRateLimit(`render:${clientIp(req)}`, 5, 60 * 60 * 1000);
+  if (!verdict.allowed) {
+    return rateLimitedResponse(verdict.retryAfterSec);
+  }
+
+  const encoder = new TextEncoder();
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 

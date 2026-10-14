@@ -20,6 +20,10 @@ export default [
       "build/**",
       "next-env.d.ts",
       "next.config.js",
+      // مهارات وملفات مساعدة جاهزة — خارج نطاق فحص كود التطبيق
+      ".agents/**",
+      ".claude/**",
+      "public/**",
     ],
   },
   // Base JS recommended

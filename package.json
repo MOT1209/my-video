@@ -16,7 +16,6 @@
     "@vercel/functions": "3.4.1",
     "@vercel/sandbox": "1.6.0",
     "clsx": "2.1.1",
-    "edge-tts": "^1.0.1",
     "next": "16.4.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -54,8 +53,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test": "bun test",
     "remotion": "remotion studio",
     "create-snapshot": "bun create-snapshot.ts",
+    "cleanup-blobs": "bun scripts/cleanup-blobs.ts",
     "render": "remotion render"
   }
 }

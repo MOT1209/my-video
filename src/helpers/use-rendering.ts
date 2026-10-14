@@ -42,7 +42,11 @@ export const useRendering = (id: string, inputProps: unknown) => {
       });
 
       if (!response.ok || !response.body) {
-        throw new Error("Failed to start render");
+        const message = await response
+          .json()
+          .then((j) => (j as { message?: string }).message ?? "Failed to start render")
+          .catch(() => "Failed to start render");
+        throw new Error(message);
       }
 
       const reader = response.body.getReader();
