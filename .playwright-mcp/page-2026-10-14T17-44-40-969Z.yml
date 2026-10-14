@@ -1,0 +1,61 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]: الخطاف (أول ثانيتين)
+        - textbox "عنوان يجذب الانتباه فوراً" [ref=e8]: ثلاث حقائق ستغير طريقة تفكيرك
+      - generic [ref=e10]:
+        - generic [ref=e11]: المشاهد (سطر = مشهد، حتى 12)
+        - 'textbox "سطر لكل مشهد مثال: العادة الصغيرة تهزم الحماس الكبير" [ref=e12]':
+          - /placeholder: "سطر لكل مشهد\nمثال: العادة الصغيرة تهزم الحماس الكبير"
+          - text: عقلك يركز على ما تكرره كل يوم العادة الصغيرة تهزم الحماس الكبير ابدأ اليوم بخطوة واحدة فقط
+        - generic [ref=e13]: 3 مشاهد · 123 حرف للتعليق
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]: الثيم
+          - combobox [ref=e18]:
+            - option "داكن" [selected]
+            - option "ورقي فاتح"
+            - option "نيون"
+            - option "إخباري"
+            - option "اقتباسات"
+        - generic [ref=e19]:
+          - generic [ref=e20]: الصوت
+          - combobox [ref=e21]:
+            - option "عربي (سعودية) — زارِية" [selected]
+            - option "عربي (سعودي) — حامد"
+            - option "English (US) — Ava"
+            - option "English (US) — Andrew"
+      - button "توليد الصوت" [ref=e24]
+      - button "تصيير الفيديو" [disabled] [ref=e27]
+      - generic [ref=e28]: ولّد الصوت أولاً — مدة الفيديو تُحسب من مدة التعليق (حتى 60 ثانية)
+    - generic [ref=e29]:
+      - generic [ref=e30]:
+        - generic [ref=e33]:
+          - generic [ref=e38]: ثلاث حقائق ستغير طريقة تفكيرك
+          - generic [ref=e41]:
+            - generic [ref=e42]: عقلك يركز على ما تكرره كل يوم
+            - generic [ref=e43]: 1 / 3
+        - generic [ref=e46]:
+          - generic [ref=e48]:
+            - button "Play video" [ref=e49] [cursor=pointer]
+            - button "Mute sound" [ref=e53] [cursor=pointer]
+            - generic [ref=e56]: 0:00 / 0:04
+          - generic [ref=e58] [cursor=pointer]
+      - generic [ref=e62]: معاينة 9:16 · 4.0 ثانية
+  - generic [ref=e63]:
+    - link [ref=e64] [cursor=pointer]:
+      - /url: https://www.remotion.dev/docs/the-fundamentals
+      - generic [ref=e65]:
+        - heading "Learn Remotion" [level=4] [ref=e67]
+        - paragraph [ref=e70]: Learn how to customize this video written in React.
+    - link [ref=e71] [cursor=pointer]:
+      - /url: https://github.com/remotion-dev/template-vercel
+      - generic [ref=e72]:
+        - heading "See source" [level=4] [ref=e74]
+        - paragraph [ref=e77]: Visit the GitHub repository for this app.
+    - link [ref=e78] [cursor=pointer]:
+      - /url: https://remotion.dev/discord
+      - generic [ref=e79]:
+        - heading "Join the community" [level=4] [ref=e81]
+        - paragraph [ref=e84]: Chat with others builders on Discord.

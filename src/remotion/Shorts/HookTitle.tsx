@@ -1,14 +1,17 @@
 import React from "react";
 import { AbsoluteFill, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { SHORT_SAFE_TOP, type ShortLang } from "../../../types/shorts";
+import { SHORT_SAFE_TOP, type ShortLang, type ShortTheme } from "../../../types/shorts";
+import { shortPalette } from "./Background";
 import { shortFontFamily } from "./font";
 
-export const HookTitle: React.FC<{ hook: string; lang: ShortLang }> = ({
-  hook,
-  lang,
-}) => {
+export const HookTitle: React.FC<{
+  hook: string;
+  lang: ShortLang;
+  theme: ShortTheme;
+}> = ({ hook, lang, theme }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const palette = shortPalette(theme);
 
   const progress = spring({ fps, frame, config: { damping: 200 } });
   const opacity = Math.min(1, progress * 1.5);
@@ -32,10 +35,10 @@ export const HookTitle: React.FC<{ hook: string; lang: ShortLang }> = ({
           fontSize: 64,
           lineHeight: 1.35,
           textAlign: "center",
-          color: "#ffffff",
+          color: palette.ink,
           opacity,
           transform: `translateY(${translateY}px)`,
-          textShadow: "0 4px 30px rgba(0,0,0,0.5)",
+          textShadow: palette.titleShadow,
         }}
       >
         {hook}

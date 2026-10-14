@@ -5,8 +5,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import type { ShortProps, ShortTheme } from "../../../types/shorts";
-import { ShortBackground } from "./Background";
+import type { ShortProps, ShortTheme } from "../../../types/shorts";import { ShortBackground } from "./Background";
 import { HookTitle } from "./HookTitle";
 import { SceneCard, ShortProgress } from "./SceneCard";
 import { WordCaptions } from "./WordCaptions";
@@ -38,13 +37,14 @@ export const ShortMain: React.FC<ShortProps> = ({
 
       {/* عنوان الخطاف: أول 2.5 ثانية */}
       <Sequence durationInFrames={HOOK_FRAMES}>
-        <HookTitle hook={hook} lang={lang} />
+        <HookTitle hook={hook} lang={lang} theme={theme} />
       </Sequence>
 
       {/* بطاقة المشهد النشط حسب التوقيت */}
       <ActiveSceneCard
         scenes={scenes.map((s) => ({ text: s.text }))}
         lang={lang}
+        theme={theme}
       />
 
       {/* الكابشن كلمة-كلمة */}
@@ -54,7 +54,7 @@ export const ShortMain: React.FC<ShortProps> = ({
       {audioUrl ? <Audio src={audioUrl} /> : null}
       {musicUrl ? <Audio src={musicUrl} volume={musicDuck} loop /> : null}
 
-      <ShortProgress />
+      <ShortProgress theme={theme} />
     </AbsoluteFill>
   );
 };
@@ -63,7 +63,8 @@ export const ShortMain: React.FC<ShortProps> = ({
 const ActiveSceneCard: React.FC<{
   scenes: { text: string }[];
   lang: "ar" | "en";
-}> = ({ scenes, lang }) => {
+  theme: ShortTheme;
+}> = ({ scenes, lang, theme }) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   if (scenes.length === 0) {
@@ -72,6 +73,6 @@ const ActiveSceneCard: React.FC<{
   const per = durationInFrames / scenes.length;
   const idx = Math.min(scenes.length - 1, Math.floor(frame / per));
   return (
-    <SceneCard text={scenes[idx].text} lang={lang} index={idx} total={scenes.length} />
+    <SceneCard text={scenes[idx].text} lang={lang} index={idx} total={scenes.length} theme={theme} />
   );
 };
