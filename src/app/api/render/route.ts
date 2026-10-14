@@ -4,6 +4,7 @@ import {
   renderMediaOnVercel,
   uploadToVercelBlob,
 } from "@remotion/vercel";
+import { BlobAccessError } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import { COMP_NAME, CompositionProps } from "../../../../types/constants";
 import { AnyRenderRequest } from "../../../../types/schema";
@@ -15,8 +16,19 @@ import {
 } from "./helpers";
 import { restoreSnapshot } from "./restore-snapshot";
 
-export async function POST(req: Request) {
-  const encoder = new TextEncoder();
+/** يترجم خطأ مخزن Blob الخاص إلى رسالة عربية واضحة. */
+function friendlyRenderError(err: unknown): string {
+  const message = (err as Error)?.message ?? String(err);
+  if (
+    err instanceof BlobAccessError ||
+    message.includes("public access on a private store")
+  ) {
+    return "مخزن Blob خاص (private) والتطبيق يحتاج رفعاً عاماً. من Vercel Dashboard افتح Storage ثم إعدادات الـ Blob store واسمح بالوصول العام ثم أعد النشر.";
+  }
+  return message;
+}
+
+export async function POST(req: Request) {  const encoder = new TextEncoder();
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
@@ -118,7 +130,7 @@ export async function POST(req: Request) {
       await send({ type: "done", url, size });
     } catch (err) {
       console.error(err);
-      await send({ type: "error", message: (err as Error).message });
+      await send({ type: "error", message: friendlyRenderError(err) });
     } finally {
       await sandbox?.stop().catch(() => {});
       await writer.close();

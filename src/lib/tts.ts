@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { head, put } from "@vercel/blob";
+import { BlobAccessError, head, put } from "@vercel/blob";
 import {
   distributeCaptionsEvenly,
   SHORT_MAX_SECONDS,
@@ -127,9 +127,10 @@ export async function putAudioCache(
   };
 
   if (blobToken) {
-    const audioBlobBody = new Blob([new Uint8Array(result.audio)], {
-      type: "audio/mpeg",
-    });
+    try {
+      const audioBlobBody = new Blob([new Uint8Array(result.audio)], {
+        type: "audio/mpeg",
+      });
     const [audioBlob] = await Promise.all([
       put(audioKey(result.hash), audioBlobBody, {
         access: "public",
@@ -157,6 +158,14 @@ export async function putAudioCache(
       token: blobToken,
     });
     return meta;
+  } catch (err) {
+    if (err instanceof BlobAccessError) {
+      throw new Error(
+        "مخزن Blob خاص (private) والتطبيق يحتاج رفعاً عاماً. من Vercel Dashboard افتح Storage ثم إعدادات الـ Blob store واسمح بالوصول العام ثم أعد النشر.",
+      );
+    }
+    throw err;
+  }
   }
 
   const dir = join(process.cwd(), "public", "audio");

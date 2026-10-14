@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob";
+import { BlobAccessError, del, put } from "@vercel/blob";
 import { addBundleToSandbox, createSandbox } from "@remotion/vercel";
 import { bundleRemotionProject } from "./src/app/api/render/helpers";
 
@@ -15,6 +15,29 @@ if (!blobToken) {
       "Attach one (Vercel Dashboard > Storage > Create > Blob) and redeploy.",
   );
   process.exit(0);
+}
+
+// فحص مبكر: هل يقبل الـ store الرفع العام؟ نتأكد قبل حرق وقت sandbox (~40 ثانية).
+// التطبيق يخدم فيديوهات وصوتيات بروابط عامة، لذلك يحتاج store يقبل public access.
+const probeKey = `snapshot-cache/.write-probe.json`;
+try {
+  const probe = await put(probeKey, JSON.stringify({ ok: true, at: Date.now() }), {
+    access: "public",
+    contentType: "application/json",
+    addRandomSuffix: false,
+    token: blobToken,
+  });
+  await del(probe.url, { token: blobToken });
+} catch (err) {
+  if (err instanceof BlobAccessError) {
+    console.warn(
+      "[create-snapshot] Skipping: Blob store is private but this app uploads with public access. " +
+        "Fix: Vercel Dashboard > Storage > your Blob store > Settings > allow public access (or attach a public store), then redeploy. " +
+        "Build continues without a sandbox snapshot — preview works, but /api/render needs the fix.",
+    );
+    process.exit(0);
+  }
+  throw err;
 }
 
 const sandbox = await createSandbox({
