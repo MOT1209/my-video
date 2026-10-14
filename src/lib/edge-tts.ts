@@ -1,10 +1,17 @@
 import { Buffer } from "node:buffer";
+import { randomBytes } from "node:crypto";
 import { WebSocket } from "ws";
 import type { WordCaption } from "../../types/shorts";
+import { generateSecMsGecV2 } from "./sec-ms-gec";
 
 const BASE_URL = "speech.platform.bing.com/consumer/speech/synthesize/readaloud";
 const TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
-const WS_URL = `wss://${BASE_URL}/edge/v1?TrustedClientToken=${TOKEN}`;
+const WS_BASE = `wss://${BASE_URL}/edge/v1?TrustedClientToken=${TOKEN}`;
+/** صيغة Microsoft الحالية: 2-<Chromium full version> (مطابق edge-tts الرسمية) */
+const SEC_MS_GEC_VERSION = "2-143.0.3650.75";
+const USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+  "(KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0";
 
 export interface EdgeSynthesis {
   audio: Buffer;
@@ -61,14 +68,22 @@ export function synthesizeWithWordBoundaries(
       reject(err);
     };
 
-    const ws = new WebSocket(`${WS_URL}&ConnectionId=${uuid()}`, {
-      host: "speech.platform.bing.com",
-      origin: "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.66 Safari/537.36 Edg/103.0.1264.44",
+    const ws = new WebSocket(
+      `${WS_BASE}&Sec-MS-GEC=${generateSecMsGecV2(TOKEN)}` +
+        `&Sec-MS-GEC-Version=${SEC_MS_GEC_VERSION}&ConnectionId=${uuid()}`,
+      {
+        host: "speech.platform.bing.com",
+        origin: "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
+        headers: {
+          "User-Agent": USER_AGENT,
+          "Accept-Encoding": "gzip, deflate, br, zstd",
+          "Accept-Language": "en-US,en;q=0.9",
+          Pragma: "no-cache",
+          "Cache-Control": "no-cache",
+          Cookie: `muid=${randomBytes(16).toString("hex").toUpperCase()};`,
+        },
       },
-    });
+    );
 
     const audioChunks: Buffer[] = [];
     const boundaries: { word: string; start: number; end: number }[] = [];
