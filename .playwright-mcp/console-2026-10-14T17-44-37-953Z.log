@@ -1,3 +1,0 @@
-[    4598ms] [WARNING] WARNING: You enabled autoPlay on an unmuted <Player /> and the browser did not allow the video to be started. Remotion muted the <Player /> so it can play. To properly handle this, either set the `muted` prop or remove the `autoPlay` prop @ https://my-video-kappa-one.vercel.app/_next/static/immutable/chunks/28081s4g5vsc4.js:12
-[  159706ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://my-video-kappa-one.vercel.app/api/tts:0
-[  224450ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://my-video-kappa-one.vercel.app/api/tts:0
