@@ -13,6 +13,8 @@ import {
   SHORT_HEIGHT,
   SHORT_WIDTH,
   ShortTheme,
+  CAPTION_STYLE_LABELS,
+  type CaptionStyle,
   type ShortProps,
   type WordCaption,
 } from "../../types/shorts";
@@ -40,12 +42,22 @@ const THEME_LABELS: { id: ShortTheme; label: string }[] = [
   { id: "quotes", label: "اقتباسات" },
 ];
 
+const CAPTION_STYLE_ORDER: CaptionStyle[] = [
+  "pop",
+  "karaoke",
+  "slide-up",
+  "glow",
+];
+
 export const ShortsEditor: React.FC = () => {
   const [hook, setHook] = useState(defaultShortProps.hook);
   const [scenesText, setScenesText] = useState(
     defaultShortProps.scenes.map((s) => s.text).join("\n"),
   );
   const [theme, setTheme] = useState<ShortTheme>("dark");
+  const [captionStyle, setCaptionStyle] = useState<CaptionStyle>(
+    defaultShortProps.captionStyle,
+  );
   const [voiceId, setVoiceId] = useState<string>(defaultShortProps.voiceId);
   const [tts, setTts] = useState<TtsStatus>({ status: "idle" });
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -79,10 +91,22 @@ export const ShortsEditor: React.FC = () => {
       audioUrl,
       audioDurationSec,
       captions,
+      captionStyle,
+      backgroundMedia: null,
       musicUrl: null,
       musicDuck: 0.15,
     }),
-    [hook, scenes, theme, lang, voiceId, audioUrl, audioDurationSec, captions],
+    [
+      hook,
+      scenes,
+      theme,
+      lang,
+      voiceId,
+      audioUrl,
+      audioDurationSec,
+      captions,
+      captionStyle,
+    ],
   );
 
   const durationInFrames = useMemo(
@@ -194,6 +218,28 @@ export const ShortsEditor: React.FC = () => {
                 ))}
               </optgroup>
             </select>
+          </div>
+        </div>
+
+        <Spacing />
+
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium">أسلوب تحريك الكابشن</label>
+          <select
+            value={captionStyle}
+            onChange={(e) =>
+              setCaptionStyle(e.currentTarget.value as CaptionStyle)
+            }
+            className="rounded bg-background p-2 text-sm border outline-none"
+          >
+            {CAPTION_STYLE_ORDER.map((id) => (
+              <option key={id} value={id}>
+                {CAPTION_STYLE_LABELS[id]}
+              </option>
+            ))}
+          </select>
+          <div className="text-xs opacity-60">
+            يظهر الأثر بعد توليد الصوت، لأن التوقيت يعتمد على كلمات الصوت.
           </div>
         </div>
 

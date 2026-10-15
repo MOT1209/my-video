@@ -5,7 +5,8 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import type { ShortProps, ShortTheme } from "../../../types/shorts";import { ShortBackground } from "./Background";
+import type { ShortProps, ShortTheme } from "../../../types/shorts";
+import { ShortBackground } from "./Background";
 import { HookTitle } from "./HookTitle";
 import { SceneCard, ShortProgress } from "./SceneCard";
 import { WordCaptions } from "./WordCaptions";
@@ -28,12 +29,14 @@ export const ShortMain: React.FC<ShortProps> = ({
   lang,
   audioUrl,
   captions,
+  captionStyle,
+  backgroundMedia,
   musicUrl,
   musicDuck,
 }) => {
   return (
     <AbsoluteFill>
-      <ShortBackground theme={theme} />
+      <ShortBackground theme={theme} media={backgroundMedia} />
 
       {/* عنوان الخطاف: أول 2.5 ثانية */}
       <Sequence durationInFrames={HOOK_FRAMES}>
@@ -47,8 +50,13 @@ export const ShortMain: React.FC<ShortProps> = ({
         theme={theme}
       />
 
-      {/* الكابشن كلمة-كلمة */}
-      <WordCaptions captions={captions} lang={lang} accent={ACCENTS[theme]} />
+      {/* الكابشن كلمة-كلمة مع تحريك */}
+      <WordCaptions
+        captions={captions}
+        lang={lang}
+        accent={ACCENTS[theme]}
+        style={captionStyle}
+      />
 
       {/* الصوت */}
       {audioUrl ? <Audio src={audioUrl} /> : null}

@@ -21,6 +21,31 @@ export type ShortTheme = z.infer<typeof ShortTheme>;
 export const ShortLang = z.enum(["ar", "en"]);
 export type ShortLang = z.infer<typeof ShortLang>;
 
+/** أنماط تحريك الكابشن — كل نمط له منطق حركة مختلف داخل WordCaptions */
+export const CaptionStyle = z.enum(["pop", "karaoke", "slide-up", "glow"]);
+export type CaptionStyle = z.infer<typeof CaptionStyle>;
+
+export const CAPTION_STYLE_LABELS: Record<CaptionStyle, string> = {
+  pop: "قفزة (pop)",
+  karaoke: "كاريوكي",
+  "slide-up": "انزلاق (slide-up)",
+  glow: "توهج (glow)",
+};
+
+/** خلفية الفيديو: ثيم CSS فقط، أو صورة/فيديو مع تعتيم وحركة Ken Burns */
+export const BackgroundMedia = z
+  .object({
+    type: z.enum(["image", "video"]),
+    url: z.string().url(),
+    /** تكبير Ken Burns من 1.0 إلى هذا الرقم */
+    zoomTo: z.number().min(1).max(1.4).default(1.08),
+    /** شدة التعتيم فوق الوسائط لضمان قراءة النص */
+    dim: z.number().min(0).max(0.9).default(0.45),
+  })
+  .nullable()
+  .default(null);
+export type BackgroundMedia = z.infer<typeof BackgroundMedia>;
+
 /** أصوات Edge-TTS الافتراضية (تعمل بدون مفتاح) */
 export const AR_VOICES = [
   { id: "ar-SA-ZariyahNeural", label: "عربي (سعودية) — زارِية", gender: "Female" },
@@ -60,6 +85,10 @@ export const ShortProps = z.object({
   audioUrl: z.string().url().nullable().default(null),
   audioDurationSec: z.number().min(0).max(SHORT_MAX_SECONDS).nullable().default(null),
   captions: z.array(WordCaption).max(600).default([]),
+  /** نمط تحريك الكابشن */
+  captionStyle: CaptionStyle.default("pop"),
+  /** خلفية متحركة (صورة/فيديو) فوق الثيم — اختياري */
+  backgroundMedia: BackgroundMedia,
   musicUrl: z.string().url().nullable().default(null),
   musicDuck: z.number().min(0).max(1).default(0.15),
 });
@@ -78,6 +107,8 @@ export const defaultShortProps: ShortProps = {
   audioUrl: null,
   audioDurationSec: null,
   captions: [],
+  captionStyle: "pop",
+  backgroundMedia: null,
   musicUrl: null,
   musicDuck: 0.15,
 };

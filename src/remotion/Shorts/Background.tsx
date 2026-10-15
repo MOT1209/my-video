@@ -1,6 +1,13 @@
 import React from "react";
-import { AbsoluteFill } from "remotion";
-import type { ShortTheme } from "../../../types/shorts";
+import {
+  AbsoluteFill,
+  Img,
+  OffthreadVideo,
+  interpolate,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
+import type { BackgroundMedia, ShortTheme } from "../../../types/shorts";
 
 export interface ShortPalette {
   bg: string;
@@ -93,10 +100,24 @@ const THEMES: Record<ShortTheme, ShortPalette> = {
 
 export const shortPalette = (theme: ShortTheme): ShortPalette => THEMES[theme];
 
-export const ShortBackground: React.FC<{ theme: ShortTheme }> = ({ theme }) => {
+/**
+ * حبيبات فيلمية (film grain) كطبقة SVG ثابتة.
+ * ثابتة عمداً: لا تُعاد رسمها كل إطار — كلفة شبه صفر.
+ */
+const GRAIN_URL =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
+
+export const ShortBackground: React.FC<{
+  theme: ShortTheme;
+  /** صورة أو فيديو خلفي مع حركة Ken Burns وطبقة تعتيم — اختياري */
+  media?: BackgroundMedia;
+}> = ({ theme, media = null }) => {
   const t = THEMES[theme];
   return (
     <AbsoluteFill style={{ backgroundColor: t.bg }}>
+      {/* الوسائط المتحركة إن وُجدت — وإلا يبقى الثيم CSS فقط */}
+      {media ? <MediaLayer media={media} /> : null}
+
       {/* توهج علوي */}
       <AbsoluteFill
         style={{
@@ -110,9 +131,61 @@ export const ShortBackground: React.FC<{ theme: ShortTheme }> = ({ theme }) => {
         }}
       />
       {/* vignette لزيادة تباين النص */}
+      <AbsoluteFill style={{ background: t.vignette }} />
+      {/* حبيبات فيلمية خفيفة فوق كل شيء */}
       <AbsoluteFill
         style={{
-          background: t.vignette,
+          backgroundImage: GRAIN_URL,
+          opacity: 0.045,
+          mixBlendMode: "overlay",
+        }}
+      />
+    </AbsoluteFill>
+  );
+};
+
+/* ------------------------------------------------------------------ *
+ * طبقة الوسائط: صورة/فيديو + حركة Ken Burns + تعتيم
+ * ------------------------------------------------------------------ */
+
+const MediaLayer: React.FC<{ media: NonNullable<BackgroundMedia> }> = ({
+  media,
+}) => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+
+  // حركة Ken Burns: تكبير تدريجي ومنتظم عبر مدة الفيديو كاملة
+  const scale = interpolate(
+    frame,
+    [0, Math.max(1, durationInFrames)],
+    [1, media.zoomTo],
+    { extrapolateRight: "clamp" },
+  );
+
+  const sharedStyle: React.CSSProperties = {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    transform: `scale(${scale})`,
+    transformOrigin: "center center",
+  };
+
+  return (
+    <AbsoluteFill>
+      {media.type === "image" ? (
+        <Img src={media.url} style={sharedStyle} />
+      ) : (
+        <OffthreadVideo
+          src={media.url}
+          style={sharedStyle}
+          muted
+          transparent={false}
+        />
+      )}
+      {/* تعتيم يضمن بقاء النص مقروءاً فوق أي صورة */}
+      <AbsoluteFill
+        style={{
+          backgroundColor: `rgba(0,0,0,${media.dim})`,
         }}
       />
     </AbsoluteFill>
