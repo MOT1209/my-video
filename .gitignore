@@ -16,6 +16,8 @@ yarn-error.log*
 .env*
 # vercel
 .vercel
+# local-only compat shim: .claude/skills is a per-machine junction to .agents/skills
+.claude/
 # playwright MCP artifacts
 .playwright-mcp/
 paper-check.png
