@@ -79,6 +79,20 @@ export const RenderControls: React.FC<{
           <AlignEnd>
             <DownloadButton undo={undo} state={state}></DownloadButton>
           </AlignEnd>
+          <div
+            style={{
+              fontSize: 12,
+              opacity: 0.6,
+              marginTop: 8,
+              textAlign: "center",
+            }}
+          >
+            {state.metrics
+              ? state.cached
+                ? "من الكاش — نفس التكوين صُوّر قبلاً (بدون تكلفة تصيير)"
+                : `تكلفة التصيير التقديرية: $${state.metrics.estimatedCostUsd.toFixed(4)} خلال ${state.metrics.sandboxWallSeconds} ثانية`
+              : null}
+          </div>
         </>
       ) : null}
     </InputContainer>

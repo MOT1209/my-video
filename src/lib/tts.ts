@@ -7,6 +7,11 @@ import {
   SHORT_MAX_SECONDS,
   type WordCaption,
 } from "../../types/shorts";
+import {
+  isAzureConfigured,
+  isAzureVoice,
+  synthesizeAzure,
+} from "./azure-tts";
 import { synthesizeWithWordBoundaries } from "./edge-tts";
 
 /** حد الحماية: نص أطول من هذا يُرفض قبل طلب TTS */
@@ -78,6 +83,29 @@ export async function synthesizeNarration(input: {
     } catch (err) {
       lastError = err as Error;
       await new Promise((r) => setTimeout(r, attempt * 2000));
+    }
+  }
+
+  // الخطر رقم 1 في الخطة: Edge-TTS غير رسمي وقد ينكسر — إن المفتاحان
+  // الرسميان مهيأتان ننجح عبر Azure Speech لنفس الصوت.
+  if (isAzureConfigured() && isAzureVoice(input.voiceId)) {
+    try {
+      const { audio, captions, durationSec } = await synthesizeAzure(
+        text,
+        input.voiceId,
+      );
+      const capped = Math.min(durationSec, SHORT_MAX_SECONDS);
+      return {
+        audio,
+        captions: captions.filter((c) => c.start < capped),
+        durationSec: capped,
+        hash,
+      };
+    } catch (azureErr) {
+      throw new Error(
+        "تعذر الاتصال بخدمة التعليق الصوتي (فشل Edge-TTS ثم Azure الرسمية)." +
+          ` Edge: ${(lastError as Error)?.message ?? "؟"}; Azure: ${(azureErr as Error).message}`,
+      );
     }
   }
 

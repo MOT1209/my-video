@@ -1,7 +1,7 @@
 "use client";
 
 import { Player } from "@remotion/player";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AR_VOICES,
   buildNarrationText,
@@ -19,6 +19,10 @@ import {
   type WordCaption,
 } from "../../types/shorts";
 import { useRendering } from "../helpers/use-rendering";
+import {
+  usePersistEditor,
+  useSavedEditorState,
+} from "../hooks/use-editor-state";
 import { AlignEnd } from "./AlignEnd";
 import { Button } from "./Button";
 import { InputContainer } from "./Container";
@@ -64,6 +68,52 @@ export const ShortsEditor: React.FC = () => {
   const [audioDurationSec, setAudioDurationSec] = useState<number | null>(null);
   const [captions, setCaptions] = useState<WordCaption[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
+  /** رابط/موضوع لتوليد السكربت تلقائياً (المرحلة 2). */
+  const [scriptSource, setScriptSource] = useState("");
+  const [scriptLoading, setScriptLoading] = useState(false);
+  /** خلفية AI للفيديو كله (مرحلة 2 — صورة لكل فيديو وليس لكل مشهد). */
+  const [bgStatus, setBgStatus] = useState<
+    | { status: "idle" }
+    | { status: "loading" }
+    | { status: "ready"; cached: boolean; url: string }
+    | { status: "error"; message: string }
+  >({ status: "idle" });
+
+  /** حفظ/تحميل المحرّر: المحفوظات تُستبدل بعد أول hydration. */
+  const { saved, hydrated } = useSavedEditorState();
+  useEffect(() => {
+    if (!saved) {
+      return;
+    }
+    if (typeof saved.hook === "string") {
+      setHook(saved.hook);
+    }
+    if (typeof saved.scenesText === "string") {
+      setScenesText(saved.scenesText);
+    }
+    if (typeof saved.theme === "string") {
+      setTheme(saved.theme as ShortTheme);
+    }
+    if (typeof saved.captionStyle === "string") {
+      setCaptionStyle(saved.captionStyle as CaptionStyle);
+    }
+    if (typeof saved.voiceId === "string") {
+      setVoiceId(saved.voiceId);
+    }
+    if (typeof saved.scriptSource === "string") {
+      setScriptSource(saved.scriptSource);
+    }
+    // الصوت/الكابشن بمقدمات مرجعية: نعيد فقط الملفات المُوافق عليها
+    if (typeof saved.audioUrl === "string" && typeof saved.audioDurationSec === "number") {
+      setAudioUrl(saved.audioUrl);
+      setAudioDurationSec(saved.audioDurationSec);
+      setTts({ status: "ready", cached: false });
+    }
+    if (Array.isArray(saved.captions)) {
+      setCaptions(saved.captions);
+    }
+    // مرّة واحدة فقط بعد أول hydration — قصداً ولا يُعيد الكتابة حفظاً
+  }, [hydrated]);
 
   const scenes = useMemo(() => {
     return scenesText
@@ -92,7 +142,9 @@ export const ShortsEditor: React.FC = () => {
       audioDurationSec,
       captions,
       captionStyle,
-      backgroundMedia: null,
+      backgroundMedia: bgStatus.status === "ready"
+        ? { type: "image", url: bgStatus.url, zoomTo: 1.08, dim: 0.45 }
+        : null,
       musicUrl: null,
       musicDuck: 0.15,
     }),
@@ -106,6 +158,7 @@ export const ShortsEditor: React.FC = () => {
       audioDurationSec,
       captions,
       captionStyle,
+      bgStatus,
     ],
   );
 
@@ -114,7 +167,85 @@ export const ShortsEditor: React.FC = () => {
     [captions, audioDurationSec],
   );
 
+  /** حفظ الحالة بعدكل تغيير (debounce داخلي في hook). */
+  usePersistEditor(
+    {
+      hook,
+      scenesText,
+      theme,
+      captionStyle,
+      voiceId,
+      scriptSource,
+      audioUrl,
+      audioDurationSec,
+      captions,
+    },
+    hydrated,
+  );
+
   const { renderMedia, state, undo } = useRendering(SHORT_COMP_NAME, inputProps);
+
+  /** يستدعي /api/script ويملأ الخطاف + المشاهد من الرد. */
+  const generateScriptUI = async () => {
+    setFormError(null);
+    const src = scriptSource.trim();
+    if (!src) {
+      setFormError("أدخل رابط مقال أو موضوعاً أولاً");
+      return;
+    }
+    setScriptLoading(true);
+    try {
+      const isUrl = /^https?:\/\//i.test(src);
+      const res = await fetch("/api/script", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...(isUrl ? { url: src } : { topic: src }),
+          lang,
+        }),
+      });
+      const json = (await res.json()) as
+        | { type: "success"; data: { hook: string; scenes: Array<{ text: string }> } }
+        | { type: "error"; message: string };
+      if (json.type !== "success") {
+        throw new Error(json.message);
+      }
+      setHook(json.data.hook);
+      setScenesText(json.data.scenes.map((s) => s.text).join("\n"));
+      // الصوت القديم لم يعد مطابقاً للنص الجديد — يلزم إعادة التوليد
+      setTts({ status: "idle" });
+    } catch (err) {
+      setFormError((err as Error).message);
+    } finally {
+      setScriptLoading(false);
+    }
+  };
+
+  /** يستدعي /api/image ويضبط الخلفية، مع مراعاة rate-limit وغياب المفتاح. */
+  const generateBackground = async () => {
+    setFormError(null);
+    setBgStatus({ status: "loading" });
+    try {
+      const res = await fetch("/api/image", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: hook || scenes[0]?.text || "خلفية" }),
+      });
+      const json = (await res.json()) as
+        | { type: "success"; data: { url: string; cached: boolean } }
+        | { type: "error"; message: string };
+      if (json.type !== "success") {
+        throw new Error(json.message);
+      }
+      setBgStatus({
+        status: "ready",
+        cached: json.data.cached,
+        url: json.data.url,
+      });
+    } catch (err) {
+      setBgStatus({ status: "error", message: (err as Error).message });
+    }
+  };
 
   const generateAudio = async () => {
     setFormError(null);
@@ -176,6 +307,22 @@ export const ShortsEditor: React.FC = () => {
           />
           <div className="text-xs opacity-60">
             {scenes.length} مشاهد · {narrationText.length} حرف للتعليق
+          </div>
+          <div className="flex gap-2 items-center mt-1">
+            <input
+              value={scriptSource}
+              onChange={(e) => setScriptSource(e.currentTarget.value)}
+              maxLength={500}
+              placeholder="رابط مقال أو موضوع… (توليد سكربت AI)"
+              className="leading-[1.7] block w-full rounded bg-background p-2 text-xs border outline-none"
+            />
+            <Button
+              disabled={scriptLoading}
+              loading={scriptLoading}
+              onClick={generateScriptUI}
+            >
+              اقتراح سكربت
+            </Button>
           </div>
         </div>
 
@@ -241,6 +388,32 @@ export const ShortsEditor: React.FC = () => {
           <div className="text-xs opacity-60">
             يظهر الأثر بعد توليد الصوت، لأن التوقيت يعتمد على كلمات الصوت.
           </div>
+          <div className="flex gap-2 items-center mt-1">
+            {bgStatus.status === "ready" ? (
+              <>
+                <span className="text-xs opacity-70">
+                  ✅ خلفية {bgStatus.cached ? "من الكاش" : "AI"} جاهزة
+                </span>
+                <Button
+                  secondary
+                  onClick={() => setBgStatus({ status: "idle" })}
+                >
+                  إزالة الخلفية
+                </Button>
+              </>
+            ) : (
+              <Button
+                disabled={bgStatus.status === "loading"}
+                loading={bgStatus.status === "loading"}
+                onClick={generateBackground}
+              >
+                خلفية AI
+              </Button>
+            )}
+          </div>
+          {bgStatus.status === "error" ? (
+            <div className="text-xs text-red-400 mt-1">{bgStatus.message}</div>
+          ) : null}
         </div>
 
         <Spacing />
@@ -274,6 +447,13 @@ export const ShortsEditor: React.FC = () => {
             <AlignEnd>
               <DownloadButton undo={undo} state={state} />
             </AlignEnd>
+            <div className="text-xs opacity-60 mt-2">
+              {state.metrics
+                ? state.cached
+                  ? "من الكاش — نفس التكوين صُوّر قبلاً (بدون تكلفة تصيير)"
+                  : `تكلفة التصيير التقديرية: $${state.metrics.estimatedCostUsd.toFixed(4)} خلال ${state.metrics.sandboxWallSeconds} ثانية`
+                : null}
+            </div>
           </>
         ) : (
           <>

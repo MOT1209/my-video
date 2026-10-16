@@ -34,7 +34,7 @@ const handleTts = executeApi(TtsRequest, async (_req, body) => {
 
 /** 20 طلب صوت لكل IP كل 5 دقائق (حماية قبل النشر العام). */
 export const POST = async (req: Request) => {
-  const verdict = checkRateLimit(`tts:${clientIp(req)}`, 20, 5 * 60 * 1000);
+  const verdict = await checkRateLimit(`tts:${clientIp(req)}`, 20, 5 * 60 * 1000);
   if (!verdict.allowed) {
     return rateLimitedResponse(verdict.retryAfterSec);
   }

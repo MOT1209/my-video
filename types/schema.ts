@@ -31,5 +31,15 @@ export type RenderResponse =
 
 export type SSEMessage =
   | { type: "phase"; phase: string; progress: number; subtitle?: string }
-  | { type: "done"; url: string; size: number }
+  | {
+      type: "done";
+      url: string;
+      size: number;
+      /** true إذا أعاد الرابط من كاش ناتج التصيير */
+      cached?: boolean;
+      metrics?: {
+        sandboxWallSeconds: number;
+        estimatedCostUsd: number;
+      };
+    }
   | { type: "error"; message: string };

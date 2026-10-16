@@ -1,6 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { SSEMessage } from "../../types/schema";
 
+export interface RenderDoneMetrics {
+  sandboxWallSeconds: number;
+  estimatedCostUsd: number;
+}
+
 export type State =
   | {
       status: "init";
@@ -19,6 +24,8 @@ export type State =
       url: string;
       size: number;
       status: "done";
+      cached?: boolean;
+      metrics?: RenderDoneMetrics;
     };
 
 export const useRendering = (id: string, inputProps: unknown) => {
@@ -84,6 +91,8 @@ export const useRendering = (id: string, inputProps: unknown) => {
                 status: "done",
                 url: message.url,
                 size: message.size,
+                cached: message.cached,
+                metrics: message.metrics,
               });
               break;
             case "error":
