@@ -1,4 +1,10 @@
 {
   "framework": "nextjs",
-  "buildCommand": "turbo run build create-snapshot"
+  "buildCommand": "turbo run build create-snapshot",
+  "crons": [
+    {
+      "path": "/api/cron/retry-renders",
+      "schedule": "0 4 * * *"
+    }
+  ]
 }

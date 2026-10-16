@@ -359,8 +359,8 @@ function sha256Digest(data: Uint8Array): Uint8Array {
 
 function cs64Digest(data: Uint8Array, digest: Uint8Array): [number, number] {
   const view = new DataView(digest.buffer);
-  let keyA = u32(view.getUint32(0, true) | 1);
-  let keyB = u32(view.getUint32(4, true) | 1);
+  const keyA = u32(view.getUint32(0, true) | 1);
+  const keyB = u32(view.getUint32(4, true) | 1);
   const factors = [mul32(keyA, CS64_FACTOR), mul32(keyB, CS64_FACTOR)];
   const terms: number[] = CS64_COEFFICIENTS.map(([coefficient], index) =>
     mul32(coefficient, factors[index % 2] as number),

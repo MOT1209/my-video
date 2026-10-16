@@ -18,6 +18,7 @@ import {
   type ShortProps,
   type WordCaption,
 } from "../../types/shorts";
+import { AccountPanel } from "./AccountPanel";
 import { useRendering } from "../helpers/use-rendering";
 import {
   usePersistEditor,
@@ -79,6 +80,9 @@ export const ShortsEditor: React.FC = () => {
     | { status: "error"; message: string }
   >({ status: "idle" });
 
+  /** عنوان آخر مشروع حُمّل من الحساب (للعرض فقط). */
+  const [loadedTitle, setLoadedTitle] = useState<string | null>(null);
+
   /** حفظ/تحميل المحرّر: المحفوظات تُستبدل بعد أول hydration. */
   const { saved, hydrated } = useSavedEditorState();
   useEffect(() => {
@@ -114,6 +118,27 @@ export const ShortsEditor: React.FC = () => {
     }
     // مرّة واحدة فقط بعد أول hydration — قصداً ولا يُعيد الكتابة حفظاً
   }, [hydrated]);
+
+  /** يطبّق مشروعاً محمّلاً من حساب المستخدم على المحرّر كاملاً. */
+  const applyProject = (props: ShortProps, projectTitle: string) => {
+    setHook(props.hook);
+    setScenesText(props.scenes.map((s) => s.text).join("\n"));
+    setTheme(props.theme);
+    setCaptionStyle(props.captionStyle);
+    setVoiceId(props.voiceId);
+    setAudioUrl(props.audioUrl);
+    setAudioDurationSec(props.audioDurationSec);
+    setCaptions(props.captions);
+    setTts(
+      props.audioUrl ? { status: "ready", cached: false } : { status: "idle" },
+    );
+    setBgStatus(
+      props.backgroundMedia
+        ? { status: "ready", cached: false, url: props.backgroundMedia.url }
+        : { status: "idle" },
+    );
+    setLoadedTitle(projectTitle);
+  };
 
   const scenes = useMemo(() => {
     return scenesText
@@ -283,6 +308,9 @@ export const ShortsEditor: React.FC = () => {
     <div className="flex flex-col gap-8 md:flex-row md:items-start" dir="rtl">
       {/* المحرر */}
       <InputContainer>
+        {loadedTitle ? (
+          <div className="text-xs opacity-70 mb-2">مشروع محمّل: {loadedTitle}</div>
+        ) : null}
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium">الخطاف (أول ثانيتين)</label>
           <input
@@ -505,6 +533,11 @@ export const ShortsEditor: React.FC = () => {
         <div className="text-xs text-center opacity-60 py-2">
           معاينة 9:16 · {(durationInFrames / SHORT_FPS).toFixed(1)} ثانية
         </div>
+      </div>
+
+      {/* الحساب: المشاريع + السجل + الكريدت */}
+      <div className="w-full md:max-w-[360px] shrink-0">
+        <AccountPanel currentProps={inputProps} onLoad={applyProject} />
       </div>
     </div>
   );

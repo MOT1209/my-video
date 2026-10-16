@@ -1,6 +1,6 @@
 import { BlobAccessError, del, put } from "@vercel/blob";
 import { addBundleToSandbox, createSandbox } from "@remotion/vercel";
-import { bundleRemotionProject } from "./src/app/api/render/helpers";
+import { bundleRemotionProject } from "./src/lib/remotion-bundle";
 
 const getSnapshotBlobKey = () =>
   `snapshot-cache/${process.env.VERCEL_DEPLOYMENT_ID ?? "local"}.json`;
