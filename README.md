@@ -27,7 +27,7 @@
 
 ```bash
 npm run dev          # خادم التطوير
-npm test             # اختبارات الوحدة (bun test — حالياً 90 اختباراً عبر 15 ملفاً)
+npm test             # اختبارات الوحدة (bun test — حالياً 91 اختباراً عبر 15 ملفاً)
 npm run lint         # فحص ESLint (يستبعد .agents/ و .claude/)
 npm run cleanup-blobs            # عرض Blobs الأقدم من 30 يوم (dry-run)
 npm run cleanup-blobs -- --delete --older-than-days=7   # حذف فعلي

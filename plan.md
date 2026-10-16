@@ -315,7 +315,23 @@ UsageEvent (id, userId, kind: tts|image|render, units, at)
 |---|---|
 | `npx tsc --noEmit` | ✅ نظيف |
 | `npx eslint` (ملفات معدّلة) | ✅ نظيف |
-| `npm test` (bun) | ✅ 90/90 عبر 15 ملفاً |
+| `npm test` (bun) | ✅ 91/91 عبر 15 ملفاً |
 | `npm run build` (Next 16 + Turbopack) | ✅ نجح (شامل مسارات SaaS الجديدة) |
 
 > أُعيد التحقق في 2026-10-16: `tsc` و`eslint` (النطاق الكامل `src types scripts`) نظيفان — خطأا `sec-ms-gec.ts` القديمان أُصلحا ضمن التعديلات اللاحقة.
+
+---
+
+## الاستئناف — جلسة الغد (نقطة التوقف 2026-10-16 مساءً)
+
+- **الحالة**: `HEAD = 246f06f` مدفوع، الشجرة نظيفة، الفحوص خضراء (`tsc`/`eslint`/`bun test 91/91`/`build`).
+- **المفاتيح محلياً** (`.env.local` — مفحوص بلا كشف قيم): موجود فقط `BLOB_READ_WRITE_TOKEN`. **ناقص 11**: `UPSTASH_REDIS_REST_URL`، `UPSTASH_REDIS_REST_TOKEN`، `GEMINI_API_KEY`، `AZURE_SPEECH_KEY`، `AZURE_SPEECH_REGION`، `DATABASE_URL`، `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`، `CLERK_SECRET_KEY`، `STRIPE_SECRET_KEY`، `STRIPE_WEBHOOK_SECRET`، `CRON_SECRET`.
+- **قاعدة**: لا كلمات مرور ولا مفاتيح في المحادثة أبداً — تُلصق مباشرة في Vercel (تُشفَّر وتُخفى).
+
+### قائمة الغد (بالترتيب)
+
+- [ ] Vercel ← Settings ← Environment Variables (Production): أضف المفاتيح الناقصة أعلاه (Neon وUpstash عبر Storage ← Create يحقنان تلقائياً؛ `CRON_SECRET` قيمة عشوائية من `openssl rand -hex 32`) ثم **Redeploy**.
+- [ ] الهجرة على إنتاج Neon: `npx drizzle-kit migrate` (يحتاج `DATABASE_URL`).
+- [ ] Stripe (وضع Test): مفتاح + webhook إلى `/api/billing/webhook`، واشترِ حزمة تجريبية للتأكد من إضافة الكريدت.
+- [ ] جولة الدخان: دخول → تصيير (خصم 1 كريدت) → سطر `render-metrics` في السجلات → **غياب** تحذير "بلا مصادقة".
+- [ ] بعده (قرارات): سياسة الاحتفاظ/الحذف، معايرة أسعار الحزم مقابل $/video، وميزة القوالب الجاهزة (غير موجودة — الوحيدة الباقية من خطة المرحلة 4).
