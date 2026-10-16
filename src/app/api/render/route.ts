@@ -2,7 +2,11 @@ import { waitUntil } from "@vercel/functions";
 import { COMP_NAME, CompositionProps } from "../../../../types/constants";
 import { AnyRenderRequest } from "../../../../types/schema";
 import { SHORT_COMP_NAME, ShortProps } from "../../../../types/shorts";
-import { getRequestUser, unauthorizedResponse } from "../../../lib/auth";
+import {
+  getRequestUser,
+  unauthorizedResponse,
+  warnIfUnauthenticatedProduction,
+} from "../../../lib/auth";
 import { openBillingSession } from "../../../lib/billing-session";
 import { RENDER_CREDIT_COST } from "../../../lib/credits";
 import { findCachedRender, renderCachePath } from "../../../lib/render-cache";
@@ -44,6 +48,10 @@ export async function POST(req: Request) {
   const requestUser = await getRequestUser();
   if (!requestUser) {
     return unauthorizedResponse();
+  }
+  if (!requestUser.authenticated) {
+    // وضع محلي/بلا مفاتيح: نبّه مرة واحدة في الإنتاج حتى لا يُنسى الفخ مفتوحاً
+    warnIfUnauthenticatedProduction();
   }
 
   const ip = clientIp(req);

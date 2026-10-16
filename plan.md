@@ -1,7 +1,7 @@
 # خارطة الطريق التنفيذية — my-video
 
 > تاريخ التحديث: 2026-10-16
-> الحالة: قيد التنفيذ (المرحلة 3 >
+> الحالة: المراحل 1–3 منجزة؛ المرحلة 4 (SaaS) قيد التنفيذ
 
 ---
 
@@ -9,14 +9,14 @@
 
 | المحور | الحالة |
 |---|---|
-| التصيير | Remotion 4.0.535 + Vercel Sandbox مع **snapshot cache** جاهز (`src/app/api/render/restore-snapshot.ts:30`) و SSE للتقدم |
-| TTS | Edge-TTS غير رسمي + كاش بالـ hash + **WordBoundary events** تنتج `WordCaption[]` بالتوقيت (`src/lib/edge-tts.ts:129`) |
-| الكابشن | ✅ توقيت دقيق، ❌ **لا حركة إطلاقاً** (تبديل حالة فوري عند حدود الكلمة) |
-| الخلفيات | 5 ثيمات CSS ثابتة (تدرّجات + vignette) — لا صور، لا فيديو، لا حركة |
-| الذكاء الاصطناعي | **لا شيء**: لا LLM، لا توليد صور، لا تلخيص مقالات |
-| SaaS | لا قاعدة بيانات، لا مصادقة، لا اشتراكات، حالة العميل فقط |
-| الاختبارات | `bun test` (11 اختباراً) |
-| حدود المعدل | `/api/tts` = 20/5 دقائق، `/api/render` = 5/ساعة (ذاكرة محلية) |
+| التصيير | Remotion 4.0.535 + Vercel Sandbox مع **snapshot cache** وكاش ناتج حتمي (`src/lib/render-cache.ts`) وقياس $/video (`src/lib/render-metrics.ts`) و SSE للتقدم |
+| TTS | Edge-TTS + كاش بالـ hash + **WordBoundary events** تنتج `WordCaption[]` بالتوقيت (`src/lib/edge-tts.ts:129`) + **fallback رسمي** عبر Azure Speech (`src/lib/azure-tts.ts`) |
+| الكابشن | ✅ متحرك (4 أنماط: pop/karaoke/slide-up/glow عبر `spring` + `createTikTokStyleCaptions`) |
+| الخلفيات | 5 ثيمات CSS + Ken Burns للصور/الفيديو + **صور AI** عبر `/api/image` (Gemini + كاش content-hash) |
+| الذكاء الاصطناعي | ✅ `/api/script` (رابط/موضوع → سكربت عبر Gemini) + `/api/image` (خلفيات) + Azure fallback |
+| SaaS | شريحة localStorage + SaaS خادم منجز (Drizzle + billing/credits/projects/renders/transcribe + sign-in) |
+| الاختبارات | `bun test` (**90 اختباراً** عبر 15 ملفاً) |
+| حدود المعدل | `/api/tts` = 20/5 دقائق، `/api/render` = 5/ساعة — عبر **Upstash Redis** (موزّع) مع fallback للذاكرة محلياً |
 
 ---
 
@@ -212,6 +212,16 @@ UsageEvent (id, userId, kind: tts|image|render, units, at)
 | 2026-10-16 | المرحلة 2 — ‏fallback لـ Azure Speech الرسمي (يُلغي المخاطرة #1) | ✅ منجز |
 | 2026-10-16 | المرحلة 3 — ضبط ‏`concurrency/jpegQuality` حسب vCPU (بند #6) | ✅ منجز |
 | 2026-10-16 | المرحلة 4 — حفظ/تحميل حالة المحرّر محلياً (شريحة أولى من "حفظ المشاريع") | ✅ منجز |
+| 2026-10-16 | المرحلة 4 — SaaS الخادم (Drizzle + billing/credits/projects/renders/transcribe + sign-in) | ✅ منجز (ملتزَم) |
+
+### ملاحظات التنفيذ (المرحلة 4 — SaaS الخادم)
+
+- الهوية (`src/lib/auth.ts`): مفاتيح Clerk موجودة → غير المسجّل يُرفض 401؛ بلا مفاتيح → مستخدم محلي (`local-dev-user`) بنفس سلوك ما قبل المرحلة 4. قرار مقصود وموثق — والنشر بلا مفاتيح يبقي `/api/render` مفتوحاً، لذا أُضيف `warnIfUnauthenticatedProduction()` (تحذير مرة واحدة في سجل الإنتاج).
+- الكريدت (`src/lib/credits.ts` + `billing-session.ts`): تصيير = 1، ترحيب = 3، والحزم 10/$5 و30/$12 و100/$35 عبر `price_data` لحظياً (بلا Products يدوية). الخصم بعد تأكد غياب الكاش، والاسترجاع تلقائي عند الفشل. بلا `DATABASE_URL` → الكريدت غير مفروض + تحذير.
+- قاعدة البيانات (`src/lib/db/` + `drizzle/0000_init.sql`): تُطبَّق بـ `npx drizzle-kit migrate` بعد ضبط `DATABASE_URL`. المسارات بلا قاعدة ترد 503 إرشادياً.
+- الفوترة: الـ webhook يتحقق من التوقيع (`constructEventAsync`) ويرفض غيابه؛ الـ checkout يحتاج `STRIPE_SECRET_KEY`.
+- الطابور (`/api/cron/retry-renders`): `CRON_SECRET` إلزامي (Bearer) وإلا 503 — يُضبط في Vercel Cron.
+- بنود مفتوحة: سياسة الاحتفاظ/حذف البيانات، ومعايرة أسعار الحزم مقابل $/video المقاس فعلياً.
 
 ### ملاحظات التنفيذ (المرحلة 4 — شريحة حفظ المشاريع)
 
@@ -305,7 +315,7 @@ UsageEvent (id, userId, kind: tts|image|render, units, at)
 |---|---|
 | `npx tsc --noEmit` | ✅ نظيف |
 | `npx eslint` (ملفات معدّلة) | ✅ نظيف |
-| `npm test` (bun) | ✅ 26/26 |
-| `npm run build` (Next 16 + Turbopack) | ✅ نجح |
+| `npm test` (bun) | ✅ 90/90 عبر 15 ملفاً |
+| `npm run build` (Next 16 + Turbopack) | ✅ نجح (شامل مسارات SaaS الجديدة) |
 
-> ملاحظة: `npm run lint` على المشروع كاملاً يُظهر خطأين قديمين في `src/lib/sec-ms-gec.ts:362-363` (`prefer-const`) — غير مرتبطة بهذه المرحلة.
+> أُعيد التحقق في 2026-10-16: `tsc` و`eslint` (النطاق الكامل `src types scripts`) نظيفان — خطأا `sec-ms-gec.ts` القديمان أُصلحا ضمن التعديلات اللاحقة.

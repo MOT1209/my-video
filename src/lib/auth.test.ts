@@ -1,5 +1,11 @@
 import { expect, test } from "bun:test";
-import { getRequestUser, isAuthConfigured, LOCAL_USER_ID } from "./auth";
+import {
+  getRequestUser,
+  isAuthConfigured,
+  LOCAL_USER_ID,
+  resetAuthModeWarningForTests,
+  warnIfUnauthenticatedProduction,
+} from "./auth";
 
 /**
  * الاختبار يغطّي المسار الآمن فقط: الوضع المحلي (بلا مفاتيح) لا يلمس
@@ -55,4 +61,57 @@ test("بلا مفاتيح: الطلب يُعاد كمستخدم محلي غير 
       authenticated: false,
     });
   });
+});
+
+test("التحذير يُطلق مرة واحدة في الإنتاج بلا مفاتيح فقط", async () => {
+  const savedNodeEnv = process.env.NODE_ENV;
+  /** NODE_ENV للقراءة فقط في الأنواع — نغيّرها عبر إعادة التعريف. */
+  const setNodeEnv = (value: string | undefined) => {
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value,
+      configurable: true,
+      writable: true,
+      enumerable: true,
+    });
+  };
+  const savedWarn = console.warn;
+  const calls: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    calls.push(args);
+  };
+  try {
+    // إنتاج بلا مفاتيح → تحذير واحد مهما تكرر الاستدعاء
+    setNodeEnv("production");
+    await withEnv({}, async () => {
+      resetAuthModeWarningForTests();
+      warnIfUnauthenticatedProduction();
+      warnIfUnauthenticatedProduction();
+      expect(calls.length).toBe(1);
+      expect(String(calls[0][0])).toMatch(/بلا مصادقة/);
+    });
+    // غير الإنتاج → صمت تام
+    setNodeEnv("test");
+    await withEnv({}, async () => {
+      resetAuthModeWarningForTests();
+      warnIfUnauthenticatedProduction();
+      expect(calls.length).toBe(1);
+    });
+    // مفاتيح موجودة → صمت حتى في الإنتاج
+    setNodeEnv("production");
+    await withEnv(
+      {
+        CLERK_SECRET_KEY: "sk_test_1",
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_1",
+      },
+      async () => {
+        resetAuthModeWarningForTests();
+        warnIfUnauthenticatedProduction();
+        expect(calls.length).toBe(1);
+      },
+    );
+  } finally {
+    console.warn = savedWarn;
+    setNodeEnv(savedNodeEnv);
+    resetAuthModeWarningForTests();
+  }
 });

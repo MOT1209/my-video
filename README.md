@@ -19,7 +19,7 @@
 
 ## حدود الاستخدام (Rate Limiting)
 
-حماية أولية لكل IP (ذاكرة محلية — عند التوسع انقل إلى Vercel KV):
+حماية لكل IP عبر **Upstash Redis** (موزّع عبر النسخ، مع fallback للذاكرة محلياً):
 - الصوت `/api/tts`: **20 طلب / 5 دقائق** — الرد 429 مع رسالة عربية و`Retry-After`.
 - التصيير `/api/render`: **5 عمليات / ساعة** (التصيير مكلف: دقائق sandbox).
 
@@ -27,7 +27,7 @@
 
 ```bash
 npm run dev          # خادم التطوير
-npm test             # اختبارات الوحدة (bun test — حالياً 11 اختباراً)
+npm test             # اختبارات الوحدة (bun test — حالياً 90 اختباراً عبر 15 ملفاً)
 npm run lint         # فحص ESLint (يستبعد .agents/ و .claude/)
 npm run cleanup-blobs            # عرض Blobs الأقدم من 30 يوم (dry-run)
 npm run cleanup-blobs -- --delete --older-than-days=7   # حذف فعلي
@@ -43,10 +43,30 @@ npx remotion studio  # Remotion Studio
 | `src/app/api/tts/` | توليد الصوت + الكاش |
 | `src/lib/edge-tts.ts` | عميل Edge TTS (WebSocket + حدود الكلمات) |
 | `src/lib/sec-ms-gec.ts` | توكن Sec-MS-GEC v2 (نقل مطابق للمكتبة الرسمية، مُغطى باختبارات) |
-| `src/lib/rate-limit.ts` | حد المعدل لكل IP |
+| `src/lib/rate-limit.ts` | حد المعدل (Upstash Redis + fallback محلي) |
+| `src/lib/azure-tts.ts` | fallback رسمي للصوت (يعمل مع `AZURE_SPEECH_KEY/REGION`) |
+| `src/app/api/script/` | رابط/موضوع ← سكربت عبر Gemini |
+| `src/app/api/image/` | خلفيات AI + كاش content-hash |
+| `src/lib/render-cache.ts` | كاش ناتج التصيير (مفتاح حتمي) |
+| `src/lib/render-metrics.ts` | قياس $/video |
 | `src/app/api/render/` | التصيير عبر Sandbox + رفع Blob (SSE) |
 | `scripts/cleanup-blobs.ts` | تنظيف الملفات القديمة من Blob |
 | `types/shorts.ts` | الأنواع والقواعد (60 ثانية، 12 مشهد) |
+
+## مسارات SaaS (المرحلة 4)
+
+| المسار | الدور |
+|---|---|
+| `src/app/api/projects/` + `[id]` | حفظ/تحميل/حذف مشاريع المستخدم |
+| `src/app/api/renders/` | سجل التصييرات وإعادة التنزيل |
+| `src/app/api/credits/` | رصيد الكريدت الحالي |
+| `src/app/api/billing/checkout` | إنشاء جلسة Stripe لشراء حزمة |
+| `src/app/api/billing/webhook` | استقبال أحداث Stripe (بتحقق التوقيع) |
+| `src/app/api/cron/retry-renders` | إعادة محاولة التصييرات الفاشلة (يحميه `CRON_SECRET`) |
+| `src/app/api/transcribe/` | تحويل صوت مرفوع إلى نص (Gemini ASR) |
+| `src/app/sign-in/` | تسجيل الدخول (Clerk) |
+
+نموذج الكريدت (`src/lib/credits.ts`): تصيير واحد = 1 كريدت، 3 مجانية عند التسجيل، والحزم 10 بـ$5 و30 بـ$12 و100 بـ$35. الكريدت يُخصم بعد تأكد غياب الكاش ويُرجَع عند فشل التصيير.
 
 ## اعتبارات الإنتاج
 
@@ -58,6 +78,16 @@ npx remotion studio  # Remotion Studio
 
 1. من لوحة التحكم: Storage ← Create ← Blob، وأنشئ store بإعداد **public** واربطه بالمشروع.
 2. يُضاف `BLOB_READ_WRITE_TOKEN` تلقائياً لبيئات المشروع — ثم أعد النشر.
+
+## النشر الكامل (ميزات الحساب)
+
+كل بند اختياري — غيابه يعطّل ميزته برسالة إرشادية لا بعطل:
+
+1. **Neon**: أنشئ قاعدة من console.neon.tech، أضف `DATABASE_URL`، ثم طبّق الهجرة: `npx drizzle-kit migrate`.
+2. **Clerk**: أضف `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` و`CLERK_SECRET_KEY` — بدونهما يبقى `/api/render` مفتوحاً لأي زائر (يظهر تحذير في السجلات).
+3. **Stripe**: أضف `STRIPE_SECRET_KEY` ووجّه الـ webhook إلى `/api/billing/webhook` مع `STRIPE_WEBHOOK_SECRET`.
+4. **Upstash**: أضف `UPSTASH_REDIS_REST_URL` و`UPSTASH_REDIS_REST_TOKEN` للحد والقفل الموزعين.
+5. **Cron**: أضف `CRON_SECRET` واضبط مهمة Vercel Cron على `/api/cron/retry-renders`.
 
 ## التطوير المحلي
 

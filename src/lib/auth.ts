@@ -58,6 +58,30 @@ export function unauthorizedResponse(): NextResponse {
   );
 }
 
+let authModeWarned = false;
+
+/**
+ * تحذير مرة واحدة عندما يستقبل مسار مكلف طلباً غير مصادَق في الإنتاج:
+ * يعني ذلك أن مفاتيح Clerk غائبة وأن التصيير مفتوح لأي زائر (خطر تكلفة).
+ * في التطوير المحلي لا تحذير — الوضع المفتوح مقصود هناك.
+ */
+export function warnIfUnauthenticatedProduction(): void {
+  if (authModeWarned) {
+    return;
+  }
+  if (process.env.NODE_ENV === "production" && !isAuthConfigured()) {
+    authModeWarned = true;
+    console.warn(
+      "auth: يعمل /api/render بلا مصادقة (مفاتيح Clerk غائبة) — التصيير مفتوح لأي زائر. أضف مفاتيح Clerk لحماية التكلفة.",
+    );
+  }
+}
+
+/** للاختبار فقط — يُصفّر علم التحذير لمرة واحدة. */
+export function resetAuthModeWarningForTests(): void {
+  authModeWarned = false;
+}
+
 /** رد واضح عند طلب ميزة تحتاج قاعدة بيانات غير مهيأة. */
 export function databaseNotConfiguredResponse(): NextResponse {
   return NextResponse.json(
