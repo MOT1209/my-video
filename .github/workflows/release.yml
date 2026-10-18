@@ -157,6 +157,8 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    env:
+      VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v7
@@ -200,7 +202,7 @@ jobs:
 
       - name: Scan Release Binaries with VirusTotal
         id: virustotal
-        if: secrets.VIRUSTOTAL_API_KEY != ''
+        if: env.VIRUSTOTAL_API_KEY != ''
         continue-on-error: true
         env:
           VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
