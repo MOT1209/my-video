@@ -3,6 +3,7 @@
   "description": "King Browser — open-source desktop browser with precise human control over an AI agent (OpenCode) driving the web",
   "author": "King Browser contributors (derived from Nova Browser by unitybtw — see THIRD_PARTY_LICENSES.md)",
   "license": "MIT",
+  "homepage": "https://github.com/MOT1209/my-video",
   "private": true,
   "version": "0.0.1",
   "type": "module",

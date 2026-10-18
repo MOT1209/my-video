@@ -150,6 +150,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
+  // King_Browser lives inside a checkout whose root has its own
+  // postcss.config.mjs (the sibling website). Vite searches upward for a
+  // PostCSS config, so a CI build that only installed King_Browser's
+  // node_modules tries to load that file and dies on its unresolved plugins.
+  // An inline empty config pins PostCSS to this project; Tailwind is handled
+  // by the @tailwindcss/vite plugin above regardless.
+  css: {
+    postcss: {
+      plugins: []
+    }
+  },
   server: {
     port: 5173,
     strictPort: true,
