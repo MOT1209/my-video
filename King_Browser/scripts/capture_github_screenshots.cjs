@@ -44,7 +44,7 @@ app.whenReady().then(async () => {
     {
       name: 'sync.png',
       url: `${baseUrl}/?demo=true&feature=sync&bg=aurora_waves`,
-      desc: 'Nova Sync - Cloud Sync Interface'
+      desc: 'King Sync - Cloud Sync Interface'
     }
   ];
 

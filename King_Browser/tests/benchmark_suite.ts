@@ -1,5 +1,5 @@
 /**
- * Nova Browser - Microbenchmark & React State Stress Test Suite
+ * King Browser - Microbenchmark & React State Stress Test Suite
  * Measures empirical in-memory micro-metrics: React Tab State throughput,
  * V8 runtime memory allocation, fast domain lookup latency, and bundle chunk sizes.
  */
@@ -11,7 +11,7 @@ import * as path from 'path';
 interface BenchmarkResult {
   suite: string;
   metric: string;
-  novaValue: number | string;
+  kingValue: number | string;
   unit: string;
   description: string;
 }
@@ -19,11 +19,11 @@ interface BenchmarkResult {
 const results: BenchmarkResult[] = [];
 
 function recordBenchmark(suite: string, metric: string, value: number | string, unit: string, desc: string) {
-  results.push({ suite, metric, novaValue: value, unit, description: desc });
+  results.push({ suite, metric, kingValue: value, unit, description: desc });
 }
 
 console.log('================================================================');
-console.log('       NOVA BROWSER - OFFICIAL PERFORMANCE BENCHMARK SUITE       ');
+console.log('       KING BROWSER - OFFICIAL PERFORMANCE BENCHMARK SUITE       ');
 console.log('================================================================\n');
 
 // 1. Tab Allocation & Virtualization Throughput
@@ -35,7 +35,7 @@ const startTabCreation = performance.now();
 for (let i = 0; i < TAB_COUNT; i++) {
   tabs.push({
     id: `tab_${i}_${Date.now()}`,
-    url: i % 2 === 0 ? 'https://news.ycombinator.com' : 'nova://newtab',
+    url: i % 2 === 0 ? 'https://news.ycombinator.com' : 'king://newtab',
     title: `Tab ${i}`,
     isSuspended: false
   });
@@ -85,7 +85,7 @@ const testUrls = [
   'https://facebook.com/tr/?id=123&ev=PageView',
   'https://c.amazon-adsystem.com/aax2/apstag.js',
   'https://cdn.segment.com/analytics.js/v1/key/analytics.min.js',
-  'https://api.github.com/repos/novabrowser/nova',
+  'https://api.github.com/repos/MOT1209/my-video',
   'https://en.wikipedia.org/wiki/Web_browser',
   'https://news.ycombinator.com/item?id=123456',
   'https://docs.anthropic.com/en/docs/overview'

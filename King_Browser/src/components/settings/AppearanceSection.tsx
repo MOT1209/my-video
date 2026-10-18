@@ -263,7 +263,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {[
-                    { id: 'default', name: 'Classic Slate', desc: 'Default Nova aesthetic', darkPreview: '#151122', lightPreview: '#f1f5f9', badge: 'Default' },
+                    { id: 'default', name: 'Classic Slate', desc: 'Default King aesthetic', darkPreview: '#151122', lightPreview: '#f1f5f9', badge: 'Default' },
                     { id: 'midnight', name: 'Midnight Navy', desc: 'Deep galactic space blue', darkPreview: '#0a0f1d', lightPreview: '#eef3f9' },
                     { id: 'cyberpunk', name: 'Cyberpunk Violet', desc: 'Futuristic neon purple tone', darkPreview: '#0d071a', lightPreview: '#f7f2fe' },
                     { id: 'forest', name: 'Emerald Forest', desc: 'Rich organic botanical green', darkPreview: '#04140e', lightPreview: '#f0f7f4' },

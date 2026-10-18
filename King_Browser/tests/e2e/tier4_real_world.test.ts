@@ -52,7 +52,7 @@ async function runTier4Tests() {
     const rawButtons = hasCancel ? [options?.confirmLabel || 'OK', options!.cancelLabel!] : [options?.confirmLabel || 'OK'];
     const buttons = rawButtons.map(b => String(b || '').slice(0, 100));
     return {
-      title: String(options?.title || (hasCancel ? 'Confirmation' : 'Nova Browser')).slice(0, 200),
+      title: String(options?.title || (hasCancel ? 'Confirmation' : 'King Browser')).slice(0, 200),
       message: String(options?.message || '').slice(0, 4000),
       detail: options?.detail ? String(options.detail).slice(0, 4000) : undefined,
       buttons

@@ -46,10 +46,10 @@ export const GeneralSection: React.FC<GeneralSectionProps> = ({
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       <section>
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">About Nova</h2>
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 border-b border-slate-200 dark:border-slate-800 pb-2">About King</h2>
         <div className="premium-card bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/50 p-6 flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Nova Browser</h3>
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">King Browser</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">Version {appVersion} (Open Source Edition)</p>
           </div>
           <UpdateWidget />

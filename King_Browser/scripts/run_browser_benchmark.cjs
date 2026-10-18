@@ -7,7 +7,7 @@ const WebSocket = globalThis.WebSocket || (() => { try { return require('ws'); }
 
 const ROOT = path.resolve(__dirname, '..');
 const FIXTURE = path.join(ROOT, 'scripts', 'benchmark_fixture.html');
-const RUNS = Number(process.env.NOVA_BENCHMARK_RUNS || 3);
+const RUNS = Number(process.env.KING_BENCHMARK_RUNS || 3);
 const WAIT_TIMEOUT_MS = 30000;
 const fixtureUrl = `file://${FIXTURE}`;
 
@@ -41,7 +41,7 @@ const browsers = [
     ]
   },
   {
-    name: 'Nova Electron renderer',
+    name: 'King Electron renderer',
     binary: require('electron'),
     args: (profile, port) => [
       path.join(ROOT, 'scripts', 'electron_benchmark_host.cjs'),
@@ -150,7 +150,7 @@ async function runOne(browser, runIndex) {
   if (!fs.existsSync(browser.binary)) {
     return { status: 'unavailable', reason: `Binary not found: ${browser.binary}` };
   }
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), `nova-perf-${runIndex}-`));
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), `king-perf-${runIndex}-`));
   const port = 9300 + Math.floor(Math.random() * 500);
   const startedAt = performance.now();
   let child;
@@ -170,7 +170,7 @@ async function runOne(browser, runIndex) {
     const deadline = Date.now() + WAIT_TIMEOUT_MS;
     let benchmark;
     while (Date.now() < deadline) {
-      benchmark = await evaluate(ws, 'window.__novaBrowserBenchmark || null');
+      benchmark = await evaluate(ws, 'window.__kingBrowserBenchmark || null');
       if (benchmark) break;
       await sleep(50);
     }
@@ -194,7 +194,7 @@ async function runOne(browser, runIndex) {
 
 async function main() {
   if (!global.performance) global.performance = require('perf_hooks').performance;
-  console.log(`Nova Browser real-browser benchmark (${RUNS} cold runs per browser)`);
+  console.log(`King Browser real-browser benchmark (${RUNS} cold runs per browser)`);
   console.log(`Fixture: ${fixtureUrl}`);
   const report = { generatedAt: new Date().toISOString(), runs: RUNS, fixture: FIXTURE, browsers: [] };
 

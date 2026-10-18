@@ -1,7 +1,7 @@
-# Project: Nova Browser Comprehensive Security & Bug Audit
+# Project: King Browser Comprehensive Security & Bug Audit
 
 ## Architecture
-Nova Browser is an Electron + React + TypeScript web browser featuring:
+King Browser is an Electron + React + TypeScript web browser featuring:
 - **Main Process (`electron/main.ts`, `electron/main/*`, `electron/preload.ts`)**:
   - Privileged IPC dispatch with `isTrustedSender` sender frame validation.
   - Session privacy pipelines (Adblocker engine via `@cliqz/adblocker-electron`, DNT/Sec-GPC header injection, CSP nosniff headers) across default and incognito sessions.

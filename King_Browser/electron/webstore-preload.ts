@@ -148,7 +148,7 @@ if ((window as any).__novaPreloadInjected) {
       showNovaToast('Invalid extension identifier.', 'error');
       return;
     }
-    const loadingToast = showNovaToast("Installing to Nova Browser...", 'info');
+    const loadingToast = showNovaToast("Installing to King Browser...", 'info');
 
     ipcRenderer.invoke('install-from-webstore', extensionId)
       .then(result => {
@@ -349,10 +349,10 @@ if ((window as any).__novaPreloadInjected) {
       const textWrap = document.createElement('div');
       const title = document.createElement('div');
       title.style.cssText = 'font-weight: 600; font-size: 15px;';
-      title.textContent = "Nova Browser Extension System";
+      title.textContent = "King Browser Extension System";
       const subtitle = document.createElement('div');
       subtitle.style.cssText = 'font-size: 13px; opacity: 0.9;';
-      subtitle.textContent = "Install this extension with 1-click directly into Nova Browser.";
+      subtitle.textContent = "Install this extension with 1-click directly into King Browser.";
 
       textWrap.appendChild(title);
       textWrap.appendChild(subtitle);
@@ -362,7 +362,7 @@ if ((window as any).__novaPreloadInjected) {
       const btn = document.createElement('button');
       btn.id = 'nova-install-btn';
       btn.style.cssText = "background: white; color: #4f46e5; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; transition: transform 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);";
-      btn.textContent = "Add to Nova";
+      btn.textContent = "Add to King";
 
       banner.appendChild(leftContainer);
       banner.appendChild(btn);
@@ -387,7 +387,7 @@ if ((window as any).__novaPreloadInjected) {
             } else {
               btn.removeAttribute('disabled');
               btn.style.opacity = '1';
-              btn.textContent = "Add to Nova";
+              btn.textContent = "Add to King";
             }
           };
           window.addEventListener('message', cleanupListener);

@@ -14,7 +14,7 @@
  *                                               asar packaging confirmed: package.json
  *                                               "build" does not disable asar and
  *                                               electron-builder defaults to asar:true)
- *   - EnableEmbeddedAsarIntegrityValidation -> opt-in (NOVA_ENABLE_ASAR_INTEGRITY_FUSE=1):
+ *   - EnableEmbeddedAsarIntegrityValidation -> opt-in (KING_ENABLE_ASAR_INTEGRITY_FUSE=1):
  *                                               requires code signing to embed/verify
  *                                               ASAR integrity data. The Windows NSIS
  *                                               target has no signing config, so
@@ -60,7 +60,7 @@ async function defaultExport(context) {
   const { flipFuses, FuseV1Options, FuseVersion } = require('@electron/fuses');
 
   const asarEnabled = context?.packager?.config?.asar !== false;
-  const enableAsarIntegrity = asarEnabled && process.env.NOVA_ENABLE_ASAR_INTEGRITY_FUSE === '1';
+  const enableAsarIntegrity = asarEnabled && process.env.KING_ENABLE_ASAR_INTEGRITY_FUSE === '1';
 
   const plan = [
     ['RunAsNode', FuseV1Options.RunAsNode, false],
@@ -121,7 +121,7 @@ async function defaultExport(context) {
   }
 
   if (!enableAsarIntegrity) {
-    console.log('[apply-fuses] Note: EnableEmbeddedAsarIntegrityValidation left OFF (requires code-signed builds). Set NOVA_ENABLE_ASAR_INTEGRITY_FUSE=1 to enable.');
+    console.log('[apply-fuses] Note: EnableEmbeddedAsarIntegrityValidation left OFF (requires code-signed builds). Set KING_ENABLE_ASAR_INTEGRITY_FUSE=1 to enable.');
   }
 }
 

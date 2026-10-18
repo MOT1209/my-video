@@ -56,7 +56,7 @@ async function run() {
       enqueueAction: () => ({ id: 'approval', done: new Promise<boolean>(resolve => { approve = resolve; }) }),
       denyAction: () => { denied++; approve(false); }, updateActionState: () => {}
     } },
-    '../utils/safeNavigation': { isSafeAgentNavigationUrl: (url: string) => url === 'nova://newtab' || url.startsWith('https://') },
+    '../utils/safeNavigation': { isSafeAgentNavigationUrl: (url: string) => url === 'king://newtab' || url.startsWith('https://') },
     '../utils/searchHistoryBookmarks': { searchHistoryAndBookmarks: () => [] }
   });
   hook.useBrowserAgentBridge({ activeTabId: 'tab', tabs: [], history: [], bookmarks: [], settingsRef,
@@ -81,7 +81,7 @@ async function run() {
   onRequest('tab', 'browser_new_tab', {}, Date.now() + 15000);
   approve(true);
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(opened, 'nova://newtab', 'default new tab must not undergo a network DNS check');
+  assert.equal(opened, 'king://newtab', 'default new tab must not undergo a network DNS check');
 
   let resolveDialog: (result: { response: number }) => void = () => {};
   let forwarded = 0;

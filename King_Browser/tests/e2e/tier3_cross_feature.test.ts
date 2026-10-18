@@ -7,7 +7,7 @@ import { Tab } from '../../src/types/browser';
 async function runTier3Tests() {
   // Test 1: Real Webview LRU Pool Cap & Suspension Hygiene
   const mockTabs: Tab[] = [
-    { id: 'tab-active', url: 'https://nova-browser.org', title: 'Active', isLoading: false, canGoBack: false, canGoForward: false, lastAccessed: 5000 },
+    { id: 'tab-active', url: 'https://github.com/MOT1209/my-video', title: 'Active', isLoading: false, canGoBack: false, canGoForward: false, lastAccessed: 5000 },
     { id: 'tab-split', url: 'https://github.com', title: 'Split', isLoading: false, canGoBack: false, canGoForward: false, lastAccessed: 4500 },
     { id: 'tab-audio', url: 'https://youtube.com', title: 'Music', isLoading: false, canGoBack: false, canGoForward: false, isPlayingAudio: true, lastAccessed: 1000 },
     { id: 'tab-pinned-1', url: 'https://mail.com', title: 'Mail', isLoading: false, canGoBack: false, canGoForward: false, isPinned: true, lastAccessed: 4000 },
@@ -58,8 +58,8 @@ async function runTier3Tests() {
   // Test 3: Real Safe Navigation Protocol Validation
   assert.equal(isSafeNavigationUrl('https://example.com'), true, 'Valid HTTPS must pass');
   assert.equal(isSafeNavigationUrl('http://example.com'), true, 'Valid HTTP must pass');
-  assert.equal(isSafeNavigationUrl('nova://newtab'), true, 'Internal nova://newtab must pass');
-  assert.equal(isSafeNavigationUrl('nova://settings'), true, 'Internal nova://settings must pass');
+  assert.equal(isSafeNavigationUrl('king://newtab'), true, 'Internal king://newtab must pass');
+  assert.equal(isSafeNavigationUrl('king://settings'), true, 'Internal king://settings must pass');
 
   // Dangerous URLs must be strictly rejected
   assert.equal(isSafeNavigationUrl('javascript:alert(1)'), false, 'javascript: must be rejected');

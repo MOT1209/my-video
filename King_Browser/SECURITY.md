@@ -1,10 +1,10 @@
 # Security Policy
 
-Nova Browser takes security, memory safety, and user privacy seriously. This document outlines our security policies, vulnerability disclosure guidelines, response timelines, and threat model.
+King Browser takes security, memory safety, and user privacy seriously. This document outlines our security policies, vulnerability disclosure guidelines, response timelines, and threat model.
 
 ## Supported Versions
 
-Nova Browser operates on a rolling release cadence. Security patches and hardening updates are delivered directly to the `main` branch and published in the latest tagged release.
+King Browser operates on a rolling release cadence. Security patches and hardening updates are delivered directly to the `main` branch and published in the latest tagged release.
 
 | Version | Supported | Notes |
 | :--- | :--- | :--- |
@@ -13,7 +13,7 @@ Nova Browser operates on a rolling release cadence. Security patches and hardeni
 
 ## Threat Model & Security Architecture
 
-Nova Browser employs defense-in-depth principles across all application boundaries:
+King Browser employs defense-in-depth principles across all application boundaries:
 
 1. **Multi-Process Sandboxing**: Chromium renderers operate in isolated sandbox environments with Node.js integration disabled and context isolation strictly enforced (`contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`).
 2. **Webview Preload Scoping**: Specialized preloads (`webstore-preload.cjs`) are restricted exclusively to authorized Chrome Web Store origins (`chromewebstore.google.com` and `chrome.google.com`). All general webviews receive standard, restricted sandboxed preloads.
@@ -29,7 +29,7 @@ Nova Browser employs defense-in-depth principles across all application boundari
 | Remote Code Execution (RCE) or Command Injection via IPC or URL schemes | Self-XSS requiring users to paste malicious code into Developer Tools |
 | Insecure credential storage or plaintext token leaks to renderer DOM | Vulnerabilities in third-party websites visited within the browser webview |
 | SSRF vulnerabilities in internal proxy handlers or MCP server endpoints | Denial of Service through resource exhaustion on severely resource-constrained machines |
-| Bypass of Safe Navigation URL filter policies or phishing blocklists | Issues in unmaintained or deprecated upstream third-party dependencies without proof of exploitability in Nova |
+| Bypass of Safe Navigation URL filter policies or phishing blocklists | Issues in unmaintained or deprecated upstream third-party dependencies without proof of exploitability in King Browser |
 
 ## Reporting a Vulnerability
 
@@ -37,24 +37,20 @@ Please do not report security vulnerabilities via public GitHub issues or public
 
 ### Reporting Channels
 
-1. **GitHub Security Advisories (Preferred)**: Submit a private report via [GitHub Security Advisories](https://github.com/unitybtw/nova-browser/security/advisories/new).
-2. **Encrypted Email**: Send your report to `security@nova-browser.org` encrypted with our PGP public key.
+1. **GitHub Security Advisories (Preferred)**: Submit a private report via [GitHub Security Advisories](https://github.com/MOT1209/my-video/security/advisories/new).
+2. **Non-sensitive hardening reports**: Open a regular issue at [github.com/MOT1209/my-video/issues](https://github.com/MOT1209/my-video/issues). Do not include exploit details in public issues.
 
 ### Information to Provide
 
 To expedite triage and validation, please include:
 - A clear description of the vulnerability and its potential security impact.
 - Step-by-step reproduction instructions or a minimal reproducible proof-of-concept (PoC).
-- Target platform (macOS Apple Silicon/Intel, Windows x64, Linux) and Nova Browser version.
+- Target platform (macOS Apple Silicon/Intel, Windows x64, Linux) and King Browser version.
 - Any relevant logs, stack traces, or screenshots.
 
-### PGP Public Key Fingerprint
+### Private Disclosure Only
 
-```text
-Key ID: 0x4F8A9B1C2D3E4F5A
-Fingerprint: 8A2C 4F91 D3B6 E872 90C4  1B5E 4F8A 9B1C 2D3E 4F5A
-UID: Nova Browser Security Team <security@nova-browser.org>
-```
+We do not currently maintain a PGP key or an encrypted email inbox. Please use GitHub Security Advisories for all sensitive reports — the conversation stays private between you and the maintainers.
 
 ## Response Time SLA
 

@@ -41,7 +41,7 @@ export function useScreenshots({
     } else {
       // Check if it's an internal page by looking at activeTab url
       const tab = tabs.find(t => t.id === activeTabId);
-      if (tab?.url?.startsWith('nova://')) {
+      if (tab?.url?.startsWith('king://')) {
         void showAlert({ title: 'Screenshot', message: 'Screenshots cannot be taken on internal pages (Settings, New Tab, etc.).' });
       } else {
         void showAlert({ title: 'Screenshot', message: 'Screenshot feature is only available in the desktop app.' });

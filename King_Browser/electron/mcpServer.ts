@@ -22,7 +22,7 @@ try {
   powerMonitor.on('lock-screen', () => {
     isScreenLocked = true;
     screenLockGeneration++;
-    cancelPendingMcpActions('MCP tool execution blocked: Nova Browser is currently locked.');
+    cancelPendingMcpActions('MCP tool execution blocked: King Browser is currently locked.');
   });
   powerMonitor.on('unlock-screen', () => { isScreenLocked = false; });
 } catch (_) {}
@@ -39,8 +39,8 @@ interface McpTool {
 
 const TOOLS: McpTool[] = [
   {
-    name: 'nova_browser_info',
-    description: 'Provides context about Nova Browser and the MCP integration. You can interact with the browser using browser_* tools according to user instructions and safety approvals. Sensitive actions require explicit user confirmation. Call this tool if you need a reminder of what Nova Browser is.',
+    name: 'king_browser_info',
+    description: 'Provides context about King Browser and the MCP integration. You can interact with the browser using browser_* tools according to user instructions and safety approvals. Sensitive actions require explicit user confirmation. Call this tool if you need a reminder of what King Browser is.',
     inputSchema: { type: 'object', properties: {} }
   },
   {
@@ -391,7 +391,7 @@ export type ToolPermissionLevel = 'safe' | 'medium' | 'sensitive';
 
 export const TOOL_PERMISSIONS: Record<string, ToolPermissionLevel> = {
   // Safe — harmless metadata
-  nova_browser_info: 'safe',
+  king_browser_info: 'safe',
   browser_list_tabs: 'safe',
   browser_get_url: 'safe',
   browser_scroll: 'safe',
@@ -495,8 +495,8 @@ export class BrowserMCPServer {
     // parse/require cost on every launch when the MCP server never starts.
     // Set token file path in app userData
     try {
-      this.tokenFilePath = path.join(electronApp.getPath('userData'), 'nova-mcp-token');
-      this.portFilePath = path.join(electronApp.getPath('userData'), 'nova-mcp-port');
+      this.tokenFilePath = path.join(electronApp.getPath('userData'), 'king-mcp-token');
+      this.portFilePath = path.join(electronApp.getPath('userData'), 'king-mcp-port');
       if (process.env.MCP_TOKEN) {
         this.token = process.env.MCP_TOKEN;
       } else {
@@ -561,7 +561,7 @@ export class BrowserMCPServer {
       username = process.env.USER || process.env.USERNAME || 'unknown';
     }
     const machineSalt = createHash('sha256')
-      .update(`${os.hostname()}:${username}:${os.homedir()}:nova-mcp-salt`)
+      .update(`${os.hostname()}:${username}:${os.homedir()}:king-mcp-salt`)
       .digest();
     return scryptSync(secret, machineSalt, 32);
   }
@@ -769,10 +769,10 @@ export class BrowserMCPServer {
     // The queue can hold an action for a while, so re-check the guards that
     // executeTool checked at intake time before anything reaches the renderer.
     if (isScreenLocked) {
-      throw new Error('MCP tool execution blocked: Nova Browser is currently locked.');
+      throw new Error('MCP tool execution blocked: King Browser is currently locked.');
     }
     if (!this.mainWindow || this.mainWindow.isDestroyed()) {
-      throw new Error('Nova Browser window is not available');
+      throw new Error('King Browser window is not available');
     }
     const result = await requestRendererMcpAction(this.mainWindow, request.toolName, request.args);
     // The engine's executor receives the same ActionRequest object that was
@@ -800,7 +800,7 @@ export class BrowserMCPServer {
         buttons: ['Approve', 'Reject'],
         defaultId: 1,
         cancelId: 1,
-        title: 'Nova Browser - Action Approval',
+        title: 'King Browser - Action Approval',
         message: 'The agent is requesting approval for a sensitive action.',
         detail: detailLines,
         noLink: true
@@ -871,9 +871,9 @@ export class BrowserMCPServer {
           buttons: ['Allow', 'Deny'],
           defaultId: 0,
           cancelId: 1,
-          title: 'Nova Browser - MCP Authorization',
-          message: 'An external client is attempting to connect to Nova Browser via Model Context Protocol (MCP).',
-          detail: 'Do you want to allow this external client to interact with Nova Browser? Tool permissions can be managed in Settings.',
+          title: 'King Browser - MCP Authorization',
+          message: 'An external client is attempting to connect to King Browser via Model Context Protocol (MCP).',
+          detail: 'Do you want to allow this external client to interact with King Browser? Tool permissions can be managed in Settings.',
           noLink: true
         });
 
@@ -908,18 +908,18 @@ export class BrowserMCPServer {
     const authorizationGeneration = this.authorizationGeneration;
     const lockGeneration = screenLockGeneration;
     if (isScreenLocked) {
-      throw new Error('MCP tool execution blocked: Nova Browser is currently locked.');
+      throw new Error('MCP tool execution blocked: King Browser is currently locked.');
     }
 
     if (!this.mainWindow || this.mainWindow.isDestroyed()) {
-      throw new Error('Nova Browser window is not available');
+      throw new Error('King Browser window is not available');
     }
 
     const approved = await this.ensureFirstUseApproved();
     if (authorizationGeneration !== this.authorizationGeneration || lockGeneration !== screenLockGeneration) {
       throw new Error('MCP authorization was revoked while awaiting approval.');
     }
-    if (isScreenLocked) throw new Error('MCP tool execution blocked: Nova Browser is currently locked.');
+    if (isScreenLocked) throw new Error('MCP tool execution blocked: King Browser is currently locked.');
     if (!approved) {
       throw new Error('Permission denied: MCP connection rejected by the user.');
     }
@@ -946,9 +946,9 @@ export class BrowserMCPServer {
       );
     }
 
-    // Special: nova_browser_info
-    if (toolName === 'nova_browser_info') {
-      return 'You are connected to Nova Browser. Use the browser_* tools to navigate and interact with web pages according to user instructions and safety approvals.';
+    // Special: king_browser_info
+    if (toolName === 'king_browser_info') {
+      return 'You are connected to King Browser. Use the browser_* tools to navigate and interact with web pages according to user instructions and safety approvals.';
     }
 
     // §11 engine status — answered locally with the live engine snapshot.
@@ -1063,7 +1063,7 @@ export class BrowserMCPServer {
       if (origin) {
         try {
           const url = new URL(origin);
-          if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]' || url.protocol === 'nova:') {
+          if (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]' || url.protocol === 'king:') {
             res.header('Access-Control-Allow-Origin', origin);
           }
         } catch (_) {
@@ -1094,7 +1094,7 @@ export class BrowserMCPServer {
         const appVersion = electronApp?.getVersion?.() || '1.5.0';
         res.json({
           status: 'ok',
-          server: 'nova-browser-mcp',
+          server: 'king-browser-mcp',
           version: appVersion,
           port: this.actualPort || this.requestedPort,
           connected_clients: this.clients.size,
@@ -1223,7 +1223,7 @@ export class BrowserMCPServer {
             result: {
               protocolVersion: '2024-11-05',
               capabilities: { tools: {} },
-              serverInfo: { name: 'nova-browser', version: appVersion }
+              serverInfo: { name: 'king-browser', version: appVersion }
             }
           };
           respondToClient(responsePayload);

@@ -51,7 +51,7 @@ async function runTier1Tests() {
   // Test 3: Safe Navigation URL validation
   assert.equal(isSafeNavigationUrl('https://example.com'), true);
   assert.equal(isSafeNavigationUrl('http://example.com'), true);
-  assert.equal(isSafeNavigationUrl('nova://settings'), true);
+  assert.equal(isSafeNavigationUrl('king://settings'), true);
   assert.equal(isSafeNavigationUrl('javascript:alert(1)'), false);
   assert.equal(isSafeNavigationUrl('data:text/html,<script>'), false);
   assert.equal(isSafeNavigationUrl('file:///etc/passwd'), false);

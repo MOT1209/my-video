@@ -52,7 +52,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const tabs = [
     { id: 'general', label: 'General', icon: Settings },
-    { id: 'account', label: 'Nova Sync', icon: Cloud },
+    { id: 'account', label: 'King Sync', icon: Cloud },
     { id: 'appearance', label: 'Appearance', icon: Paintbrush },
     { id: 'privacy', label: 'Privacy & Security', icon: ShieldCheck },
     { id: 'passwords', label: 'Passwords', icon: Key },

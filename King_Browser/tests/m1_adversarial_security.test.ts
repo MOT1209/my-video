@@ -1,6 +1,6 @@
 /**
  * Empirical Adversarial Test Harness for Challenger 1 (Main Process Security & IPC Hardening)
- * Nova Browser Milestone 1
+ * King Browser Milestone 1
  */
 
 import fs from 'fs';
@@ -46,7 +46,7 @@ function assert(condition: boolean, suite: string, name: string, details: string
 //   localhost:5173 trusted only when
 //   !app.isPackaged
 //
-// So `devtools://devtools/bundled/inspector.html` and `nova://settings?x=1`
+// So `devtools://devtools/bundled/inspector.html` and `king://settings?x=1`
 // were asserted TRUE here while production rejects them, and the four
 // `http://localhost:5173` "legitimate" vectors only hold in a dev build. The
 // vectors are not deleted wholesale: the attack shapes in them are worth

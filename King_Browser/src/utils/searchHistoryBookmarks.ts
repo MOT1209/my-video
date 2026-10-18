@@ -1,5 +1,5 @@
 /**
- * Nova Browser Centralized History & Bookmarks Search Engine
+ * King Browser Centralized History & Bookmarks Search Engine
  * Provides scored, fuzzy and prefix matching for omnibox and AI search tools.
  */
 

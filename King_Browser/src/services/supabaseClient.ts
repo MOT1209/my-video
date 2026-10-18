@@ -1,5 +1,5 @@
 /**
- * Nova Browser Supabase Client
+ * King Browser Supabase Client
  * Manages Supabase connection, credentials, and real-time syncing.
  */
 
@@ -32,7 +32,7 @@ const CUSTOM_SUPABASE_URL_PATTERN = /^https:\/\/[a-z0-9]{10,}\.supabase\.co$/;
 const isValidCustomSupabaseUrl = (url: unknown): url is string =>
   typeof url === 'string' && CUSTOM_SUPABASE_URL_PATTERN.test(url);
 
-// Default Supabase project endpoints for Nova Cloud Sync
+// Default Supabase project endpoints for King Cloud Sync
 const DEFAULT_CONFIG: SupabaseConfig = {
   url: import.meta.env?.VITE_SUPABASE_URL || '',
   anonKey: import.meta.env?.VITE_SUPABASE_ANON_KEY || '',

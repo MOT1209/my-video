@@ -45,7 +45,7 @@ function searchHistoryAndBookmarks(query: string, items: SearchableItem[]): Sear
 }
 
 const testCorpus: SearchableItem[] = [
-  { id: '1', title: 'GitHub - Nova Browser Repository', url: 'https://github.com/unitybtw/nova-browser', type: 'bookmark' },
+  { id: '1', title: 'GitHub - King Browser Repository', url: 'https://github.com/MOT1209/my-video', type: 'bookmark' },
   { id: '2', title: 'React Documentation', url: 'https://react.dev', type: 'bookmark' },
   { id: '3', title: 'Hacker News', url: 'https://news.ycombinator.com', type: 'history' },
   { id: '4', title: 'WebGPU Explainer', url: 'https://gpuweb.github.io/gpuweb/', type: 'history' },
@@ -53,9 +53,9 @@ const testCorpus: SearchableItem[] = [
 ];
 
 // 1. Search Matching
-const resultsNova = searchHistoryAndBookmarks('nova', testCorpus);
-assert.equal(resultsNova.length, 1);
-assert.equal(resultsNova[0].id, '1');
+const resultsKing = searchHistoryAndBookmarks('king', testCorpus);
+assert.equal(resultsKing.length, 1);
+assert.equal(resultsKing[0].id, '1');
 
 // 2. Multi-word search
 const resultsDoc = searchHistoryAndBookmarks('electron api', testCorpus);

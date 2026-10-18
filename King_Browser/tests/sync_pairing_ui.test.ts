@@ -34,7 +34,7 @@ const DEAD_AFFORDANCES = [
   'Copy Device Code',
   'Generate Sync Code',
   'I have a Sync Code',
-  'nova-xxxx-xxxx'
+  'king-xxxx-xxxx'
 ];
 
 check(
@@ -51,7 +51,7 @@ check(
 );
 check(
   'the fallback names the route that does work',
-  html.includes('Nova Cloud')
+  html.includes('King Cloud')
 );
 check(
   'it does not claim pairing is merely coming soon',
@@ -74,8 +74,8 @@ check(
   !accountModalHtml.includes('Sync Chain')
 );
 check(
-  'AccountModal directs logged-out users to Nova Cloud account sync',
-  accountModalHtml.includes('Sign in with your Nova Cloud account to sync')
+  'AccountModal directs logged-out users to King Cloud account sync',
+  accountModalHtml.includes('Sign in with your King Cloud account to sync')
 );
 
 // The service must stay the backstop even though the UI no longer calls it:
@@ -91,11 +91,11 @@ check(
   );
   check(
     'joinSyncChain rejects instead of pretending to pair',
-    await rejects(() => svc.joinSyncChain('nova-xxxx-xxxx-xxxx'))
+    await rejects(() => svc.joinSyncChain('king-xxxx-xxxx-xxxx'))
   );
   check(
     'the rejection names the working alternative',
-    /Nova Cloud account/i.test(await svc.joinSyncChain('x').catch((e: any) => e.message))
+    /King Cloud account/i.test(await svc.joinSyncChain('x').catch((e: any) => e.message))
   );
   console.log(`\n${passed} sync-pairing-UI checks passed\n`);
 })();

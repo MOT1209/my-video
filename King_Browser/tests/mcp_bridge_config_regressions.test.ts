@@ -16,9 +16,9 @@ for (const file of ['mcp-bridge.ts', 'mcp-bridge.mjs']) {
     }).outputText;
     const result = vm.runInNewContext(code, {
       os, path, process: { platform: 'darwin', env: { MCP_TOKEN: token } },
-      fs: { existsSync: () => true, readFileSync: (name: string) => { readFiles.push(name); return name.endsWith('nova-mcp-port') ? '3020' : 'NMCP encrypted ciphertext'; } }
+      fs: { existsSync: () => true, readFileSync: (name: string) => { readFiles.push(name); return name.endsWith('king-mcp-port') ? '3020' : 'NMCP encrypted ciphertext'; } }
     });
-    assert.ok(readFiles.every(name => !name.endsWith('nova-mcp-token')), 'standalone Node must never read an encrypted token as plaintext');
+    assert.ok(readFiles.every(name => !name.endsWith('king-mcp-token')), 'standalone Node must never read an encrypted token as plaintext');
     return result;
   }
   assert.throws(() => config(), /MCP_TOKEN/, `${file} must explain the missing explicit token before connecting`);

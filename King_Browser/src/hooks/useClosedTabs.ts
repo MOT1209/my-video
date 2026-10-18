@@ -14,7 +14,7 @@ export interface UseClosedTabsOptions {
  * - Incognito sekmeler stack'e girmez (Chrome/Firefox parity: gizli sekmeler
  *   Ctrl+Shift+T ile geri açılmaz). Filtre tek yer olarak burada uygulanır,
  *   call-site guard'larına gerek yoktur.
- * - Boş `nova://newtab` eleme filtresi hook'ta değil, push call-site'larında
+ * - Boş `king://newtab` eleme filtresi hook'ta değil, push call-site'larında
  *   (`handleCloseTab` içindeki guard'lar) aynen durur.
  * - Tab oluşturma (`setTabs`/`setActiveTabId`/workspace switch/id-collision)
  *   hook'a taşınmadı; `onReopen` callback'i olarak App.tsx'ten alınır.

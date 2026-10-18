@@ -91,7 +91,7 @@ console.log("\n--- Adversarial Hacker Security & Vulnerability Remediation Suite
 //
 // This one is not a production copy: it imports Node's own `fileURLToPath` and
 // asserts this suite's own file-URL handling, so it is a harness guard rather
-// than a false assurance about Nova code.
+// than a false assurance about King code.
 const testFileUrl = process.platform === "win32"
   ? "file:///C:/path/to/my%20file.txt"
   : "file:///path/to/my%20file.txt";
@@ -307,7 +307,7 @@ import { normalizeSyncCode, formatSyncCode } from "../src/utils/syncCodeUtils";
 
 const rawHex = 'A1B2C3D4E5F60123456789AB';
 const formatted = formatSyncCode(rawHex);
-assert.strictEqual(formatted, 'nova-a1b2-c3d4-e5f6-0123-4567-89ab', 'Sync code formatting must match human-friendly nova-xxxx pattern');
+assert.strictEqual(formatted, 'king-a1b2-c3d4-e5f6-0123-4567-89ab', 'Sync code formatting must match human-friendly king-xxxx pattern');
 assert.strictEqual(normalizeSyncCode('nova-a1b2-c3d4-e5f6-0123-4567-89ab'), rawHex, 'Hyphenated nova- prefix code must normalize to raw hex');
 assert.strictEqual(normalizeSyncCode('NOVA-A1B2-C3D4-E5F6-0123-4567-89AB'), rawHex, 'Uppercase code must normalize correctly');
 assert.strictEqual(normalizeSyncCode(rawHex), rawHex, 'Raw hex code must normalize to itself');

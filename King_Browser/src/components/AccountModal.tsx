@@ -204,7 +204,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    Nova Sync
+                    King Sync
                     {syncStatus.isLoggedIn && (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                         ● Active
@@ -212,7 +212,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     )}
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {syncStatus.isLoggedIn ? 'Your browser data is securely synced across devices' : 'Sign in with your Nova Cloud account to sync your browser data'}
+                    {syncStatus.isLoggedIn ? 'Your browser data is securely synced across devices' : 'Sign in with your King Cloud account to sync your browser data'}
                   </p>
                 </div>
               </div>
@@ -371,7 +371,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                         required
                         value={inputSyncCode}
                         onChange={(e) => setInputSyncCode(e.target.value)}
-                        placeholder="nova-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx"
+                        placeholder="king-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx"
                         className="flex-1 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-cyan-500 font-mono"
                       />
                       <button
@@ -449,7 +449,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     Sign in to sync this browser
                   </h4>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Your bookmarks, history, tabs and workspaces sync through your Nova Cloud
+                    Your bookmarks, history, tabs and workspaces sync through your King Cloud
                     account. Pairing a second device with a sync code is not available yet.
                   </p>
                 </div>

@@ -314,7 +314,7 @@ export function useBrowserAgentBridge({
         }
 
         case 'browser_new_tab': {
-          const newUrl = safeArgs.url || 'nova://newtab';
+          const newUrl = safeArgs.url || 'king://newtab';
           // Same agent boundary as browser_navigate: a new tab at an internal
           // address is just as reachable by browser_read_page.
           const gate = await agentNavigationAllowed(newUrl);
@@ -751,7 +751,7 @@ export function useBrowserAgentBridge({
         pendingActions.set(id, pending);
         pending.timer = setTimeout(() => cancelAction(id), Math.max(0, deadline - Date.now()));
         const approvedTarget = captureTarget();
-        const targetIndependent = new Set(['nova_browser_info', 'browser_list_tabs', 'browser_get_url', 'browser_wait', 'browser_new_tab']);
+        const targetIndependent = new Set(['king_browser_info', 'browser_list_tabs', 'browser_get_url', 'browser_wait', 'browser_new_tab']);
         const canExecute = () => !pending.cancelled && Date.now() < deadline && Boolean(settingsRef.current?.mcpServerEnabled) &&
           (targetIndependent.has(toolName) || targetIsCurrent(approvedTarget));
         const finish = () => {
@@ -761,7 +761,7 @@ export function useBrowserAgentBridge({
         // Security (G-2): Harmless metadata tools execute directly.
         // Sensitive content inspection tools require user approval.
         const safeMetadataTools = new Set([
-          'nova_browser_info',
+          'king_browser_info',
           'browser_list_tabs',
           'browser_get_url',
           'browser_wait'

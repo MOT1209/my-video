@@ -1,7 +1,7 @@
 /**
- * Nova Browser - Official Speedometer 3.0 Benchmark Harness
+ * King Browser - Official Speedometer 3.0 Benchmark Harness
  * 
- * Automated, reproducible benchmark harness that boots Nova Browser in a clean
+ * Automated, reproducible benchmark harness that boots King Browser in a clean
  * session, executes the W3C Speedometer 3.0 test suite, and collects empirical
  * score and sub-test timing distributions.
  * 
@@ -37,7 +37,7 @@ interface SpeedometerReport {
 
 async function runBenchmark(): Promise<void> {
   console.log('================================================================');
-  console.log('       NOVA BROWSER - OFFICIAL SPEEDOMETER 3.0 BENCHMARK         ');
+  console.log('       KING BROWSER - OFFICIAL SPEEDOMETER 3.0 BENCHMARK         ');
   console.log('================================================================\n');
   console.log(`Platform      : ${process.platform} (${process.arch})`);
   console.log(`Electron      : ${process.versions.electron}`);
@@ -53,7 +53,7 @@ async function runBenchmark(): Promise<void> {
     width: 1280,
     height: 900,
     show: true,
-    title: 'Nova Browser - Speedometer 3.0 Benchmark Suite',
+    title: 'King Browser - Speedometer 3.0 Benchmark Suite',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

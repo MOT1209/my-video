@@ -67,7 +67,7 @@ export interface ApprovalSummary {
 
 const READ_ONLY_TOOLS = new Set([
   'browser_status',
-  'nova_browser_info',
+  'king_browser_info',
   'browser_read_page',
   'browser_screenshot',
   'browser_full_page_screenshot',

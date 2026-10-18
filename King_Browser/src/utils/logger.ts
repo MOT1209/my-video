@@ -1,5 +1,5 @@
 /**
- * Nova Browser Structured Logger
+ * King Browser Structured Logger
  * Provides consistent, structured diagnostic logging across services and components.
  * Warnings and errors are always written to the console so failures are never
  * silently swallowed.

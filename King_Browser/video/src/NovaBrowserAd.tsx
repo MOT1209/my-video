@@ -236,7 +236,7 @@ const BrowserFrame: React.FC<BrowserFrameProps> = ({ mode, vertical, frame, scal
         <Img src={staticFile('logo.svg')} style={{ width: 24, height: 24 }} />
       </div>
       <div style={{ height: 52, display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px', background: '#111b2d', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <span style={{ color: '#64748b', fontSize: 18 }}>‹</span><span style={{ color: '#64748b', fontSize: 18 }}>›</span><AddressBar value={showAi ? 'nova://newtab · ask @ai' : showSplit ? 'react.dev/reference/react' : 'https://github.com/unitybtw/nova-browser'} />
+        <span style={{ color: '#64748b', fontSize: 18 }}>‹</span><span style={{ color: '#64748b', fontSize: 18 }}>›</span><AddressBar value={showAi ? 'king://newtab · ask @ai' : showSplit ? 'react.dev/reference/react' : 'https://github.com/unitybtw/nova-browser'} />
         <span style={{ color: '#94a3b8', fontFamily: MONO, fontSize: 12 }}>⋮</span>
       </div>
       <div style={{ height: `calc(100% - 96px)`, display: 'flex' }}>

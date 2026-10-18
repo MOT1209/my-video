@@ -16,7 +16,7 @@ const testBookmarksRaw = [
   { id: '3', title: 'Data HTML Exploit', url: 'data:text/html,<script>alert(1)</script>', createdAt: Date.now() },
   { id: '4', title: 'Local File Traversal', url: 'file:///etc/passwd', createdAt: Date.now() },
   { id: '5', title: 'Blob Exploit', url: 'blob:https://example.com/uuid', createdAt: Date.now() },
-  { id: '6', title: 'Internal Nova Settings', url: 'nova://settings', createdAt: Date.now() },
+  { id: '6', title: 'Internal King Settings', url: 'king://settings', createdAt: Date.now() },
   { id: '7', title: 'Local Development Server', url: 'http://localhost:5173', createdAt: Date.now() },
   { id: '8', title: 'Malformed Object', url: 12345, createdAt: Date.now() },
   null,
@@ -27,8 +27,8 @@ const sanitizedBookmarks = sanitizeImportedBookmarks(testBookmarksRaw);
 
 assert.deepStrictEqual(
   sanitizedBookmarks.map((b) => b.url),
-  ['https://google.com', 'nova://settings', 'http://localhost:5173'],
-  'Only safe navigation URLs (Google, Nova Settings, Localhost) must be retained, in source order'
+  ['https://google.com', 'king://settings', 'http://localhost:5173'],
+  'Only safe navigation URLs (Google, King Settings, Localhost) must be retained, in source order'
 );
 assert.deepStrictEqual(
   sanitizedBookmarks.map((b) => b.id),

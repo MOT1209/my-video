@@ -1,6 +1,6 @@
 /**
  * Empirical Adversarial Test Harness for Milestone 2: Webview Sandbox, Incognito & Audio UI
- * Nova Browser M2 Verification
+ * King Browser M2 Verification
  */
 
 console.log('================================================================');
@@ -84,7 +84,7 @@ function recordHistory(
   const updated = { ...tab, ...updates };
   if (!updated.isIncognito && (updates.title || updates.url)) {
     const targetUrl = updated.url;
-    if (targetUrl && targetUrl !== 'nova://newtab' && targetUrl !== 'about:blank' && !targetUrl.startsWith('chrome://')) {
+    if (targetUrl && targetUrl !== 'king://newtab' && targetUrl !== 'about:blank' && !targetUrl.startsWith('chrome://')) {
       return [{
         id: 'mock_id',
         url: targetUrl,
@@ -266,10 +266,10 @@ const spoofingTestVectors = [
     desc: 'Reject password prompt on about:blank'
   },
   {
-    tabUrl: 'nova://settings',
+    tabUrl: 'king://settings',
     event: { channel: 'password-form-submitted', args: [{ hostname: 'evil.com', username: 'u', password: 'p' }] },
     expectedOpen: false,
-    desc: 'Reject spoofed hostname on internal nova:// protocol'
+    desc: 'Reject spoofed hostname on internal king:// protocol'
   },
   {
     tabUrl: 'javascript:alert(1)',
@@ -621,12 +621,12 @@ function simulateTabLifecycle(initialUrl: string) {
     lastAccessed: Date.now()
   };
 
-  const webviewInitialSrcRef = { current: (tab.url.startsWith('nova://') ? 'about:blank' : tab.url) };
+  const webviewInitialSrcRef = { current: (tab.url.startsWith('king://') ? 'about:blank' : tab.url) };
 
   // Step 1: Tab navigates to new URLs while active
   const navigate = (newUrl: string, newTitle: string) => {
     tab = { ...tab, url: newUrl, title: newTitle, lastAccessed: Date.now() };
-    webviewInitialSrcRef.current = (newUrl.startsWith('nova://') ? 'about:blank' : newUrl);
+    webviewInitialSrcRef.current = (newUrl.startsWith('king://') ? 'about:blank' : newUrl);
   };
 
   // Step 2: Tab is hibernated
@@ -674,9 +674,9 @@ function browserViewMemoComparator(prevProps: any, nextProps: any): boolean {
   if (prevProps.tab?.isMuted !== nextProps.tab?.isMuted) return false;
   if (prevProps.isIncognito !== nextProps.isIncognito) return false;
   
-  if ((prevProps.tab?.url?.startsWith('nova://settings') || prevProps.tab?.url?.startsWith('about:settings')) && prevProps.settings !== nextProps.settings) return false;
-  if ((prevProps.tab?.url?.startsWith('nova://history') || prevProps.tab?.url?.startsWith('about:history')) && prevProps.history !== nextProps.history) return false;
-  if ((prevProps.tab?.url?.startsWith('nova://downloads') || prevProps.tab?.url?.startsWith('about:downloads')) && prevProps.downloads !== nextProps.downloads) return false;
+  if ((prevProps.tab?.url?.startsWith('king://settings') || prevProps.tab?.url?.startsWith('about:settings')) && prevProps.settings !== nextProps.settings) return false;
+  if ((prevProps.tab?.url?.startsWith('king://history') || prevProps.tab?.url?.startsWith('about:history')) && prevProps.history !== nextProps.history) return false;
+  if ((prevProps.tab?.url?.startsWith('king://downloads') || prevProps.tab?.url?.startsWith('about:downloads')) && prevProps.downloads !== nextProps.downloads) return false;
   
   return true;
 }

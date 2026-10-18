@@ -50,7 +50,7 @@ export function isSafeNavigationUrl(url: string): boolean {
     }
   }
 
-  if (protocol === 'nova:') {
+  if (protocol === 'king:') {
     try {
       const parsed = new URL(candidate);
       if (!['newtab', 'settings', 'history', 'downloads', 'changelog', 'whats-new'].includes(parsed.hostname) ||

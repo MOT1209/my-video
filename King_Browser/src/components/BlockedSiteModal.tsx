@@ -82,8 +82,8 @@ export const BlockedSiteModal: React.FC<BlockedSiteModalProps> = ({ alert, onClo
           <div className="mt-4 space-y-3">
             <p id="blocked-site-desc" className="text-sm text-zinc-300 leading-relaxed">
               {isTr
-                ? 'Nova Browser Güvenlik Kalkanı, kişisel verilerinizi ve şifrelerinizi korumak amacıyla bu web sitesine erişimi durdurdu.'
-                : 'Nova Browser Security Shield blocked access to this website to protect your personal data and credentials.'}
+                ? 'King Browser Güvenlik Kalkanı, kişisel verilerinizi ve şifrelerinizi korumak amacıyla bu web sitesine erişimi durdurdu.'
+                : 'King Browser Security Shield blocked access to this website to protect your personal data and credentials.'}
             </p>
 
             <div className="p-3 bg-zinc-950/70 border border-zinc-800 rounded-lg space-y-1">

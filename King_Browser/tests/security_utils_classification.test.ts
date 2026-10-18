@@ -38,7 +38,7 @@ assert.equal(checkPhishingDomain('https://safe-site.com'), false);
 assert.equal(checkPhishingDomain('https://safe-site.com.'), false);
 
 // 4. Security Level Classification
-const secureInfo = getUrlSecurityInfo('https://github.com/unitybtw');
+const secureInfo = getUrlSecurityInfo('https://github.com/MOT1209');
 assert.equal(secureInfo.level, 'secure');
 assert.equal(secureInfo.label, 'Secure');
 
@@ -46,7 +46,7 @@ const httpInfo = getUrlSecurityInfo('http://insecure-http-site.com');
 assert.equal(httpInfo.level, 'http');
 assert.equal(httpInfo.label, 'Not Secure');
 
-const internalInfo = getUrlSecurityInfo('nova://settings');
+const internalInfo = getUrlSecurityInfo('king://settings');
 assert.equal(internalInfo.level, 'internal');
 
 const dangerousInfo = getUrlSecurityInfo('https://sub.phishing-hub.org/login');

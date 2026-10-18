@@ -89,7 +89,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
             <h1 className="text-lg font-bold text-slate-100">Something went wrong</h1>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Nova Browser encountered an unexpected error in the user interface.
+              King Browser encountered an unexpected error in the user interface.
             </p>
             {this.state.error && (
               <div className="p-3 bg-black/50 border border-white/5 rounded-xl text-[11px] font-mono text-red-400/90 text-left overflow-auto max-h-32 select-text">

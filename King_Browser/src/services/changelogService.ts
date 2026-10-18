@@ -261,7 +261,7 @@ function sanitizeRelease(value: unknown): ReleaseVersion | null {
   const release: ReleaseVersion = {
     version,
     date: typeof value.date === 'string' ? value.date : 'Recent',
-    title: typeof value.title === 'string' ? value.title : `Nova Browser v${version}`,
+    title: typeof value.title === 'string' ? value.title : `King Browser v${version}`,
     highlights: Array.isArray(value.highlights)
       ? value.highlights.filter((h): h is string => typeof h === 'string')
       : changes.slice(0, 3).map(c => c.text),
@@ -403,7 +403,7 @@ function mergeReleases(remote: any[], bundled: ReleaseVersion[]): ReleaseVersion
       map.set(ver, {
         version: ver,
         date: r.date || 'Recent',
-        title: r.title || `Nova Browser v${ver}`,
+        title: r.title || `King Browser v${ver}`,
         badge: 'New Release',
         highlights,
         changes

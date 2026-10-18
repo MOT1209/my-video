@@ -121,7 +121,7 @@ export const Scene5Workflow: React.FC = () => {
               }}
             >
               <Img src={staticFile('logo.svg')} style={{ width: 16, height: 16 }} />
-              <span>nova://newtab</span>
+              <span>king://newtab</span>
             </div>
 
             <div

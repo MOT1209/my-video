@@ -84,9 +84,9 @@ const intentHn = detectDirectIntent('hackernews aç');
 assert.equal(intentHn?.name, 'navigate_to_url');
 assert.equal(intentHn?.arguments?.url, 'https://news.ycombinator.com');
 
-const intentGh = detectDirectIntent('github unitybtw/nova-browser aç');
+const intentGh = detectDirectIntent('github MOT1209/my-video aç');
 assert.equal(intentGh?.name, 'navigate_to_url');
-assert.equal(intentGh?.arguments?.url, 'https://github.com/unitybtw/nova-browser');
+assert.equal(intentGh?.arguments?.url, 'https://github.com/mot1209/my-video');
 
 const intentWiki = detectDirectIntent('wikipedia web browser');
 assert.equal(intentWiki?.name, 'navigate_to_url');

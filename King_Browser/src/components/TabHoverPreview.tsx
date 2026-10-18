@@ -93,18 +93,18 @@ export const TabHoverPreview: React.FC<TabHoverPreviewProps> = React.memo(({
   try {
     if (tab.url?.startsWith('http://') || tab.url?.startsWith('https://')) {
       domain = new URL(tab.url).hostname.replace(/^www\./, '');
-    } else if (tab.url?.startsWith('nova://')) {
+    } else if (tab.url?.startsWith('king://')) {
       domain = tab.url;
     }
   } catch (_) {
     domain = tab.url || '';
   }
 
-  const isInternal = tab.url?.startsWith('nova://') || tab.url === 'about:blank';
-  const isSettings = tab.url === 'nova://settings';
-  const isHistory = tab.url === 'nova://history';
-  const isDownloads = tab.url === 'nova://downloads';
-  const isNewTab = tab.url === 'nova://newtab' || tab.url === 'about:blank';
+  const isInternal = tab.url?.startsWith('king://') || tab.url === 'about:blank';
+  const isSettings = tab.url === 'king://settings';
+  const isHistory = tab.url === 'king://history';
+  const isDownloads = tab.url === 'king://downloads';
+  const isNewTab = tab.url === 'king://newtab' || tab.url === 'about:blank';
 
   return createPortal(
     <AnimatePresence>
@@ -200,7 +200,7 @@ export const TabHoverPreview: React.FC<TabHoverPreviewProps> = React.memo(({
                   {tab.title || (isNewTab ? 'New Tab Page' : domain)}
                 </span>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                  {tab.isLoading ? 'Loading Page...' : (isInternal ? 'Nova System Page' : domain || 'Web Page')}
+                  {tab.isLoading ? 'Loading Page...' : (isInternal ? 'King System Page' : domain || 'Web Page')}
                 </span>
               </div>
             )}

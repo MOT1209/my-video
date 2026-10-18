@@ -1,7 +1,7 @@
 /**
  * Empirical Adversarial Challenger Verification Suite
  * Milestone 3: Frontend Performance, React Memoization & Memory Optimization
- * Nova Browser M3 Verification
+ * King Browser M3 Verification
  */
 
 console.log('================================================================');
@@ -440,9 +440,9 @@ async function runMilestone3ChallengerSuite() {
     if (prevProps.settings?.showTasksWidget !== nextProps.settings?.showTasksWidget) return false;
 
     // Deep comparison for settings object changes that affect internal pages
-    if ((prevProps.tab?.url?.startsWith('nova://settings') || prevProps.tab?.url?.startsWith('about:settings')) && prevProps.settings !== nextProps.settings) return false;
-    if ((prevProps.tab?.url?.startsWith('nova://history') || prevProps.tab?.url?.startsWith('about:history')) && prevProps.history !== nextProps.history) return false;
-    if ((prevProps.tab?.url?.startsWith('nova://downloads') || prevProps.tab?.url?.startsWith('about:downloads')) && prevProps.downloads !== nextProps.downloads) return false;
+    if ((prevProps.tab?.url?.startsWith('king://settings') || prevProps.tab?.url?.startsWith('about:settings')) && prevProps.settings !== nextProps.settings) return false;
+    if ((prevProps.tab?.url?.startsWith('king://history') || prevProps.tab?.url?.startsWith('about:history')) && prevProps.history !== nextProps.history) return false;
+    if ((prevProps.tab?.url?.startsWith('king://downloads') || prevProps.tab?.url?.startsWith('about:downloads')) && prevProps.downloads !== nextProps.downloads) return false;
 
     return true;
   }
@@ -549,7 +549,7 @@ async function runMilestone3ChallengerSuite() {
   // 4.3 Internal pages deep settings invalidation check
   const settingsTabProps = {
     ...baselineBrowserViewProps,
-    tab: { ...baselineBrowserViewProps.tab, url: 'nova://settings' },
+    tab: { ...baselineBrowserViewProps.tab, url: 'king://settings' },
     settings: { ...baselineBrowserViewProps.settings }
   };
   const settingsTabUpdatedSettings = {
@@ -559,7 +559,7 @@ async function runMilestone3ChallengerSuite() {
   const settingsTabRes = fullBrowserViewMemoComparator(settingsTabProps, settingsTabUpdatedSettings);
   recordTest(
     'BrowserView Memo',
-    'Internal page nova://settings invalidates when settings reference updates',
+    'Internal page king://settings invalidates when settings reference updates',
     settingsTabRes === false,
     `Comparator returned ${settingsTabRes} (expected false)`
   );

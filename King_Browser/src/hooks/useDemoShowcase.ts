@@ -36,7 +36,7 @@ export function useDemoShowcase({
         // Scene 1: arXiv AI Research + AI Sidepanel + Glowing Cursor
         setTabs([
           { id: '1', url: 'https://arxiv.org/list/cs.AI/recent', title: 'arXiv / cs.AI Research', isLoading: false, canGoBack: false, canGoForward: false },
-          { id: '2', url: 'nova://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false }
+          { id: '2', url: 'king://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false }
         ]);
         setActiveTabId('1');
         setIsSidePanelOpen(true);

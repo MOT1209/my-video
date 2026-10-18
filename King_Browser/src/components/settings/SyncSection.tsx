@@ -58,7 +58,7 @@ export const SyncSection: React.FC<SyncSectionProps> = ({
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                Nova Cloud Sync
+                King Cloud Sync
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Access your bookmarks, saved passwords, browsing history, and settings from any computer.
@@ -91,7 +91,7 @@ export const SyncSection: React.FC<SyncSectionProps> = ({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Nova Sync Active</h3>
+                    <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">King Sync Active</h3>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
                       <ShieldCheck className="w-3 h-3" /> E2EE Protected
                     </span>
@@ -309,7 +309,7 @@ export const SyncSection: React.FC<SyncSectionProps> = ({
               <div className="space-y-3 pt-2">
                 <input
                   type="text"
-                  placeholder="nova-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx"
+                  placeholder="king-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx"
                   id="quick-pair-input"
                   className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 dark:text-slate-100 outline-none focus:border-cyan-500 font-mono"
                 />
@@ -400,7 +400,7 @@ export const SyncSection: React.FC<SyncSectionProps> = ({
               Sign in to sync this browser
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-sm">
-              Your bookmarks, history, tabs and workspaces sync through your Nova Cloud
+              Your bookmarks, history, tabs and workspaces sync through your King Cloud
               account. Pairing a second device with a sync code is not available yet.
             </p>
           </div>

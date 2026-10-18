@@ -98,11 +98,11 @@ export interface BrowserViewProps {
  *  decides which child receives a prop, otherwise it either re-renders every
  *  tab or lets a tab keep a stale callback. */
 const isSettingsUrl = (url?: string): boolean =>
-  Boolean(url?.startsWith('nova://settings') || url?.startsWith('about:settings'));
+  Boolean(url?.startsWith('king://settings') || url?.startsWith('about:settings'));
 const isHistoryUrl = (url?: string): boolean =>
-  url === 'nova://history' || url === 'about:history';
+  url === 'king://history' || url === 'about:history';
 const isDownloadsUrl = (url?: string): boolean =>
-  url === 'nova://downloads' || url === 'about:downloads';
+  url === 'king://downloads' || url === 'about:downloads';
 
 /** Webview and always-rendered callbacks. Referentially stable in `App.tsx`
  *  (`useCallback` over refs and setters only), so comparing them is free and
@@ -212,7 +212,7 @@ export function browserViewPropsEqual(prev: BrowserViewProps, next: BrowserViewP
   // Internal pages hand their whole state object straight to a child, so any
   // new object is a change. Internal covers the new tab too, which renders
   // seven `settings` fields.
-  const isInternalTab = prev.tab?.url?.startsWith('nova://') ||
+  const isInternalTab = prev.tab?.url?.startsWith('king://') ||
                         prev.tab?.url?.startsWith('about:') ||
                         prev.tab?.url === 'https://newtab';
   if (isInternalTab && prev.settings !== next.settings) return false;
@@ -291,7 +291,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
   const webviewRef = useRef<any>(null);
 
   const getSafeUrl = (u?: string) => {
-    if (!u || u.startsWith('nova://')) return 'about:blank';
+    if (!u || u.startsWith('king://')) return 'about:blank';
     return isSafeNavigationUrl(u) ? u : 'about:blank';
   };
   const lastLoadedUrl = useRef<string>(tab?.url || '');
@@ -301,7 +301,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
   }
 
   const isNewTab = React.useMemo(() => (
-    !tab?.url || tab.url === 'about:blank' || tab.url === 'nova://newtab' || tab.url === 'https://newtab'
+    !tab?.url || tab.url === 'about:blank' || tab.url === 'king://newtab' || tab.url === 'https://newtab'
   ), [tab?.url]);
 
   const [passwordPrompt, setPasswordPrompt] = useState<{
@@ -400,21 +400,21 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
   }, []);
 
   const isSettingsTab = React.useMemo(() => (
-    Boolean(tab?.url?.startsWith('nova://settings') || tab?.url?.startsWith('about:settings'))
+    Boolean(tab?.url?.startsWith('king://settings') || tab?.url?.startsWith('about:settings'))
   ), [tab?.url]);
 
   const isHistoryTab = React.useMemo(() => (
-    tab?.url === 'nova://history' || tab?.url === 'about:history'
+    tab?.url === 'king://history' || tab?.url === 'about:history'
   ), [tab?.url]);
 
   const isDownloadsTab = React.useMemo(() => (
-    tab?.url === 'nova://downloads' || tab?.url === 'about:downloads'
+    tab?.url === 'king://downloads' || tab?.url === 'about:downloads'
   ), [tab?.url]);
 
   const isChangelogTab = React.useMemo(() => (
     Boolean(
-      tab?.url?.startsWith('nova://changelog') ||
-      tab?.url?.startsWith('nova://whats-new') ||
+      tab?.url?.startsWith('king://changelog') ||
+      tab?.url?.startsWith('king://whats-new') ||
       tab?.url === 'about:changelog' ||
       tab?.url === 'about:whats-new'
     )
@@ -1183,7 +1183,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
               if (onNavigate) {
                 onNavigate(url, tab.id);
               } else {
-                onUpdateTab(tab.id, { url, isLoading: !(url === 'nova://newtab' || url === 'about:blank' || url === 'https://newtab') });
+                onUpdateTab(tab.id, { url, isLoading: !(url === 'king://newtab' || url === 'about:blank' || url === 'https://newtab') });
               }
             }}
             onNewTab={(url) => {
@@ -1358,27 +1358,27 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
             className="w-full h-full flex-1 border-none bg-white absolute inset-0"
             webpreferences="contextIsolation=yes, nodeIntegration=no, webSecurity=yes, sandbox=yes"
           />
-        ) : isDemo && tab?.url === 'https://github.com/unitybtw/nova-browser' ? (
+        ) : isDemo && tab?.url === 'https://github.com/MOT1209/my-video' ? (
           <div className="w-full h-full bg-[#0d1117] text-[#c9d1d9] flex flex-col overflow-y-auto font-sans p-6 sm:p-8 select-none">
             <div className="max-w-3xl mx-auto w-full flex flex-col gap-6 my-auto">
               {/* GitHub Repo Header */}
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#30363d] pb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[#21262d] border border-[#30363d] flex items-center justify-center text-white font-bold text-lg shadow-sm">
-                    N
+                    M
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[#58a6ff] hover:underline font-semibold text-base cursor-pointer">unitybtw</span>
+                      <span className="text-[#58a6ff] hover:underline font-semibold text-base cursor-pointer">MOT1209</span>
                       <span className="text-[#8b949e]">/</span>
-                      <span className="text-[#58a6ff] font-bold text-base cursor-pointer">nova-browser</span>
+                      <span className="text-[#58a6ff] font-bold text-base cursor-pointer">my-video</span>
                       <span className="text-[11px] px-2 py-0.5 rounded-full border border-[#30363d] text-[#8b949e] font-medium">Public</span>
                     </div>
                     <p className="text-xs text-[#8b949e] mt-0.5">An open source sovereign browser built with React and Electron</p>
                   </div>
                 </div>
                 <a
-                  href="https://github.com/unitybtw/nova-browser"
+                  href="https://github.com/MOT1209/my-video"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3.5 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white rounded-md text-xs font-semibold flex items-center gap-2 transition-colors shadow-sm"
@@ -1411,7 +1411,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
               {/* Web Demo Notice Banner */}
               <div className="bg-gradient-to-r from-blue-950/40 to-indigo-950/30 border border-blue-500/30 rounded-lg p-3.5 text-xs leading-relaxed text-blue-200/90">
                 <span className="font-semibold text-blue-400">Interactive Marketing Demo: </span>
-                Third-party platforms like GitHub enforce <code className="bg-black/40 px-1 py-0.5 rounded text-indigo-300 font-mono text-[11px]">X-Frame-Options: DENY</code> in web browsers. In the desktop Nova app, all websites render natively with Chromium with no iframe restrictions.
+                Third-party platforms like GitHub enforce <code className="bg-black/40 px-1 py-0.5 rounded text-indigo-300 font-mono text-[11px]">X-Frame-Options: DENY</code> in web browsers. In the desktop King app, all websites render natively with Chromium with no iframe restrictions.
               </div>
             </div>
           </div>

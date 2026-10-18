@@ -284,10 +284,10 @@ async function runSyncTests() {
   // 4. Sync Code Formatting & Normalization
   const rawCode = '1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d';
   const formatted = (syncService.constructor as any).formatSyncCode(rawCode);
-  assert.strictEqual(formatted.startsWith('nova-'), true, 'Formatted code must have nova- prefix');
+  assert.strictEqual(formatted.startsWith('king-'), true, 'Formatted code must have king- prefix');
 
   const normalized = (syncService.constructor as any).normalizeSyncCode(formatted);
-  assert.strictEqual(normalized, rawCode.toUpperCase(), 'Normalized code must strip nova- and hyphens');
+  assert.strictEqual(normalized, rawCode.toUpperCase(), 'Normalized code must strip king- and hyphens');
 
   console.log('[PASS] [Sync Vault] Sync chain code format and normalization verified.');
 

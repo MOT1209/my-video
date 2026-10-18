@@ -61,9 +61,9 @@ assert.equal(previewCache.has('https://site1.com'), true, 'Recently accessed ent
 assert.equal(previewCache.has('https://site101.com'), true, 'Newly inserted entry must be present');
 
 // 3. Fallback Sentence extraction test using production extractPreviewFallbackSummary
-const rawArticle = 'Nova is an ultra-fast on-device AI browser built with WebGPU. It executes local models at 64 tokens per second. Discover blazing fast web performance.';
+const rawArticle = 'King is an ultra-fast on-device AI browser built with WebGPU. It executes local models at 64 tokens per second. Discover blazing fast web performance.';
 const extracted = extractPreviewFallbackSummary(rawArticle, null, null);
-assert.equal(extracted.includes('Nova is an ultra-fast on-device AI browser built with WebGPU.'), true);
+assert.equal(extracted.includes('King is an ultra-fast on-device AI browser built with WebGPU.'), true);
 assert.equal(extracted.includes('It executes local models at 64 tokens per second.'), true);
 
 // Meta description takes precedence if provided and > 30 chars

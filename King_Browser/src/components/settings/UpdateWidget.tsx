@@ -123,16 +123,16 @@ export const UpdateWidget = () => {
         }
         setStatus('error');
         setErrorMsg(res?.error || 'Download failed');
-        await openDownload(downloadUrl || 'https://github.com/unitybtw/nova-browser/releases/latest');
+        await openDownload(downloadUrl || 'https://github.com/MOT1209/my-video/releases/latest');
       } catch (err: any) {
         console.error('Download update error:', err);
         setStatus('error');
         setErrorMsg(err?.message || 'Download failed');
-        await openDownload(downloadUrl || 'https://github.com/unitybtw/nova-browser/releases/latest');
+        await openDownload(downloadUrl || 'https://github.com/MOT1209/my-video/releases/latest');
       }
     } else {
       setStatus('idle');
-      await openDownload(downloadUrl || 'https://github.com/unitybtw/nova-browser/releases/latest');
+      await openDownload(downloadUrl || 'https://github.com/MOT1209/my-video/releases/latest');
     }
   };
 
@@ -210,7 +210,7 @@ export const UpdateWidget = () => {
           </div>
         )}
         <p className="text-[11px] text-slate-400 dark:text-slate-500">
-          Nova Browser will close, apply update, and automatically restart.
+          King Browser will close, apply update, and automatically restart.
         </p>
       </div>
     );
@@ -265,7 +265,7 @@ export const UpdateWidget = () => {
             </button>
           )}
           <button
-            onClick={() => openDownload(downloadUrl || `https://github.com/unitybtw/nova-browser/releases/tag/v${updateVersion || 'latest'}`)}
+            onClick={() => openDownload(downloadUrl || `https://github.com/MOT1209/my-video/releases/tag/v${updateVersion || 'latest'}`)}
             className="px-2 py-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
             title="View release notes on GitHub"
           >
@@ -285,7 +285,7 @@ export const UpdateWidget = () => {
               <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-base">
-                    {releaseName || `Nova Browser v${updateVersion}`}
+                    {releaseName || `King Browser v${updateVersion}`}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">Release Notes</p>
                 </div>

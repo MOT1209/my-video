@@ -5,7 +5,7 @@ console.log('\n--- Safe Navigation Comprehensive Suite ---');
 
 const VALID_HTTP_URLS = [
   'https://google.com',
-  'https://www.github.com/unitybtw/nova-browser',
+  'https://www.github.com/MOT1209/my-video',
   'http://localhost:3000/dashboard',
   'http://127.0.0.1:8080',
   'https://sub.domain.co.uk:8443/path?query=1&item=test#section',
@@ -50,25 +50,25 @@ const BLOCKED_DANGEROUS_PAYLOADS = [
   'java\x0ascript:alert(1)',
 
   // Invalid or spoofed internal pages
-  'nova://evil',
-  'nova://settings/malicious',
-  'nova://settings?user=admin',
-  'nova://settings#invalid-fragment',
-  'nova://newtab#random',
-  'nova://history#anchor',
-  'nova://downloads/file',
+  'king://evil',
+  'king://settings/malicious',
+  'king://settings?user=admin',
+  'king://settings#invalid-fragment',
+  'king://newtab#random',
+  'king://history#anchor',
+  'king://downloads/file',
   'about:config',
   'about:srcdoc',
   'about:memory'
 ];
 
 const VALID_INTERNAL_PAGES = [
-  'nova://newtab',
-  'nova://settings',
-  'nova://settings#extensions',
-  'nova://settings#mcp',
-  'nova://history',
-  'nova://downloads',
+  'king://newtab',
+  'king://settings',
+  'king://settings#extensions',
+  'king://settings#mcp',
+  'king://history',
+  'king://downloads',
   'about:blank',
   'about:settings',
   'about:history',

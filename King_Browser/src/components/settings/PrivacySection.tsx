@@ -90,7 +90,7 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Ad & Tracker Blocking</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-6 max-w-lg">
-                Nova's Privacy Shield blocks malicious scripts, tracking cookies, and intrusive ads across all websites. It uses Ghostery and Cliqz blocklists to keep your browsing fast and secure.
+                King's Privacy Shield blocks malicious scripts, tracking cookies, and intrusive ads across all websites. It uses Ghostery and Cliqz blocklists to keep your browsing fast and secure.
               </p>
 
               <button
@@ -153,7 +153,7 @@ export const PrivacySection: React.FC<PrivacySectionProps> = ({
             </div>
           </div>
           <a
-            href="https://github.com/unitybtw/nova-browser/releases"
+            href="https://github.com/MOT1209/my-video/releases"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 text-xs font-semibold shrink-0 transition-colors"

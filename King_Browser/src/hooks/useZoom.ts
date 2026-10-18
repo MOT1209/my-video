@@ -20,7 +20,7 @@ export function useZoom({ activeTabId, setTabs }: UseZoomOptions) {
   }, [setTabs]);
 
   // The tab record is the only place the current factor lives when there is no
-  // webview (internal pages: nova://, about:). Reading it through an
+  // webview (internal pages: king://, about:). Reading it through an
   // identity-preserving updater runs the reducer during the dispatch and hands
   // back the very same array, so React bails out and nothing re-renders.
   const readCommittedFactor = useCallback((tabId: string): number => {

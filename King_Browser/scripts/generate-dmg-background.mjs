@@ -286,10 +286,10 @@ const htmlContent = `
   <div class="header">
     <div class="badge">
       <span class="badge-dot"></span>
-      Nova Browser
+      King Browser
     </div>
     <h1 class="title">Drag to Applications to Install</h1>
-    <p class="subtitle">Drag the Nova icon to the Applications folder to complete installation</p>
+    <p class="subtitle">Drag the King icon to the Applications folder to complete installation</p>
   </div>
 
   <!-- Targets & Connector -->

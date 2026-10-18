@@ -39,7 +39,7 @@ export async function showAlert(options: AlertDialogOptions | string): Promise<v
   if (typeof window !== 'undefined' && (window as any).electronAPI?.showConfirmDialog) {
     try {
       await (window as any).electronAPI.showConfirmDialog({
-        title: opts.title || 'Nova Browser',
+        title: opts.title || 'King Browser',
         message: opts.message,
         detail: opts.detail,
         confirmLabel: opts.buttonLabel || 'OK',

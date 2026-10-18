@@ -7,7 +7,7 @@ export function normalizeNavigationUrl(rawUrl: string): string {
   if (!trimmed) return '';
 
   // Preserve internal browser navigation schemes
-  if (/^nova:\/\/[a-z0-9_-]+/i.test(trimmed)) {
+  if (/^king:\/\/[a-z0-9_-]+/i.test(trimmed)) {
     return trimmed;
   }
 
@@ -23,12 +23,12 @@ export function normalizeNavigationUrl(rawUrl: string): string {
 export function getCleanDomain(urlOrDomain: string): string {
   if (!urlOrDomain || typeof urlOrDomain !== 'string') return '';
   const trimmed = urlOrDomain.trim();
-  if (/^nova:\/\//i.test(trimmed)) {
+  if (/^king:\/\//i.test(trimmed)) {
     try {
       const parsed = new URL(trimmed);
       return (parsed.hostname || parsed.pathname.replace(/^\/\//, '')).toLowerCase();
     } catch {
-      return trimmed.replace(/^nova:\/\//i, '').split('/')[0].toLowerCase();
+      return trimmed.replace(/^king:\/\//i, '').split('/')[0].toLowerCase();
     }
   }
   try {

@@ -263,8 +263,8 @@ export function detectDirectIntent(userText: string): { name: string; arguments:
       name: 'direct_chat',
       arguments: {},
       directReply: isTr
-        ? "Merhaba! Ben Nova Browser yapay zeka asistanıyım. Web'de gezinebilir, Google/YouTube'da arama yapabilir, sayfaları özetleyebilir veya sekmeleri yönetebilirim. Sana nasıl yardımcı olabilirim?"
-        : "Hello! I am Nova Browser's AI assistant. I can browse the web, search Google/YouTube, summarize pages, or manage tabs. How can I help you today?"
+        ? "Merhaba! Ben King Browser yapay zeka asistanıyım. Web'de gezinebilir, Google/YouTube'da arama yapabilir, sayfaları özetleyebilir veya sekmeleri yönetebilirim. Sana nasıl yardımcı olabilirim?"
+        : "Hello! I am King Browser's AI assistant. I can browse the web, search Google/YouTube, summarize pages, or manage tabs. How can I help you today?"
     };
   }
 
@@ -274,8 +274,8 @@ export function detectDirectIntent(userText: string): { name: string; arguments:
       name: 'direct_chat',
       arguments: {},
       directReply: isTr
-        ? "Nova Browser AI asistanı olarak sekmeleri ve pencereleri yönetebilir, Google/YouTube/GitHub aramaları yapabilir, sayfaları okuyup özetleyebilir ve formları doldurabilirim."
-        : "As Nova Browser's AI assistant, I can manage tabs and workspaces, search Google/YouTube/GitHub, read and summarize pages, and assist with browser actions."
+        ? "King Browser AI asistanı olarak sekmeleri ve pencereleri yönetebilir, Google/YouTube/GitHub aramaları yapabilir, sayfaları okuyup özetleyebilir ve formları doldurabilirim."
+        : "As King Browser's AI assistant, I can manage tabs and workspaces, search Google/YouTube/GitHub, read and summarize pages, and assist with browser actions."
     };
   }
 
@@ -408,7 +408,7 @@ export function detectDirectIntent(userText: string): { name: string; arguments:
     }
   }
 
-  // 9. GitHub direct repo opening (e.g. "github unitybtw/nova-browser aç")
+  // 9. GitHub direct repo opening (e.g. "github MOT1209/my-video aç")
   const githubRepoMatch = normalized.match(/^github(?:['']?(?:da|de)|\s+da|\s+de)?\s+(?:aç|ac|a git|git)?\s*([a-z0-9_.-]+\/[a-z0-9_.-]+)(?:\s*(?:reposunu|reposu|projesini)?\s*(?:aç|ac|git)?)?$/i);
   if (githubRepoMatch && githubRepoMatch[1]) {
     const repo = githubRepoMatch[1];
@@ -1327,7 +1327,7 @@ class AIAgent {
           })
     ).join('\n');
 
-    return `You are Nova Browser's AI assistant. You control a real browser and answer questions.
+    return `You are King Browser's AI assistant. You control a real browser and answer questions.
 
 TOOLS:
 ${toolLines}

@@ -284,7 +284,7 @@ export const ExtensionsModal: React.FC<ExtensionsModalProps> = ({
                     <Puzzle className="w-7 h-7" />
                   </div>
                   <h3 className="text-slate-800 dark:text-slate-200 font-medium mb-1">No extensions installed</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">Enhance Nova Browser with extensions from the Chrome Web Store or load unpacked folders.</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">Enhance King Browser with extensions from the Chrome Web Store or load unpacked folders.</p>
                 </div>
               ) : (
                 <div className="space-y-1">

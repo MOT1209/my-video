@@ -68,7 +68,7 @@ check('closing the last tab clears state belonging to the old document', () => {
   const h = tabHarness([tab('live', { isPlayingAudio: true, isTranslated: true, translatedLang: 'de', blockedAdsCount: 8, webContentsId: 999, thumbnail: 'old-preview' })]);
   h.api.handleCloseTab('live');
   const fresh = h.getTabs()[0];
-  assert.equal(fresh.url, 'nova://newtab');
+  assert.equal(fresh.url, 'king://newtab');
   assert.equal(Boolean(fresh.isPlayingAudio), false);
   assert.equal(Boolean(fresh.isTranslated), false);
   assert.equal(fresh.translatedLang, undefined);

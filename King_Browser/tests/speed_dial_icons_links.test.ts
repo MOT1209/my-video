@@ -15,8 +15,8 @@ assert(normalizeNavigationUrl('wikipedia.org') === 'https://wikipedia.org', 'Fai
 assert(normalizeNavigationUrl('github.com') === 'https://github.com', 'Failed to normalize naked github domain');
 assert(normalizeNavigationUrl('https://google.com') === 'https://google.com', 'Mutated already valid https URL');
 assert(normalizeNavigationUrl('http://localhost:3000') === 'http://localhost:3000', 'Mutated valid http URL');
-assert(normalizeNavigationUrl('nova://settings') === 'nova://settings', 'Altered internal nova scheme');
-assert(normalizeNavigationUrl('nova://history') === 'nova://history', 'Altered internal nova history scheme');
+assert(normalizeNavigationUrl('king://settings') === 'king://settings', 'Altered internal nova scheme');
+assert(normalizeNavigationUrl('king://history') === 'king://history', 'Altered internal nova history scheme');
 assert(normalizeNavigationUrl('  https://youtube.com  ') === 'https://youtube.com', 'Failed to trim whitespace');
 assert(normalizeNavigationUrl('') === '', 'Empty string normalization failed');
 console.log('[PASS] [SpeedDial-1] URL normalization preserves schemes and safely prepends https.');
@@ -26,7 +26,7 @@ assert(getCleanDomain('https://www.wikipedia.org/wiki/Main_Page') === 'wikipedia
 assert(getCleanDomain('github.com') === 'github.com', 'Domain extraction failed for naked domain');
 assert(getCleanDomain('https://www.google.com?q=test') === 'google.com', 'Domain extraction failed for query parameter URL');
 assert(getCleanDomain('www.reddit.com') === 'reddit.com', 'Domain extraction failed for www prefix');
-assert(getCleanDomain('nova://settings') === 'settings', 'Domain extraction failed for internal nova URL');
+assert(getCleanDomain('king://settings') === 'settings', 'Domain extraction failed for internal nova URL');
 console.log('[PASS] [SpeedDial-2] Domain extraction correctly parses hostnames and strips www.');
 
 // 3. Security Guarantee

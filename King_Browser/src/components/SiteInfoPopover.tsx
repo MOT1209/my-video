@@ -76,7 +76,7 @@ export const SiteInfoPopover: React.FC<SiteInfoPopoverProps> = ({
   const isDangerous = sec.level === 'dangerous';
   const isHttp = sec.level === 'http';
   const isFile = sec.level === 'file';
-  const isInternal = sec.level === 'internal' || url.startsWith('nova://') || url.startsWith('about:');
+  const isInternal = sec.level === 'internal' || url.startsWith('king://') || url.startsWith('about:');
   const isSecure = sec.level === 'secure' || (!isDangerous && !isHttp && !isInternal && !isFile && protocol === 'https:');
 
   const [sitePerms, setSitePerms] = useState<Record<string, { allow: boolean; ts: number }>>({});
@@ -139,7 +139,7 @@ export const SiteInfoPopover: React.FC<SiteInfoPopoverProps> = ({
               </div>
               <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                 {isDangerous ? (sec.tooltip || 'Phishing or dangerous site blocked') :
-                 isInternal ? 'Internal Nova System Page' :
+                 isInternal ? 'Internal King System Page' :
                  isFile ? 'Local Filesystem Resource' :
                  isSecure ? 'Connection is secure (Encrypted TLS)' :
                  'Connection is not secure (Unencrypted HTTP)'}

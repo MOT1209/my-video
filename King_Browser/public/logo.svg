@@ -59,7 +59,7 @@
   <rect x="80" y="80" width="864" height="864" rx="200"
         fill="url(#centerGlow)" />
 
-  <!-- The Nova Star Glyph -->
+  <!-- The King Browser Star Glyph -->
   <g filter="url(#starShadow)">
     <!-- Primary 4-point parabolic star -->
     <path d="M 512 140

@@ -259,7 +259,7 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
           tabIndex={-1}
           aria-label="Copy page link"
           onClick={() => {
-            if (tab.url && tab.url !== 'nova://newtab') {
+            if (tab.url && tab.url !== 'king://newtab') {
               // `navigator.clipboard.writeText` rejects outright in a non-secure
               // context, and an unhandled rejection is a global error that takes
               // the tab strip with it. The helper falls back to execCommand and

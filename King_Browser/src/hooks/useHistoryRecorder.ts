@@ -103,7 +103,7 @@ export function useHistoryRecorder(options: UseHistoryRecorderOptions = {}) {
       const targetUrl = updated.url;
       if (
         targetUrl &&
-        !targetUrl.startsWith('nova://') &&
+        !targetUrl.startsWith('king://') &&
         !targetUrl.startsWith('about:') &&
         !targetUrl.startsWith('chrome://')
       ) {

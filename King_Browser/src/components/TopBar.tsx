@@ -575,13 +575,13 @@ const MemoizedTabItem = React.memo(
               <div className="w-3.5 h-3.5 border-2 border-blue-500/50 border-t-transparent rounded-full animate-spin shrink-0" />
             ) : tab.favicon ? (
               <img src={tab.favicon} width={14} height={14} alt="" className="w-3.5 h-3.5 rounded-sm shrink-0" />
-            ) : tab.url === 'nova://settings' ? (
+            ) : tab.url === 'king://settings' ? (
               <Settings className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            ) : tab.url === 'nova://history' ? (
+            ) : tab.url === 'king://history' ? (
               <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            ) : tab.url === 'nova://downloads' ? (
+            ) : tab.url === 'king://downloads' ? (
               <Download className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            ) : (tab.url === 'nova://newtab' || tab.url === 'about:blank' || tab.url === 'https://newtab') ? (
+            ) : (tab.url === 'king://newtab' || tab.url === 'about:blank' || tab.url === 'https://newtab') ? (
               tab.isIncognito ? <VenetianMask className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <Compass className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             ) : (
               <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -1096,7 +1096,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
   const currentUrl = activeTab?.url || '';
   let currentHostname = '';
   try {
-    if (currentUrl && !currentUrl.startsWith('nova://')) {
+    if (currentUrl && !currentUrl.startsWith('king://')) {
       const urlToParse = currentUrl.includes('://') ? currentUrl : `http://${currentUrl}`;
       currentHostname = new URL(urlToParse).hostname;
     }
@@ -1394,7 +1394,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onReload} className={`p-1.5 rounded-lg transition-colors ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`} title="Reload Page">
             <RotateCw className={`w-4 h-4 transition-transform duration-500 active:rotate-180 ${activeTab?.isLoading ? 'animate-spin' : ''}`} />
           </motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onNavigate('nova://newtab')} className={`p-1.5 rounded-lg transition-colors ml-0.5 ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`} title="New Tab Page">
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onNavigate('king://newtab')} className={`p-1.5 rounded-lg transition-colors ml-0.5 ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`} title="New Tab Page">
             <Home className="w-4 h-4" />
           </motion.button>
         </div>
@@ -1430,7 +1430,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                 ? 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/20 hover:border-cyan-400/40'
                 : 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 dark:text-cyan-400 border border-cyan-500/20 hover:border-cyan-400/40 shadow-xs'
             }`}
-            title={isMac ? "Nova AI Assistant (⌘I)" : "Nova AI Assistant (Ctrl+I)"}
+            title={isMac ? "King AI Assistant (⌘I)" : "King AI Assistant (Ctrl+I)"}
           >
             <NovaAssistantIcon size={15} active={isAIAssistantOpen} />
             <span className="font-medium text-[11px]">
@@ -1542,7 +1542,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
               isOpen={isDownloadsOpen}
               onClose={() => setIsDownloadsOpen(false)}
               onClearDownloads={onClearDownloads || (() => {})}
-              onOpenDownloadsPage={() => onNavigate('nova://downloads')}
+              onOpenDownloadsPage={() => onNavigate('king://downloads')}
               buttonRef={downloadsBtnRef}
             />
           </div>
@@ -1603,7 +1603,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
             <Puzzle className="w-4 h-4" />
           </button>
 
-          {/* Nova Account & Sync Button */}
+          {/* King Account & Sync Button */}
           {onOpenAccount && (
             <button
               onClick={onOpenAccount}
@@ -1614,7 +1614,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                     ? 'hover:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
                     : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'
               }`}
-              title={syncStatus.isLoggedIn ? `Nova Account (${syncStatus.user?.displayName || syncStatus.user?.email})` : 'Sign In to Nova Sync'}
+              title={syncStatus.isLoggedIn ? `King Account (${syncStatus.user?.displayName || syncStatus.user?.email})` : 'Sign In to King Sync'}
             >
               {syncStatus.isLoggedIn && syncStatus.user ? (
                 <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 text-white font-bold text-[10px] flex items-center justify-center shadow-xs uppercase">
@@ -1654,7 +1654,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                     transition={{ duration: 0.15 }}
                     className="absolute right-0 top-full mt-1.5 w-72 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/80 dark:border-white/10 z-50 flex flex-col p-1.5 divide-y divide-slate-100 dark:divide-white/5"
                   >
-                    {/* Nova Account Header inside menu */}
+                    {/* King Account Header inside menu */}
                     {onOpenAccount && (
                       <div className="p-1">
                         <button
@@ -1673,7 +1673,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                             )}
                             <div className="min-w-0">
                               <span className="text-xs font-bold block truncate">
-                                {syncStatus.isLoggedIn ? (syncStatus.syncCode || 'Nova Sync') : 'Nova Sync'}
+                                {syncStatus.isLoggedIn ? (syncStatus.syncCode || 'King Sync') : 'King Sync'}
                               </span>
                               <span className="text-[10px] text-slate-400 truncate block">
                                 {syncStatus.isLoggedIn ? 'Encrypted Sync Active' : 'Sign in to sync across devices'}
@@ -1720,7 +1720,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                       )}
 
                       <button
-                        onClick={() => { onNavigate('nova://settings#mcp'); setIsMoreMenuOpen(false); }}
+                        onClick={() => { onNavigate('king://settings#mcp'); setIsMoreMenuOpen(false); }}
                         className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors"
                       >
                         <div className="flex items-center gap-2.5">

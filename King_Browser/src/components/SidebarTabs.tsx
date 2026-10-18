@@ -217,7 +217,7 @@ const SidebarTabItem: React.FC<SidebarTabItemProps> = React.memo(({
   onMouseLeave,
   setDragOverTabId
 }) => {
-  const isNewTabUrl = !tab.url || tab.url === 'nova://newtab' || tab.url === 'about:blank' || tab.url === 'https://newtab';
+  const isNewTabUrl = !tab.url || tab.url === 'king://newtab' || tab.url === 'about:blank' || tab.url === 'https://newtab';
   const dragCounterRef = useRef(0);
 
   return (
@@ -391,11 +391,11 @@ const SidebarTabItem: React.FC<SidebarTabItemProps> = React.memo(({
                 <div className="w-3.5 h-3.5 border-2 border-slate-400/40 border-t-slate-800 dark:border-slate-300/40 dark:border-t-white rounded-full animate-spin" />
               ) : tab.favicon ? (
                 <img src={tab.favicon} width={14} height={14} alt="" className="w-3.5 h-3.5 rounded-xs object-contain" />
-              ) : tab.url === 'nova://settings' ? (
+              ) : tab.url === 'king://settings' ? (
                 <Settings className="w-3.5 h-3.5 opacity-70" />
-              ) : tab.url === 'nova://history' ? (
+              ) : tab.url === 'king://history' ? (
                 <Clock className="w-3.5 h-3.5 opacity-70" />
-              ) : tab.url === 'nova://downloads' ? (
+              ) : tab.url === 'king://downloads' ? (
                 <Download className="w-3.5 h-3.5 opacity-70" />
               ) : isNewTabUrl ? (
                 tab.isIncognito ? (
@@ -668,7 +668,7 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = React.memo(({
     } catch (_) {}
 
     // If current tab is an empty new tab, navigate it directly; otherwise create new tab
-    if (activeTab && (activeTab.url === 'nova://newtab' || activeTab.url === 'about:blank' || activeTab.url === 'https://newtab')) {
+    if (activeTab && (activeTab.url === 'king://newtab' || activeTab.url === 'about:blank' || activeTab.url === 'https://newtab')) {
       if (onNavigate) onNavigate(favUrl);
       else onNewTab(favUrl);
     } else {
@@ -680,7 +680,7 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = React.memo(({
   useEffect(() => {
     if (!isOmniboxFocused) {
       const url = activeTab?.url || '';
-      if (url === 'nova://newtab' || url === 'about:blank' || url === 'https://newtab') {
+      if (url === 'king://newtab' || url === 'about:blank' || url === 'https://newtab') {
         setSearchValue('');
       } else {
         setSearchValue(url);
@@ -873,7 +873,7 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = React.memo(({
     });
   }, [tabs, activeWorkspaceId]);
 
-  const isCurrentNewTab = !activeTab?.url || activeTab.url === 'nova://newtab' || activeTab.url === 'about:blank' || activeTab.url === 'https://newtab';
+  const isCurrentNewTab = !activeTab?.url || activeTab.url === 'king://newtab' || activeTab.url === 'about:blank' || activeTab.url === 'https://newtab';
 
   return (
     <>
@@ -956,7 +956,7 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = React.memo(({
                     ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 font-semibold ring-1 ring-cyan-500/30'
                     : 'hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
                 }`}
-                title={isMac ? "Nova AI Assistant (⌘I)" : "Nova AI Assistant (Ctrl+I)"}
+                title={isMac ? "King AI Assistant (⌘I)" : "King AI Assistant (Ctrl+I)"}
               >
                 <Sparkles className={`w-3.5 h-3.5 ${isAIAssistantOpen ? 'text-accent' : 'text-cyan-600 dark:text-cyan-400'}`} />
               </button>
@@ -993,7 +993,7 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = React.memo(({
                 onFocus={() => {
                   setIsOmniboxFocused(true);
                   setShowSuggestions(true);
-                  if (activeTab?.url && activeTab.url !== 'nova://newtab') {
+                  if (activeTab?.url && activeTab.url !== 'king://newtab') {
                     setSearchValue(activeTab.url);
                   }
                 }}
@@ -1018,7 +1018,7 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = React.memo(({
                   } else if (e.key === 'Escape') {
                     setShowSuggestions(false);
                     setSelectedIndex(-1);
-                    if (activeTab?.url && activeTab.url !== 'nova://newtab') {
+                    if (activeTab?.url && activeTab.url !== 'king://newtab') {
                       setSearchValue(activeTab.url);
                     }
                     omniboxInputRef.current?.blur();
@@ -1476,7 +1476,7 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = React.memo(({
                     className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10 transition-colors text-left cursor-pointer font-medium"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400" />
-                    {isMac ? 'Nova AI Assistant (⌘I)' : 'Nova AI Assistant (Ctrl+I)'}
+                    {isMac ? 'King AI Assistant (⌘I)' : 'King AI Assistant (Ctrl+I)'}
                   </button>
                 )}
                 {onOpenDownloads && (
@@ -1503,7 +1503,7 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = React.memo(({
                     className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10 transition-colors text-left cursor-pointer"
                   >
                     <Cloud className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400" />
-                    Nova Sync
+                    King Sync
                   </button>
                 )}
                 {onOpenSettings && (

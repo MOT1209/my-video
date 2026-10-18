@@ -161,7 +161,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         <div className="w-28 h-28 rounded-3xl p-1 flex items-center justify-center mb-6 mx-auto relative overflow-hidden">
           <img 
             src="./logo.svg" 
-            alt="Nova" 
+            alt="King" 
             className="w-full h-full object-contain scale-105" 
           />
         </div>
@@ -173,7 +173,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         className="text-5xl font-bold text-white mb-4 tracking-tight select-none"
       >
         Welcome to<br />
-        <span className="text-cyan-400">Nova Browser</span>
+        <span className="text-cyan-400">King Browser</span>
       </motion.h1>
       <motion.p
         initial={{ y: 20, opacity: 0 }}
@@ -206,7 +206,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
       </div>
       <h2 className="text-4xl font-bold text-white mb-3 select-none">Import from Your Old Browser</h2>
       <p className="text-slate-300 text-base max-w-md mb-8 select-none">
-        You can import your bookmarks from Google Chrome (and other Chromium-based browsers) to Nova with a single click.
+        You can import your bookmarks from Google Chrome (and other Chromium-based browsers) to King with a single click.
       </p>
       
       {importStatus === 'idle' && (
@@ -251,7 +251,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     // Step 2 — Theme
     <motion.div key="theme" className="flex flex-col items-center justify-center h-full text-center px-8 relative">
       <h2 className="text-4xl font-bold text-white mb-3 select-none">Choose a Theme</h2>
-      <p className="text-slate-300 text-base mb-10 select-none">Personalize the look of Nova Browser.</p>
+      <p className="text-slate-300 text-base mb-10 select-none">Personalize the look of King Browser.</p>
       <div className="flex gap-5 mb-12 flex-wrap justify-center no-drag" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         {THEMES.map(t => (
           <button
@@ -325,7 +325,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
       </div>
       <h2 className="text-4xl font-bold text-white mb-3 select-none">Privacy Shield</h2>
       <p className="text-slate-300 text-base max-w-md mb-8 leading-relaxed select-none">
-        Nova Browser's built-in privacy shield automatically blocks ads, trackers, and malicious content.
+        King Browser's built-in privacy shield automatically blocks ads, trackers, and malicious content.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 max-w-lg w-full no-drag" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
         {[
@@ -386,7 +386,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         transition={{ delay: 0.45 }}
         className="text-slate-300 text-base max-w-md leading-relaxed mb-4 select-none"
       >
-        Nova Browser is ready. All your settings are saved and can be changed anytime.
+        King Browser is ready. All your settings are saved and can be changed anytime.
       </motion.p>
       <motion.div
         initial={{ y: 20, opacity: 0 }}
@@ -428,7 +428,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
       >
         <div className="flex items-center gap-2 pl-20 no-drag" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <span className="text-[11px] font-semibold text-slate-500 tracking-wider uppercase">
-            Nova Browser Setup
+            King Browser Setup
           </span>
         </div>
         <div className="flex items-center gap-2 no-drag" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>

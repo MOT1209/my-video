@@ -4,13 +4,13 @@
  * The previous implementation scraped a 64-hex string out of the GitHub
  * release BODY. When no hash was found it computed the download's SHA-256,
  * logged it, and then ignored it — so the update was reported exactly like a
- * verified one while nothing had been checked. And because a Nova release
+ * verified one while nothing had been checked. And because a King release
  * carries ~18 assets plus a checksums block, a loose scrape could also pick up
  * a DIFFERENT asset's hash and reject a perfectly good download.
  *
  * These tests pin the new order of trust (GitHub's per-asset `digest` first,
  * the body only as a strict fallback) and the "unverified" outcome. The digest
- * shapes below are copied from real `unitybtw/nova-browser` release payloads.
+ * shapes below are copied from real `MOT1209/my-video` release payloads.
  */
 
 const SHA256_HEX_RE = /^[a-f0-9]{64}$/;
@@ -47,7 +47,7 @@ export function extractExpectedSha256(release: any, assetName: string): string |
 
 console.log('\n--- Update Integrity (expected SHA-256 resolution) ---');
 
-const EXE = 'Nova-Browser-1.4.8-x64.exe';
+const EXE = 'King-Browser-1.4.8-x64.exe';
 const EXE_SHA = 'fca1051bf784c48090970ef6b3049d93cf0843b325c6ae038f3356baa2702931';
 const DMG_SHA = 'b'.repeat(64);
 const OTHER_SHA = 'c'.repeat(64);
@@ -55,11 +55,11 @@ const OTHER_SHA = 'c'.repeat(64);
 // A real-shaped release: 18 assets, each with GitHub's `digest`.
 const realRelease = {
   tag_name: 'v1.4.8',
-  body: `## Checksums\n${'d'.repeat(64)}  Nova-Browser-1.4.8-arm64.dmg\n${EXE_SHA}  ${EXE}\n`,
+  body: `## Checksums\n${'d'.repeat(64)}  King-Browser-1.4.8-arm64.dmg\n${EXE_SHA}  ${EXE}\n`,
   assets: [
     { name: 'latest-mac.yml', digest: `sha256:${'a'.repeat(64)}` },
     { name: EXE, digest: `sha256:${EXE_SHA}` },
-    { name: 'Nova-Browser-1.4.8-arm64.dmg', digest: `sha256:${DMG_SHA}` }
+    { name: 'King-Browser-1.4.8-arm64.dmg', digest: `sha256:${DMG_SHA}` }
   ]
 };
 
@@ -82,7 +82,7 @@ check(
 );
 check(
   'each asset resolves to its own digest',
-  extractExpectedSha256(realRelease, 'Nova-Browser-1.4.8-arm64.dmg') === DMG_SHA
+  extractExpectedSha256(realRelease, 'King-Browser-1.4.8-arm64.dmg') === DMG_SHA
 );
 
 // 2. no digest anywhere -> explicitly unverified, never a guess
@@ -96,7 +96,7 @@ check(
 );
 check(
   'unknown asset name resolves to undefined, not another asset\'s hash',
-  extractExpectedSha256(realRelease, 'Nova-Browser-1.4.9-x64.exe') === undefined
+  extractExpectedSha256(realRelease, 'King-Browser-1.4.9-x64.exe') === undefined
 );
 
 // 3. a malformed digest must not be silently accepted or coerced
@@ -115,13 +115,13 @@ for (const bad of [
 
 // 4. body fallback still works for old releases, exact name only
 const legacyRelease = {
-  body: `## Checksums\n${'d'.repeat(64)}  Nova-Browser-1.4.8-arm64.dmg\n${EXE_SHA}  ${EXE}\n`,
+  body: `## Checksums\n${'d'.repeat(64)}  King-Browser-1.4.8-arm64.dmg\n${EXE_SHA}  ${EXE}\n`,
   assets: [{ name: EXE }]
 };
 check('legacy release falls back to an exact body match', extractExpectedSha256(legacyRelease, EXE) === EXE_SHA);
 check(
   'body fallback does not leak another asset\'s hash',
-  extractExpectedSha256(legacyRelease, 'Nova-Browser-1.4.8-arm64.dmg') === 'd'.repeat(64),
+  extractExpectedSha256(legacyRelease, 'King-Browser-1.4.8-arm64.dmg') === 'd'.repeat(64),
   'arm64 name is legitimately listed in that body, so this is the correct hash'
 );
 
@@ -133,7 +133,7 @@ check(
 );
 
 // 6. every returned value is a well-formed sha-256
-for (const name of [EXE, 'Nova-Browser-1.4.8-arm64.dmg', 'latest-mac.yml']) {
+for (const name of [EXE, 'King-Browser-1.4.8-arm64.dmg', 'latest-mac.yml']) {
   const v = extractExpectedSha256(realRelease, name);
   check(`returned value for ${name} is 64 lowercase hex`, typeof v === 'string' && SHA256_HEX_RE.test(v));
 }

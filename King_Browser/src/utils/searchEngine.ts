@@ -31,7 +31,7 @@ export function isValidUrlOrDomain(input: string): boolean {
   if (/\s/.test(trimmed)) return false;
 
   // Safe internal schemes
-  if (['nova://', 'about:'].some(scheme => trimmed.toLowerCase().startsWith(scheme))) {
+  if (['king://', 'about:'].some(scheme => trimmed.toLowerCase().startsWith(scheme))) {
     return true;
   }
 
@@ -104,7 +104,7 @@ export function formatSearchUrl(
   }
 
   // Safe internal browser schemes
-  const safeInternalSchemes = ['nova://', 'about:'];
+  const safeInternalSchemes = ['king://', 'about:'];
   if (safeInternalSchemes.some(scheme => trimmed.toLowerCase().startsWith(scheme))) {
     return trimmed;
   }

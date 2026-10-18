@@ -159,15 +159,15 @@ Current English interface in Clean Minimalist mode with the light theme.
 
 ### 1-Click Chrome Web Store Extensions
 - **Direct Web Store Installation**: Browse the official Chrome Web Store and install extensions with 1-click via the top banner.
-- **Manual CRX / Unpacked Add-ons**: Load developer extensions or zip packages effortlessly through `nova://extensions`.
+- **Manual CRX / Unpacked Add-ons**: Load developer extensions or zip packages effortlessly through `king://extensions`.
 - **Zip-Slip & Path Traversal Neutralization**: All CRX archive extractions are validated in-memory before decompression to prevent directory traversal attacks.
 
-### Native `nova://` Internal Pages
-- **`nova://settings`**: Complete browser preferences, theme toggles, search engine picker, shortcuts, zero-knowledge password vault, and sync controls.
-- **`nova://history`**: Grouped timeline search, date filtering, and quick item deletion.
-- **`nova://downloads`**: Live progress indicators, pause/resume, folder shortcuts, and file launching.
-- **`nova://newtab`**: Start page with quick dials, customizable animated background, and tasks widget.
-- **`nova://extensions`**: Extension manager for viewing, disabling, and removing installed add-ons.
+### Native `king://` Internal Pages
+- **`king://settings`**: Complete browser preferences, theme toggles, search engine picker, shortcuts, zero-knowledge password vault, and sync controls.
+- **`king://history`**: Grouped timeline search, date filtering, and quick item deletion.
+- **`king://downloads`**: Live progress indicators, pause/resume, folder shortcuts, and file launching.
+- **`king://newtab`**: Start page with quick dials, customizable animated background, and tasks widget.
+- **`king://extensions`**: Extension manager for viewing, disabling, and removing installed add-ons.
 
 ### Productivity & Multi-Tasking
 - **Dual-View Split Screen**: Snap two active tabs side-by-side with a drag-to-resize divider and fractional split persistence.
@@ -191,7 +191,7 @@ King Browser natively exposes an MCP endpoint on port `3020`, enabling external 
 
 | Tool Name | Parameters | Description |
 | :--- | :--- | :--- |
-| `nova_browser_info` | - | Returns King Browser version, platform, active tabs count, and status |
+| `king_browser_info` | - | Returns King Browser version, platform, active tabs count, and status |
 | `browser_navigate` | `url`, `tabId?` | Navigates the target tab to a specified URL |
 | `browser_read_page` | `tabId?`, `selector?` | Extracts clean text and DOM tree content from the active page |
 | `browser_screenshot` | `tabId?`, `fullPage?` | Captures a PNG screenshot of the current viewport or full page |
@@ -258,7 +258,7 @@ To connect **Claude Desktop**, **Cursor**, **Windsurf**, or custom scripts to Ki
 }
 ```
 
-*(Note: Retrieve your persistent token under `nova://settings` -> Developer / MCP Server, or check the terminal output on startup).*
+*(Note: Retrieve your persistent token under `king://settings` -> Developer / MCP Server, or check the terminal output on startup).*
 
 ---
 
@@ -543,9 +543,9 @@ flowchart TB
 | `Cmd + +` / `Cmd + -` / `Cmd + 0` | `Ctrl + +` / `Ctrl + -` / `Ctrl + 0` | Zoom In / Zoom Out / Reset (100%) |
 | `Cmd + D` | `Ctrl + D` | Bookmark Current Page |
 | `Cmd + Shift + S` | `Ctrl + Shift + S` | Capture Full-Page Screenshot |
-| `Cmd + Y` | `Ctrl + H` | Open History (`nova://history`) |
-| `Shift + Cmd + J` | `Ctrl + J` | Open Downloads (`nova://downloads`) |
-| `Cmd + ,` | `Ctrl + ,` | Open Settings (`nova://settings`) |
+| `Cmd + Y` | `Ctrl + H` | Open History (`king://history`) |
+| `Shift + Cmd + J` | `Ctrl + J` | Open Downloads (`king://downloads`) |
+| `Cmd + ,` | `Ctrl + ,` | Open Settings (`king://settings`) |
 | `F12` / `Cmd + Opt + I` | `F12` / `Ctrl + Shift + I` | Open Developer Tools |
 | `F1` / `Cmd + /` | `F1` / `Ctrl + /` | Open Help & Shortcuts Guide |
 
@@ -632,7 +632,7 @@ Before getting started:
 
 Distributed under the **MIT License**. See `LICENSE` for details.
 
-This project is a rebranded derivative of [Nova Browser](https://github.com/unitybtw/nova-browser) (MIT), with substantial modifications — see `docs/UPSTREAM.md` for the full provenance record.
+This project is a rebranded derivative of [King Browser](https://github.com/MOT1209/my-video) (MIT), with substantial modifications — see `docs/UPSTREAM.md` for the full provenance record.
 
 <br/>
 

@@ -35,7 +35,7 @@ async function run() {
     { url: 'file:///C:/Windows/System32/drivers/etc/hosts', allowed: false },
     { url: 'javascript:alert(1)', allowed: false },
     { url: 'chrome://settings', allowed: false },
-    { url: 'nova://settings', allowed: false },
+    { url: 'king://settings', allowed: false },
     { url: 'devtools://devtools/bundled/inspector.html', allowed: false },
   ];
 
@@ -58,7 +58,7 @@ async function run() {
     { src: 'javascript:alert(1)', allowed: false },
     { src: 'data:text/html,<h1>hacked</h1>', allowed: false },
     { src: 'blob:https://example.com/abc', allowed: false },
-    { src: 'nova://settings', allowed: false },
+    { src: 'king://settings', allowed: false },
     { src: 'chrome://gpu', allowed: false },
     { src: 'https://user:pass@example.com', allowed: false },
   ];
@@ -229,7 +229,7 @@ async function run() {
       const isOfficialHost = (parsed.hostname === 'github.com' || parsed.hostname === 'www.github.com' || parsed.hostname === 'objects.githubusercontent.com');
       if (!isOfficialHost || parsed.protocol !== 'https:') return false;
       if ((parsed.hostname === 'github.com' || parsed.hostname === 'www.github.com') &&
-          !parsed.pathname.startsWith('/unitybtw/nova-browser/')) {
+          !parsed.pathname.startsWith('/MOT1209/my-video/')) {
         return false;
       }
       return true;
@@ -238,11 +238,11 @@ async function run() {
     }
   }
 
-  assert.equal(testValidateUpdateUrl('https://github.com/unitybtw/nova-browser/releases/download/v1.4.8/Nova-Browser-1.4.8.dmg'), true);
+  assert.equal(testValidateUpdateUrl('https://github.com/MOT1209/my-video/releases/download/v1.4.8/King-Browser-1.4.8.dmg'), true);
   assert.equal(testValidateUpdateUrl('https://objects.githubusercontent.com/github-production-release-asset-2e65be/asset.dmg'), true);
-  assert.equal(testValidateUpdateUrl('https://github.com/evil-attacker/nova-browser/releases/download/v1.4.8/Nova.dmg'), false);
-  assert.equal(testValidateUpdateUrl('https://evil-server.com/Nova-Browser-Setup.exe'), false);
-  assert.equal(testValidateUpdateUrl('http://github.com/unitybtw/nova-browser/releases/v1.0'), false);
+  assert.equal(testValidateUpdateUrl('https://github.com/evil-attacker/nova-browser/releases/download/v1.4.8/King.dmg'), false);
+  assert.equal(testValidateUpdateUrl('https://evil-server.com/King-Browser-Setup.exe'), false);
+  assert.equal(testValidateUpdateUrl('http://github.com/MOT1209/my-video/releases/v1.0'), false);
 
   // Verify Source Viewer Fallback Fetch SSRF Protection
   function testValidateSourceViewerFetchUrl(urlStr: string): boolean {

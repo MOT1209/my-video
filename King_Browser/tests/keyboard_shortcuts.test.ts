@@ -4,7 +4,7 @@ import type { ShortcutBinding } from '../src/types/browser';
 
 console.log('\n--- Keyboard Shortcuts & Genuine matches() Test Suite ---');
 
-// Standard Nova Browser default shortcuts configuration (macOS vs Windows)
+// Standard King Browser default shortcuts configuration (macOS vs Windows)
 const macShortcuts: Record<string, ShortcutBinding> = {
   newTab: { key: 't', shift: false, meta: true },
   reopenTab: { key: 't', shift: true, meta: true },

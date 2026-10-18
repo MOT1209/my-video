@@ -419,7 +419,7 @@ async function runChallenger2EmpiricalTests() {
     if (!urlStr || typeof urlStr !== 'string') return false;
     try {
       const parsed = new URL(urlStr);
-      if (parsed.protocol === 'nova:' || parsed.protocol === 'devtools:') return true;
+      if (parsed.protocol === 'king:' || parsed.protocol === 'devtools:') return true;
       if (parsed.origin === 'http://localhost:5173') return true;
       if (parsed.protocol === 'file:') {
         const allowedPath = path.resolve(allowedIndexPath);
@@ -437,8 +437,8 @@ async function runChallenger2EmpiricalTests() {
   const originTestCases = [
     { url: 'http://localhost:5173', expected: true, desc: 'Exact localhost dev origin' },
     { url: 'http://localhost:5173/sub/path?q=1#hash', expected: true, desc: 'Localhost dev subpath' },
-    { url: 'nova://newtab', expected: true, desc: 'Internal nova:// protocol' },
-    { url: 'nova://settings', expected: true, desc: 'Internal nova://settings' },
+    { url: 'king://newtab', expected: true, desc: 'Internal king:// protocol' },
+    { url: 'king://settings', expected: true, desc: 'Internal king://settings' },
     { url: 'devtools://devtools/bundled/inspector.html', expected: true, desc: 'Devtools internal protocol' },
     { url: 'file:///app/dist/index.html', expected: true, desc: 'Exact production dist/index.html file' },
     // Adversarial attempts
@@ -488,7 +488,7 @@ async function runChallenger2EmpiricalTests() {
     return { valid: true, resolvedPath: extDir };
   }
 
-  const baseExtDir = '/Users/user/Library/Application Support/nova-browser/extensions';
+  const baseExtDir = '/Users/user/Library/Application Support/king-browser/extensions';
 
   const extIdTestCases = [
     { id: 'valid-extension-123_abc', expected: true, desc: 'Standard extension ID' },

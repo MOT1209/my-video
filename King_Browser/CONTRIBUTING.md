@@ -1,6 +1,6 @@
-# Contributing to Nova Browser
+# Contributing to King Browser
 
-Thank you for your interest in contributing to Nova Browser. Nova is an open-source, sovereign desktop web browser built with Electron, React, TypeScript, and Vite, featuring a native Model Context Protocol (MCP) server, on-device WebGPU neural execution, and zero-knowledge encrypted multi-device sync.
+Thank you for your interest in contributing to King Browser. King is an open-source, sovereign desktop web browser built with Electron, React, TypeScript, and Vite, featuring a native Model Context Protocol (MCP) server, on-device WebGPU neural execution, and zero-knowledge encrypted multi-device sync.
 
 This document outlines the workflow, development environment setup, architecture principles, and contribution guidelines.
 
@@ -31,8 +31,8 @@ Before setting up the project locally, ensure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/unitybtw/nova-browser.git
-cd nova-browser
+git clone https://github.com/MOT1209/my-video.git
+cd my-video
 ```
 
 ### 2. Install Dependencies
@@ -73,7 +73,7 @@ npm run dev:website
 
 ## Architecture Overview
 
-Nova Browser is structured into distinct subsystems:
+King Browser is structured into distinct subsystems:
 
 - `electron/`: Electron main process, host IPC bridges, webview preload scripts, and core desktop services:
   - `electron/main.ts`: Application entry point, window management, webContents lifecycle, and IPC handlers.
@@ -93,7 +93,7 @@ Nova Browser is structured into distinct subsystems:
 
 ## Security Invariants & Coding Standards
 
-Nova Browser enforces strict security invariants across all processes:
+King Browser enforces strict security invariants across all processes:
 
 1. **IPC Sender Validation**: Every `ipcMain.handle` and `ipcMain.on` handler that performs privileged operations MUST validate the sender using `isTrustedSender(event)` to prevent unauthorized IPC calls from guest webviews or subframes.
 2. **Context Isolation**: Never enable `nodeIntegration: true` in any webview or BrowserWindow. Always retain `contextIsolation: true` and `sandbox: true`.

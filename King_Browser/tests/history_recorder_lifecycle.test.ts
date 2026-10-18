@@ -27,9 +27,9 @@ console.log('[PASS] [History Recorder] Trailing slash normalization verified acr
 // 2. Navigation Scheme Filtering
 function shouldRecordHistory(url: string): boolean {
   if (!url || typeof url !== 'string') return false;
-  if (url === 'about:blank' || url === 'about:newtab' || url === 'nova://newtab') return false;
+  if (url === 'about:blank' || url === 'about:newtab' || url === 'king://newtab') return false;
   if (
-    url.startsWith('nova://') ||
+    url.startsWith('king://') ||
     url.startsWith('javascript:') ||
     url.startsWith('vbscript:') ||
     url.startsWith('data:') ||
@@ -44,8 +44,8 @@ function shouldRecordHistory(url: string): boolean {
 assert.strictEqual(shouldRecordHistory('https://github.com'), true);
 assert.strictEqual(shouldRecordHistory('http://localhost:3000'), true);
 assert.strictEqual(shouldRecordHistory('about:blank'), false);
-assert.strictEqual(shouldRecordHistory('nova://newtab'), false);
-assert.strictEqual(shouldRecordHistory('nova://settings'), false);
+assert.strictEqual(shouldRecordHistory('king://newtab'), false);
+assert.strictEqual(shouldRecordHistory('king://settings'), false);
 assert.strictEqual(shouldRecordHistory('javascript:void(0)'), false);
 assert.strictEqual(shouldRecordHistory('vbscript:msgbox(1)'), false);
 assert.strictEqual(shouldRecordHistory('data:text/html,test'), false);

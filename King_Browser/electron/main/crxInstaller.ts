@@ -475,7 +475,7 @@ export async function installFromWebstore(deps: CrxInstallerDeps, event: Electro
     } catch (_) {}
   }
   if (!isFromMainWindow && !isFromWebstore) {
-    return { error: 'Unauthorized: install-from-webstore can only be called from Chrome Web Store or Nova main window.' };
+    return { error: 'Unauthorized: install-from-webstore can only be called from Chrome Web Store or King main window.' };
   }
 
   let crxFilePath = '';
@@ -711,7 +711,7 @@ export async function installFromWebstore(deps: CrxInstallerDeps, event: Electro
       defaultId: 0,
       cancelId: 0,
       title: 'Install Extension',
-      message: `Add "${extensionName}" to Nova Browser?`,
+      message: `Add "${extensionName}" to King Browser?`,
       detail: formattedPermissions.length > 0
         ? `${identityLine}\n\nIt can:\n\n${formattedPermissions.join('\n\n')}`
         : `${identityLine}\n\nThis extension does not request special browser permissions.`

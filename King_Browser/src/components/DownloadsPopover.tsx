@@ -194,7 +194,7 @@ export const DownloadsPopover: React.FC<DownloadsPopoverProps> = ({
                   }}
                   className="w-full text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline py-1"
                 >
-                  Show all downloads (nova://downloads)
+                  Show all downloads (king://downloads)
                 </button>
               </div>
             )}

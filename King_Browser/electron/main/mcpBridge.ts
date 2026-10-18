@@ -75,7 +75,7 @@ export function initMcpBridge(trustedSenderCheck: TrustedSenderCheck): void {
 export function requestRendererMcpAction(win: BrowserWindow | null, toolName: string, args: Record<string, unknown>): Promise<unknown> {
   return new Promise((resolve, reject) => {
     if (!win || win.isDestroyed()) {
-      reject(new Error('Nova Browser window is not available'));
+      reject(new Error('King Browser window is not available'));
       return;
     }
     const id = Date.now().toString(36) + '_' + randomBytes(8).toString('hex');
@@ -96,7 +96,7 @@ export function requestRendererMcpAction(win: BrowserWindow | null, toolName: st
     const onClosed = () => {
       pendingMcpActions.delete(id);
       clearTimeout(timer);
-      reject(new Error('Nova Browser window was closed'));
+      reject(new Error('King Browser window was closed'));
     };
     try {
       win.once('closed', onClosed);

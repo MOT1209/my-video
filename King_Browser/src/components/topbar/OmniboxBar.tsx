@@ -93,7 +93,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
                           reqOrigin === 'app' ||
                           reqOrigin === 'http://localhost:5173' ||
                           req.url?.startsWith('file:') ||
-                          req.url?.startsWith('nova:');
+                          req.url?.startsWith('king:');
       return isAppOrigin || reqOrigin === currentOrigin || (req.webContentsId && req.webContentsId === activeTab?.webContentsId);
     });
   }, [permissionRequests, activeTab?.url, activeTab?.webContentsId]);
@@ -197,7 +197,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
   useEffect(() => {
     if (!isFocused) {
       const url = activeTab?.url || '';
-      if (url === 'nova://newtab' || url === 'about:blank' || url === 'https://newtab') {
+      if (url === 'king://newtab' || url === 'about:blank' || url === 'https://newtab') {
         setSearchValue('');
       } else {
         setSearchValue(url);
@@ -211,7 +211,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
 
   useEffect(() => {
     const trimmed = searchValue.trim();
-    if (isAIMode || !trimmed || trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('nova://') || trimmed.startsWith('about:')) {
+    if (isAIMode || !trimmed || trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('king://') || trimmed.startsWith('about:')) {
       setSuggestions([]);
       return;
     }
@@ -342,9 +342,9 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
                 return (
                   <div className={`flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-md transition-[background-color,color,box-shadow,transform] hover:scale-105 active:scale-95 ${sec.bgColor} ${sec.color}`} title={`${sec.tooltip} (Click for site info & permissions)`}>
                     {sec.level === 'internal' && (
-                      (activeTab?.url === 'nova://settings' || activeTab?.url?.includes('settings')) ? <Settings className="w-3.5 h-3.5" /> :
-                      (activeTab?.url === 'nova://history' || activeTab?.url?.includes('history')) ? <Clock className="w-3.5 h-3.5" /> :
-                      (activeTab?.url === 'nova://downloads' || activeTab?.url?.includes('downloads')) ? <Download className="w-3.5 h-3.5" /> :
+                      (activeTab?.url === 'king://settings' || activeTab?.url?.includes('settings')) ? <Settings className="w-3.5 h-3.5" /> :
+                      (activeTab?.url === 'king://history' || activeTab?.url?.includes('history')) ? <Clock className="w-3.5 h-3.5" /> :
+                      (activeTab?.url === 'king://downloads' || activeTab?.url?.includes('downloads')) ? <Download className="w-3.5 h-3.5" /> :
                       <Search className="w-3.5 h-3.5" />
                     )}
                     {sec.level === 'secure' && <Lock className="w-3.5 h-3.5" />}
@@ -470,7 +470,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
               <span className="text-[12px] font-semibold truncate text-slate-800 dark:text-slate-200 leading-[14px]">
                 {activeTab?.title || 'New Tab'}
               </span>
-              {activeTab?.url && activeTab.url !== 'nova://newtab' && (
+              {activeTab?.url && activeTab.url !== 'king://newtab' && (
                 <span className="text-[10px] truncate text-slate-500 dark:text-slate-400 leading-[12px]">
                   {formatDisplayUrl(activeTab.url)}
                 </span>

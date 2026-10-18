@@ -1,14 +1,14 @@
 # Benchmark & Performance Report
 
-This document outlines the internal benchmarks, performance characteristics, bundle size analysis, and reproduction instructions for **Nova Browser**.
+This document outlines the internal benchmarks, performance characteristics, bundle size analysis, and reproduction instructions for **King Browser**.
 
 ---
 
 ## 1. Engine & Architectural Overview
 
-Nova Browser is built on Electron 43, Chromium 134 (Blink), and Google V8. Because Nova shares the same underlying Chromium rendering and JavaScript execution engine as Google Chrome, core HTML parsing, DOM layout, and JIT-compiled JavaScript execution speeds are on par with standard Chromium releases.
+King Browser is built on Electron 43, Chromium 134 (Blink), and Google V8. Because King shares the same underlying Chromium rendering and JavaScript execution engine as Google Chrome, core HTML parsing, DOM layout, and JIT-compiled JavaScript execution speeds are on par with standard Chromium releases.
 
-Nova's design optimizations focus on reducing unnecessary overhead:
+King's design optimizations focus on reducing unnecessary overhead:
 - **Zero Background Telemetry**: No background telemetry beacons, crash reporters, or Google service pings running continuously.
 - **Background Tab Suspension**: Dormant tabs have their active rendering cycles paused, conserving CPU time and reducing inactive RAM footprint.
 - **In-Memory Network Filter**: Intercepts tracking and ad requests directly at the network session layer using `@cliqz/adblocker-electron` with EasyList filters.
@@ -33,7 +33,7 @@ The benchmarks in this repository can be run on any development machine running 
 
 ## 3. In-Memory Microbenchmark Results
 
-Nova includes an automated microbenchmark suite ([`tests/benchmark_suite.ts`](tests/benchmark_suite.ts)) that measures internal data structure throughput, state transition speeds, and production bundle asset footprints.
+King includes an automated microbenchmark suite ([`tests/benchmark_suite.ts`](tests/benchmark_suite.ts)) that measures internal data structure throughput, state transition speeds, and production bundle asset footprints.
 
 Run with: `npm run benchmark`
 
@@ -56,7 +56,7 @@ Run with: `npm run benchmark`
 
 ## 4. Real-World Memory & Resource Considerations
 
-Like all Chromium-based desktop browsers, Nova operates using a multi-process architecture:
+Like all Chromium-based desktop browsers, King operates using a multi-process architecture:
 - **Main Process**: Manages application lifecycle, window state, IPC bridge, native menus, and MCP server.
 - **Renderer Process**: Runs the React user interface, tab bar, and UI modals.
 - **GPU Process**: Handles hardware-accelerated rasterization and WebGPU compute.
@@ -65,7 +65,7 @@ Like all Chromium-based desktop browsers, Nova operates using a multi-process ar
 ### Memory Expectations
 - **Initial Cold Start**: Full browser process tree typically consumes ~300-500 MB RSS on initial launch.
 - **Active Browsing (Multiple Tabs)**: Active tabs with heavy JavaScript single-page applications or multimedia streams (e.g. YouTube, Twitch) will consume standard Chromium memory amounts (1-2+ GB).
-- **Background Tab Hibernation**: Nova flags idle background tabs as suspended to pause rendering loops and background timers, helping prevent idle tabs from steadily increasing memory usage over time.
+- **Background Tab Hibernation**: King flags idle background tabs as suspended to pause rendering loops and background timers, helping prevent idle tabs from steadily increasing memory usage over time.
 
 ---
 

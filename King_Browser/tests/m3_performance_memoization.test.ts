@@ -1,7 +1,7 @@
 /**
  * Empirical Adversarial & Performance Verification Suite for Milestone 3:
  * Frontend Performance, React Memoization & Memory Optimization
- * Nova Browser M3 Verification
+ * King Browser M3 Verification
  */
 
 console.log('================================================================');
@@ -156,12 +156,12 @@ function browserViewMemoComparator(prevProps: any, nextProps: any): boolean {
   if (prevProps.settings?.showTasksWidget !== nextProps.settings?.showTasksWidget) return false;
 
   // Deep comparison for settings object changes that affect internal pages
-  const isInternalTab = prevProps.tab?.url?.startsWith('nova://') || 
+  const isInternalTab = prevProps.tab?.url?.startsWith('king://') || 
                         prevProps.tab?.url?.startsWith('about:') || 
                         prevProps.tab?.url === 'https://newtab';
   if (isInternalTab && prevProps.settings !== nextProps.settings) return false;
-  if ((prevProps.tab?.url?.startsWith('nova://history') || prevProps.tab?.url?.startsWith('about:history')) && prevProps.history !== nextProps.history) return false;
-  if ((prevProps.tab?.url?.startsWith('nova://downloads') || prevProps.tab?.url?.startsWith('about:downloads')) && prevProps.downloads !== nextProps.downloads) return false;
+  if ((prevProps.tab?.url?.startsWith('king://history') || prevProps.tab?.url?.startsWith('about:history')) && prevProps.history !== nextProps.history) return false;
+  if ((prevProps.tab?.url?.startsWith('king://downloads') || prevProps.tab?.url?.startsWith('about:downloads')) && prevProps.downloads !== nextProps.downloads) return false;
 
   return true;
 }
@@ -292,7 +292,7 @@ assertM3(
 // 3.12 internal new tab page invalidates on settings change
 const newTabProps = {
   ...baseProps,
-  tab: { ...baseProps.tab, url: 'nova://newtab' }
+  tab: { ...baseProps.tab, url: 'king://newtab' }
 };
 assertM3(
   !browserViewMemoComparator(newTabProps, { ...newTabProps, settings: { ...newTabProps.settings, browserColor: 'forest' } }),
@@ -394,14 +394,14 @@ console.log('\n--- 6. Testing SidebarTabs Visited Tabs Filtering ---');
 
 function filterVisitedTabs(tabs: Array<{ id: string; url: string }>) {
   return tabs.filter(t => {
-    const isBlank = !t.url || t.url === 'nova://newtab' || t.url === 'about:blank' || t.url === 'https://newtab';
+    const isBlank = !t.url || t.url === 'king://newtab' || t.url === 'about:blank' || t.url === 'https://newtab';
     return !isBlank;
   });
 }
 
 const mixedTabs = [
   { id: 't1', url: 'https://google.com' },
-  { id: 't2', url: 'nova://newtab' },
+  { id: 't2', url: 'king://newtab' },
   { id: 't3', url: 'about:blank' },
   { id: 't4', url: 'https://github.com' },
   { id: 't5', url: '' }

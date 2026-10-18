@@ -92,14 +92,14 @@ function simulateCloseTab(
   const workspaceTabs = tabsList.filter(t => (t.workspaceId || 'default') === activeWs);
 
   if (workspaceTabs.length <= 1 && workspaceTabs.some(t => t.id === idToClose)) {
-    if (targetTab && (targetTab.url !== 'nova://newtab' || targetTab.canGoBack)) {
+    if (targetTab && (targetTab.url !== 'king://newtab' || targetTab.canGoBack)) {
       closedStack.push(targetTab);
     }
     const nextTabs = tabsList.map(t => {
       if (t.id === idToClose) {
         return {
           ...t,
-          url: 'nova://newtab',
+          url: 'king://newtab',
           title: 'New Tab',
           isLoading: false,
           canGoBack: false,
@@ -131,13 +131,13 @@ const closeResult = simulateCloseTab(soleTabs, 'single-tab-1', 'default', testCl
 
 assert.equal(closeResult.nextTabs.length, 1, 'Tab count must remain 1');
 assert.equal(closeResult.nextTabs[0].id, 'single-tab-1', 'Tab ID must be preserved in place to prevent DOM unmount/remount churn');
-assert.equal(closeResult.nextTabs[0].url, 'nova://newtab', 'URL must reset to nova://newtab');
+assert.equal(closeResult.nextTabs[0].url, 'king://newtab', 'URL must reset to king://newtab');
 assert.equal(closeResult.nextTabs[0].title, 'New Tab', 'Title must reset to New Tab');
 assert.equal(closeResult.nextActiveId, 'single-tab-1', 'Active tab ID must remain single-tab-1');
 assert.equal(testClosedStack.length, 1, 'Previous URL must be recorded in closedTabsStack for restore');
 assert.equal(testClosedStack[0].id, 'single-tab-1');
 
-// Test B: Closing sole tab when already on clean nova://newtab (idempotent, no duplicate stack push)
+// Test B: Closing sole tab when already on clean king://newtab (idempotent, no duplicate stack push)
 const closeResult2 = simulateCloseTab(closeResult.nextTabs, 'single-tab-1', 'default', testClosedStack);
 assert.equal(closeResult2.nextTabs[0].id, 'single-tab-1');
 assert.equal(testClosedStack.length, 1, 'Clean empty newtab must not add duplicate entry to closedTabsStack');

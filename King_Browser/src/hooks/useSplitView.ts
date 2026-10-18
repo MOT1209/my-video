@@ -64,7 +64,7 @@ export function useSplitView({
         const newId = generateId('tab');
         const newTab: Tab = {
           id: newId,
-          url: 'nova://newtab',
+          url: 'king://newtab',
           title: 'New Tab',
           isLoading: false,
           canGoBack: false,

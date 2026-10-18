@@ -1,5 +1,5 @@
 /**
- * Nova Browser Cloud Sync & Account Service
+ * King Browser Cloud Sync & Account Service
  *
  * Supabase-backed E2EE sync vault: data is stored as a version-2 envelope
  * (AES-GCM-256, PBKDF2-SHA256 600k iterations — see syncCrypto.ts). The E2EE
@@ -2516,7 +2516,7 @@ export class NovaSyncService {
       // nova_sync_vaults.user_id is a uuid referencing auth.users; zero-config
       // fallback accounts ('usr_…' ids) would only surface a cryptic Postgres
       // error mid-query.
-      throw new Error('Cloud sync requires a Nova Cloud account. Please sign in with your cloud account.');
+      throw new Error('Cloud sync requires a King Cloud account. Please sign in with your cloud account.');
     }
     if (!isSupabaseConfigured()) {
       throw new Error('Secure sync requires a configured Supabase project');
@@ -2926,7 +2926,7 @@ export class NovaSyncService {
   // Both entry points now fail loudly instead of pretending. Pairing needs to be
   // built on the real primitives before these can be reinstated.
   private static readonly PAIRING_UNAVAILABLE =
-    'Device pairing is not available in this build. Sign in with your Nova Cloud account to sync.';
+    'Device pairing is not available in this build. Sign in with your King Cloud account to sync.';
 
   /**
    * Whether the pairing UI should be offered at all.

@@ -12,7 +12,7 @@ export function ReleaseMedia({ release }: { release: ReleaseVersion }) {
   const gallery: Media[] = release.version === '1.5.0' ? [
     { src: './changelog/newtab.jpg', kind: 'image', title: t('releaseJournal.newTab') },
     { src: './changelog/assistant.jpg', kind: 'image', title: t('releaseJournal.assistant') },
-    { src: './changelog/nova-tour.mp4', kind: 'video', title: t('releaseJournal.productFilm'), poster: './changelog/nova-tour.poster.jpg', captions: `./changelog/nova-tour.${language === 'tr' ? 'tr' : 'en'}.vtt` },
+    { src: './changelog/king-tour.mp4', kind: 'video', title: t('releaseJournal.productFilm'), poster: './changelog/king-tour.poster.jpg', captions: `./changelog/king-tour.${language === 'tr' ? 'tr' : 'en'}.vtt` },
     { src: './changelog/update-guide.mp4', kind: 'video', title: t('releaseJournal.updateFilm'), poster: './changelog/update-guide.poster.jpg', captions: `./changelog/update-guide.${language === 'tr' ? 'tr' : 'en'}.vtt` },
   ] : [release.hero, ...(release.sections ?? []).map(section => section.media)]
     .filter((media): media is NonNullable<typeof media> => Boolean(media))

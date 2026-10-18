@@ -28,7 +28,7 @@
     </radialGradient>
   </defs>
 
-  <!-- The Nova Star Transparent Glyph -->
+  <!-- The King Browser Star Transparent Glyph -->
   <g filter="url(#starShadowMark)">
     <!-- Primary 4-point parabolic star -->
     <path d="M 512 140

@@ -1,5 +1,5 @@
 /**
- * Records a single-take product tour video of the Nova Browser web build.
+ * Records a single-take product tour video of the King Browser web build.
  *
  * The app ships with a built-in directed demo (App.tsx "Automated Real Browser
  * Demo Showcase"): when loaded with ?demo=true it cycles three 6.5s stages —
@@ -54,7 +54,7 @@ app.whenReady().then(async () => {
   });
   await encoder.loadURL('file://' + RECORDER_HTML);
 
-  // ---- Target window: the REAL Nova Browser, offscreen-rendered ----
+  // ---- Target window: the REAL King Browser, offscreen-rendered ----
   const target = new BrowserWindow({
     show: false,
     width: W,
@@ -113,7 +113,7 @@ app.whenReady().then(async () => {
     }
   };
 
-  console.log('Loading the real Nova Browser build…');
+  console.log('Loading the real King Browser build…');
   await target.loadURL('file://' + DIST_HTML + '?demo=true&feature=ai&bg=nebula&theme=dark');
   await sleep(BOOT_MS);
   await captureDebug('boot');
@@ -128,7 +128,7 @@ app.whenReady().then(async () => {
       return await target.webContents.executeJavaScript(
         `(function(){ var v=''; var inputs=document.querySelectorAll('input');` +
         ` for (var i=0;i<inputs.length;i++){ var val=inputs[i].value||'';` +
-        ` if (/^(https?:|nova:)/.test(val)) { v=val; break; } } return v; })()`
+        ` if (/^(https?:|king:)/.test(val)) { v=val; break; } } return v; })()`
       );
     } catch (_) {
       return '';

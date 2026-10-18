@@ -78,7 +78,7 @@ async function main() {
   const noop = () => {};
   const settings = { fontSize: 'medium' } as any;
   const webTab = { id: 't1', url: 'https://example.com/', title: 'Example' } as any;
-  const settingsTab = { id: 't2', url: 'nova://settings', title: 'Settings' } as any;
+  const settingsTab = { id: 't2', url: 'king://settings', title: 'Settings' } as any;
 
   const base = (over: Partial<BrowserViewProps> = {}): BrowserViewProps => ({
     tab: webTab,
@@ -157,12 +157,12 @@ async function main() {
   // --- page-scoped data -------------------------------------------------------
   {
     const historyA: any[] = [{ id: 'h1' }];
-    const prevH = base({ tab: { ...webTab, url: 'nova://history' }, history: historyA, onClearHistory: noop, onRemoveHistoryItem: noop });
-    const nextH = base({ tab: { ...webTab, url: 'nova://history' }, history: [...historyA], onClearHistory: noop, onRemoveHistoryItem: noop });
+    const prevH = base({ tab: { ...webTab, url: 'king://history' }, history: historyA, onClearHistory: noop, onRemoveHistoryItem: noop });
+    const nextH = base({ tab: { ...webTab, url: 'king://history' }, history: [...historyA], onClearHistory: noop, onRemoveHistoryItem: noop });
     check('a new history array re-renders the history tab', browserViewPropsEqual(prevH, nextH) === false);
 
-    const prevD = base({ tab: { ...webTab, url: 'nova://downloads' }, downloads: [{ id: 'd1' }] as any, onClearDownloads: noop });
-    const nextD = base({ tab: { ...webTab, url: 'nova://downloads' }, downloads: [{ id: 'd1' }] as any, onClearDownloads: noop });
+    const prevD = base({ tab: { ...webTab, url: 'king://downloads' }, downloads: [{ id: 'd1' }] as any, onClearDownloads: noop });
+    const nextD = base({ tab: { ...webTab, url: 'king://downloads' }, downloads: [{ id: 'd1' }] as any, onClearDownloads: noop });
     check('a new downloads array re-renders the downloads tab', browserViewPropsEqual(prevD, nextD) === false);
 
     const prevW = base({ tab: webTab, history: historyA, downloads: [{ id: 'd1' }] as any });
@@ -172,8 +172,8 @@ async function main() {
 
   // --- settings: a new object is a change for an internal page, not a web tab ---
   {
-    const prevI = base({ tab: { ...webTab, url: 'nova://newtab' }, settings: { ...settings } });
-    const nextI = base({ tab: { ...webTab, url: 'nova://newtab' }, settings: { ...settings } });
+    const prevI = base({ tab: { ...webTab, url: 'king://newtab' }, settings: { ...settings } });
+    const nextI = base({ tab: { ...webTab, url: 'king://newtab' }, settings: { ...settings } });
     check('a new settings object re-renders an internal page', browserViewPropsEqual(prevI, nextI) === false);
 
     const prevF = base({ tab: { ...webTab, url: 'https://a.test' }, settings: { ...settings, fontSize: 'medium' } });

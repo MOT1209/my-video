@@ -4,7 +4,7 @@ import { UserSettings } from '../../types/browser';
 import { copyTextToClipboard } from '../../utils/clipboard';
 import { useSafeTimeout } from '../../hooks/useSafeTimeout';
 
-// mcpToken from getMcpTokenStatus is only a display prefix (e.g. "nova_mcp_••••").
+// mcpToken from getMcpTokenStatus is only a display prefix (e.g. "king_mcp_••••").
 // Never treat a masked value as the real secret.
 const isMaskedToken = (v: string) => !v || v.includes('•') || v.includes('****');
 
@@ -81,7 +81,7 @@ export const McpSection: React.FC<McpSectionProps> = ({
     if ((window as any).electronAPI?.getMcpTokenStatus) {
       const tokenStatus = await (window as any).electronAPI.getMcpTokenStatus();
       if (tokenStatus?.configured) {
-        setMcpToken(tokenStatus.prefix || 'nova_mcp_••••••••');
+        setMcpToken(tokenStatus.prefix || 'king_mcp_••••••••');
       } else {
         setMcpToken('');
       }
@@ -164,7 +164,7 @@ export const McpSection: React.FC<McpSectionProps> = ({
 
   const mcpConfigSnippet = `{
   "mcpServers": {
-    "nova-browser": {
+    "king-browser": {
       "url": "http://localhost:${mcpStatus?.port || 3020}/sse",
       "headers": {
         "Authorization": "Bearer ${mcpToken}"
@@ -202,7 +202,7 @@ export const McpSection: React.FC<McpSectionProps> = ({
             <Cpu className="w-6 h-6 text-blue-500" />
             MCP Server
           </h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Model Context Protocol — Let AI tools control Nova Browser</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">Model Context Protocol — Let AI tools control King Browser</p>
         </div>
         <button
           onClick={handleToggleMcp}

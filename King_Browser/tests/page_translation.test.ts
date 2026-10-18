@@ -28,7 +28,7 @@ if (extractScript.includes('TreeWalker') && extractScript.includes('window.__nov
 }
 
 // Test 3: Apply translation script with escaping
-const sampleTranslations = ['Merhaba Dünya', 'Nova Tarayıcı "Hızlı" & Güvenli', "O'clock & test <tags>"];
+const sampleTranslations = ['Merhaba Dünya', 'King Tarayıcı "Hızlı" & Güvenli', "O'clock & test <tags>"];
 const applyScript = getApplyTranslationScript(sampleTranslations, 'tr');
 if (applyScript.includes('Merhaba D\\u00fcnya') || applyScript.includes('Merhaba Dünya')) {
   console.log('[PASS] [Translation Engine] Apply translation script safely serialized with targetLang="tr"');

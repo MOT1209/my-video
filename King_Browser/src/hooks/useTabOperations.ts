@@ -136,7 +136,7 @@ export function useTabOperations({
       if (targetTab?.isIncognito) {
         cleanupIncognitoSessions([targetTab], prevTabs.filter(t => t.id !== id));
       }
-      if (targetTab && (targetTab.url !== 'nova://newtab' || targetTab.canGoBack)) {
+      if (targetTab && (targetTab.url !== 'king://newtab' || targetTab.canGoBack)) {
         pushClosedTab(targetTab);
       }
       // Reset sole tab in place without unmounting or regenerating tab ID.
@@ -146,7 +146,7 @@ export function useTabOperations({
           return {
             ...t,
             ...EMPTY_DOCUMENT_STATE,
-            url: 'nova://newtab',
+            url: 'king://newtab',
             title: 'New Tab',
             isLoading: false,
             canGoBack: false,
@@ -172,13 +172,13 @@ export function useTabOperations({
       if (targetTab?.isIncognito) {
         cleanupIncognitoSessions([targetTab], prevTabs.filter(t => t.id !== id));
       }
-      if (targetTab && (targetTab.url !== 'nova://newtab' || targetTab.canGoBack)) {
+      if (targetTab && (targetTab.url !== 'king://newtab' || targetTab.canGoBack)) {
         pushClosedTab(targetTab);
       }
       setTabs(prev => prev.map(t => ({
         ...t,
         ...EMPTY_DOCUMENT_STATE,
-        url: 'nova://newtab',
+        url: 'king://newtab',
         title: 'New Tab',
         isLoading: false,
         canGoBack: false,
@@ -384,7 +384,7 @@ export function useTabOperations({
     const newId = generateId('tab');
     const newTab: Tab = {
       id: newId,
-      url: 'nova://newtab',
+      url: 'king://newtab',
       title: 'New Tab',
       isLoading: false,
       canGoBack: false,
@@ -438,36 +438,36 @@ export function useTabOperations({
   }, [activeTabId]);
 
   const handleNewTab = useCallback((url?: string | any, sourceTabId?: string, opts?: { reuseBlank?: boolean; isIncognito?: boolean }) => {
-    let finalUrl = typeof url === 'string' ? url : 'nova://newtab';
+    let finalUrl = typeof url === 'string' ? url : 'king://newtab';
 
     // Security: Block malicious protocols (shared blocklist — see safeNavigation.ts)
     if (!isSafeNavigationUrl(finalUrl)) {
-      finalUrl = 'nova://newtab';
+      finalUrl = 'king://newtab';
     }
 
     // Extensions page handling: open extensions modal directly
-    if (finalUrl === 'nova://extensions' || finalUrl === 'chrome://extensions') {
+    if (finalUrl === 'king://extensions' || finalUrl === 'chrome://extensions') {
       setIsExtensionsOpen(true);
       return;
     }
 
     let initialTitle = 'New Tab';
-    if (finalUrl.startsWith('nova://settings')) initialTitle = 'Settings';
-    else if (finalUrl.startsWith('nova://history')) initialTitle = 'History';
-    else if (finalUrl.startsWith('nova://downloads')) initialTitle = 'Downloads';
-    else if (finalUrl.startsWith('nova://changelog') || finalUrl.startsWith('nova://whats-new')) initialTitle = "What's New";
+    if (finalUrl.startsWith('king://settings')) initialTitle = 'Settings';
+    else if (finalUrl.startsWith('king://history')) initialTitle = 'History';
+    else if (finalUrl.startsWith('king://downloads')) initialTitle = 'Downloads';
+    else if (finalUrl.startsWith('king://changelog') || finalUrl.startsWith('king://whats-new')) initialTitle = "What's New";
 
     // If target/current tab is an unnavigated empty "New Tab" and url is specific (e.g. settings, history),
     // navigate current tab instead of spawning a redundant new tab
     const targetSourceId = sourceTabId || activeTabIdRef.current;
     const currentTarget = tabsRef.current.find(t => t.id === targetSourceId);
     const isCurrentBlank = currentTarget &&
-      (currentTarget.url === 'nova://newtab' || currentTarget.url === 'about:blank' || !currentTarget.url) &&
+      (currentTarget.url === 'king://newtab' || currentTarget.url === 'about:blank' || !currentTarget.url) &&
       !currentTarget.isLoading &&
       !currentTarget.canGoBack;
 
-    if (isCurrentBlank && finalUrl !== 'nova://newtab' && (opts?.reuseBlank ?? true)) {
-      const isInternalPage = finalUrl.startsWith('nova://') || finalUrl === 'about:blank';
+    if (isCurrentBlank && finalUrl !== 'king://newtab' && (opts?.reuseBlank ?? true)) {
+      const isInternalPage = finalUrl.startsWith('king://') || finalUrl === 'about:blank';
       setTabs(prev => prev.map(tab => tab.id === currentTarget.id ? {
         ...tab,
         url: finalUrl,
@@ -525,7 +525,7 @@ export function useTabOperations({
         ...t,
         ...EMPTY_DOCUMENT_STATE,
         isIncognito: false,
-        url: 'nova://newtab',
+        url: 'king://newtab',
         title: 'New Tab',
         isLoading: false,
         canGoBack: false,
@@ -538,18 +538,18 @@ export function useTabOperations({
   }, [handleCloseTab, activeTabIdRef, tabsRef, activeWorkspaceIdRef, setTabs]);
 
   const handleNewIncognitoTab = useCallback((url?: string | any) => {
-    let targetUrl = typeof url === 'string' ? url : 'nova://newtab';
+    let targetUrl = typeof url === 'string' ? url : 'king://newtab';
 
     // Security: Block malicious protocols (shared blocklist — see safeNavigation.ts)
     if (!isSafeNavigationUrl(targetUrl)) {
-      targetUrl = 'nova://newtab';
+      targetUrl = 'king://newtab';
     }
 
     const newTab: Tab = {
       id: generateId('tab'),
       url: targetUrl,
-      title: targetUrl !== 'nova://newtab' ? targetUrl : 'Private Tab',
-      isLoading: targetUrl !== 'nova://newtab',
+      title: targetUrl !== 'king://newtab' ? targetUrl : 'Private Tab',
+      isLoading: targetUrl !== 'king://newtab',
       canGoBack: false,
       canGoForward: false,
       isIncognito: true,
@@ -569,7 +569,7 @@ export function useTabOperations({
       return;
     }
 
-    if (url === 'nova://extensions' || url === 'chrome://extensions') {
+    if (url === 'king://extensions' || url === 'chrome://extensions') {
       setIsExtensionsOpen(true);
       return;
     }
@@ -605,12 +605,12 @@ export function useTabOperations({
     tabThumbnailCache.remove(targetId);
 
     let newTitle: string | undefined = undefined;
-    const isNewTabUrl = url === 'nova://newtab' || url === 'about:blank' || url === 'https://newtab';
+    const isNewTabUrl = url === 'king://newtab' || url === 'about:blank' || url === 'https://newtab';
     if (isNewTabUrl) newTitle = 'New Tab';
-    else if (url.startsWith('nova://settings')) newTitle = 'Settings';
-    else if (url.startsWith('nova://history')) newTitle = 'History';
-    else if (url.startsWith('nova://downloads')) newTitle = 'Downloads';
-    else if (url.startsWith('nova://changelog') || url.startsWith('nova://whats-new')) newTitle = "What's New";
+    else if (url.startsWith('king://settings')) newTitle = 'Settings';
+    else if (url.startsWith('king://history')) newTitle = 'History';
+    else if (url.startsWith('king://downloads')) newTitle = 'Downloads';
+    else if (url.startsWith('king://changelog') || url.startsWith('king://whats-new')) newTitle = "What's New";
 
     const isInternalPage = !!newTitle;
 

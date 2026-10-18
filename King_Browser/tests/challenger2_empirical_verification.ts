@@ -1,6 +1,6 @@
 /**
  * Empirical Adversarial Test Harness for Challenger 2 (Renderer & Storage)
- * Nova Browser Milestone 1
+ * King Browser Milestone 1
  */
 
 // This used to carry a hand-copied `safeBase64` "implementation of ... from
@@ -83,16 +83,16 @@ async function runAdversarialTests() {
     // Line 63 in BrowserView.tsx:
     const lastLoadedUrl = tab?.url || '';
     // Line 64 in BrowserView.tsx:
-    const getSafeUrl = (u?: string) => (u && u.startsWith('nova://')) ? 'about:blank' : (u || 'about:blank');
+    const getSafeUrl = (u?: string) => (u && u.startsWith('king://')) ? 'about:blank' : (u || 'about:blank');
     const webviewInitialSrc = getSafeUrl(tab?.url);
     // Line 68 in BrowserView.tsx:
-    const isNewTab = !tab?.url || tab.url === 'about:blank' || tab.url === 'nova://newtab' || tab.url === 'https://newtab';
+    const isNewTab = !tab?.url || tab.url === 'about:blank' || tab.url === 'king://newtab' || tab.url === 'https://newtab';
     // Line 90 in BrowserView.tsx:
-    const isSettingsTab = Boolean(tab?.url?.startsWith('nova://settings') || tab?.url?.startsWith('about:settings'));
+    const isSettingsTab = Boolean(tab?.url?.startsWith('king://settings') || tab?.url?.startsWith('about:settings'));
     // Line 94 in BrowserView.tsx:
-    const isHistoryTab = tab?.url === 'nova://history' || tab?.url === 'about:history';
+    const isHistoryTab = tab?.url === 'king://history' || tab?.url === 'about:history';
     // Line 98 in BrowserView.tsx:
-    const isDownloadsTab = tab?.url === 'nova://downloads' || tab?.url === 'about:downloads';
+    const isDownloadsTab = tab?.url === 'king://downloads' || tab?.url === 'about:downloads';
 
     return { lastLoadedUrl, webviewInitialSrc, isNewTab, isSettingsTab, isHistoryTab, isDownloadsTab };
   }
@@ -181,7 +181,7 @@ async function runAdversarialTests() {
     }
 
     if (tabs.length === 0) {
-      tabs = [{ id: '1', url: 'nova://newtab', title: 'New Tab', isLoading: false }];
+      tabs = [{ id: '1', url: 'king://newtab', title: 'New Tab', isLoading: false }];
     }
 
     // 2. Folders initializer

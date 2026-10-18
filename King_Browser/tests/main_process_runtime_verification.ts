@@ -1,6 +1,6 @@
 /**
  * Electron Main Process Runtime Stability & Integrity Verification Suite
- * Nova Browser Milestone 3
+ * King Browser Milestone 3
  */
 
 import fs from 'fs';

@@ -70,7 +70,7 @@ const hostileHtml = `
   <article>
     <h1>Autonomous Browser Architecture</h1>
     <script>evilPayload();</script>
-    <p>Nova is designed for performance and local AI inference.</p>
+    <p>King is designed for performance and local AI inference.</p>
     <img src="valid.jpg" onerror="alert('xss')" alt="diagram" />
     <iframe src="http://attacker.com"></iframe>
     <a href="javascript:stealTokens()">Click here</a>
@@ -83,7 +83,7 @@ assert.equal(sanitized.includes('evilPayload'), false);
 assert.equal(sanitized.includes('<iframe>'), false);
 assert.equal(sanitized.includes('onerror='), false);
 assert.equal(sanitized.includes('javascript:stealTokens'), false);
-assert.equal(sanitized.includes('Nova is designed for performance'), true);
+assert.equal(sanitized.includes('King is designed for performance'), true);
 
 // 2. Reading Time Calculation
 const sampleArticle = 'Word '.repeat(500); // 500 words

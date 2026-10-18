@@ -172,7 +172,7 @@ export function useAppIpc({
         } else if (command === 'downloads') {
           handlersRef.current.handleOpenDownloads();
         } else if (command === 'whats-new' || command === 'changelog') {
-          handlersRef.current.handleNewTab('nova://changelog', undefined, { reuseBlank: false });
+          handlersRef.current.handleNewTab('king://changelog', undefined, { reuseBlank: false });
         } else if (command === 'bookmark') {
           handlersRef.current.handleToggleBookmarkActive();
         } else if (command === 'toggle-bookmarks-bar') {
@@ -223,7 +223,7 @@ export function useAppIpc({
     const handleOpenSidePanel = () => setIsSidePanelOpen(true);
     const handleOpenWorkspaceManager = () => setIsWorkspaceManagerOpen(true);
     const handleOpenAccountModal = () => setIsAccountModalOpen(true);
-    const handleOpenChangelog = () => handlersRef.current.handleNewTab('nova://changelog', undefined, { reuseBlank: false });
+    const handleOpenChangelog = () => handlersRef.current.handleNewTab('king://changelog', undefined, { reuseBlank: false });
 
     window.addEventListener('ai-quick-action', handleQuickAIAction);
     window.addEventListener('open-ai-sidepanel', handleOpenSidePanel);

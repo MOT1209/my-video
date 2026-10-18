@@ -10,12 +10,12 @@ import fs from "fs";
 function getUserDataPath() {
   const home = os.homedir();
   if (process.platform === "darwin") {
-    return path.join(home, "Library", "Application Support", "nova-browser");
+    return path.join(home, "Library", "Application Support", "king-browser");
   }
   if (process.platform === "win32") {
-    return path.join(process.env.APPDATA || path.join(home, "AppData", "Roaming"), "nova-browser");
+    return path.join(process.env.APPDATA || path.join(home, "AppData", "Roaming"), "king-browser");
   }
-  return path.join(home, ".config", "nova-browser");
+  return path.join(home, ".config", "king-browser");
 }
 function resolveMcpConfig() {
   let port = 3020;
@@ -25,7 +25,7 @@ function resolveMcpConfig() {
     if (!isNaN(parsed) && parsed > 0 && parsed < 65536) port = parsed;
   } else {
     try {
-      const portFile = path.join(getUserDataPath(), "nova-mcp-port");
+      const portFile = path.join(getUserDataPath(), "king-mcp-port");
       if (fs.existsSync(portFile)) {
         const saved = parseInt(fs.readFileSync(portFile, "utf8").trim(), 10);
         if (!isNaN(saved) && saved > 0 && saved < 65536) port = saved;
@@ -34,7 +34,7 @@ function resolveMcpConfig() {
     }
   }
   if (!token || !/^[A-Za-z0-9._~-]{16,4096}$/.test(token)) {
-    throw new Error("Set a valid MCP_TOKEN using Nova Settings \u2192 MCP \u2192 Copy Configuration. The on-disk token is encrypted.");
+    throw new Error("Set a valid MCP_TOKEN using King Settings \u2192 MCP \u2192 Copy Configuration. The on-disk token is encrypted.");
   }
   return { port, token };
 }
@@ -51,14 +51,14 @@ async function main() {
   const client = new Client({ name: "mcp-bridge", version: "1.0.0" }, { capabilities: {} });
   try {
     await client.connect(sseTransport);
-    console.error("[MCP Bridge] Connected to Nova Browser SSE server");
+    console.error("[MCP Bridge] Connected to King Browser SSE server");
   } catch (error) {
-    console.error("[MCP Bridge] Error connecting to Nova Browser:", error.message);
-    console.error("Make sure Nova Browser is running.");
+    console.error("[MCP Bridge] Error connecting to King Browser:", error.message);
+    console.error("Make sure King Browser is running.");
     process.exit(1);
   }
   const server = new Server({
-    name: "nova-browser-mcp",
+    name: "king-browser-mcp",
     version: "1.0.0"
   }, {
     capabilities: {

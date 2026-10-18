@@ -94,7 +94,7 @@ export function useBookmarks(options: UseBookmarksOptions = {}) {
   }, [bookmarkRows, options.isDemo, options.isHydrated]);
 
   const handleToggleBookmark = useCallback((tab: Tab) => {
-    if (!tab.url || tab.url === 'nova://newtab' || tab.url === 'about:blank') return;
+    if (!tab.url || tab.url === 'king://newtab' || tab.url === 'about:blank') return;
     const now = Date.now();
     setBookmarks(prev => {
       const bookmarked = prev.filter(b => b.url === tab.url && !isTombstonedRow(b));

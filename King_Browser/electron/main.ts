@@ -42,9 +42,9 @@ function appendCrashLog(entry: string): void {
     // Avoid shared os.tmpdir() to prevent insecure temporary file / symlink attacks.
     let crashDir: string;
     try {
-      crashDir = app.isReady() ? app.getPath('userData') : path.join(require('os').homedir(), '.nova-browser');
+      crashDir = app.isReady() ? app.getPath('userData') : path.join(require('os').homedir(), '.king-browser');
     } catch {
-      crashDir = path.join(require('os').homedir(), '.nova-browser');
+      crashDir = path.join(require('os').homedir(), '.king-browser');
     }
     try {
       fs.mkdirSync(crashDir, { recursive: true, mode: 0o700 });
@@ -126,7 +126,7 @@ function getMainDOMPurify(): any {
 // database/LevelDB corruption, and hostile command-line flag injection.
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
-  console.warn('[Security] Another instance of Nova Browser is already running. Quitting duplicate process.');
+  console.warn('[Security] Another instance of King Browser is already running. Quitting duplicate process.');
   app.quit();
 }
 import child_process from 'child_process';
@@ -223,7 +223,7 @@ try {
 // Portable Mode: If running as a portable executable on Windows, isolate user data
 // into a local directory on the portable device instead of host %APPDATA%
 if (process.env.PORTABLE_EXECUTABLE_DIR) {
-  const portableUserData = path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'NovaBrowserData');
+  const portableUserData = path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'KingBrowserData');
   try {
     app.setPath('userData', portableUserData);
   } catch (_) {}
@@ -232,8 +232,8 @@ if (process.env.PORTABLE_EXECUTABLE_DIR) {
 // Hardware acceleration config: check settings safely before ready without race
 try {
   const targetDir = process.env.PORTABLE_EXECUTABLE_DIR
-    ? path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'NovaBrowserData')
-    : path.join(app.getPath('appData'), 'nova-browser');
+    ? path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'KingBrowserData')
+    : path.join(app.getPath('appData'), 'king-browser');
   const userSettingsPath = path.join(targetDir, 'store_user_settings.json');
   const legacySettingsPath = path.join(targetDir, 'store_settings.json');
   const settingsFile = fs.existsSync(userSettingsPath) ? userSettingsPath : (fs.existsSync(legacySettingsPath) ? legacySettingsPath : null);
@@ -296,7 +296,7 @@ if (process.platform === 'darwin') {
 }
 
 if (process.platform === 'win32') {
-  app.setAppUserModelId('com.novabrowser.app');
+  app.setAppUserModelId('com.kingbrowser.app');
 }
 
 if (process.platform === 'linux') {
@@ -395,9 +395,9 @@ function isTrustedAppOrigin(urlStr: string): boolean {
   try {
     const parsed = new URL(urlStr);
     // Internal tab URLs are rendered by the trusted React shell, not loaded by
-    // the privileged main window. Never treat arbitrary nova:/devtools: URLs as
+    // the privileged main window. Never treat arbitrary king:/devtools: URLs as
     // an app origin; doing so would let a crafted URL inherit app privileges.
-    if (parsed.protocol === 'nova:') {
+    if (parsed.protocol === 'king:') {
       const allowedHost = ['newtab', 'settings', 'history', 'downloads', 'changelog', 'whats-new'].includes(parsed.hostname);
       const allowedSettingsHash = parsed.hostname === 'settings' &&
         (!parsed.hash || ['#extensions', '#mcp'].includes(parsed.hash));
@@ -583,7 +583,7 @@ function createWindow() {
         detail:
           'Your Linux kernel has unprivileged user namespaces disabled ' +
           '(/proc/sys/kernel/unprivileged_userns_clone = 0). ' +
-          'Nova Browser is running without the Chromium sandbox, which means a compromised ' +
+          'King Browser is running without the Chromium sandbox, which means a compromised ' +
           'renderer process could access the host operating system directly.\n\n' +
           'To re-enable sandbox protection, set the sysctl value to 1:\n' +
           '  sudo sysctl -w kernel.unprivileged_userns_clone=1',
@@ -705,11 +705,11 @@ function createWindow() {
       if (isHttp) {
         requestHeaders['Accept-Language'] = currentAcceptLanguages;
 
-        // Strip any residual Electron / NovaBrowser branding from User-Agent
+        // Strip any residual Electron / KingBrowser branding from User-Agent
         if (requestHeaders['User-Agent']) {
           requestHeaders['User-Agent'] = requestHeaders['User-Agent']
             .replace(/\s*Electron\/[0-9.]+/gi, '')
-            .replace(/\s*NovaBrowser\/[0-9.]+/gi, '')
+            .replace(/\s*KingBrowser\/[0-9.]+/gi, '')
             .trim();
         }
         // Clean sec-ch-ua brand header to remove "Electron"
@@ -942,12 +942,12 @@ function setupApplicationMenu() {
   if (isMac) {
     try {
       app.setAboutPanelOptions({
-        applicationName: 'Nova Browser',
+        applicationName: 'King Browser',
         applicationVersion: app.getVersion(),
         version: app.getVersion(),
-        copyright: 'Copyright © 2026 Nova Browser. All rights reserved.',
+        copyright: 'Copyright © 2026 King Browser. All rights reserved.',
         credits: 'Built with Electron, React, TypeScript, Web-LLM, and Model Context Protocol.',
-        website: 'https://github.com/unitybtw/nova-browser'
+        website: 'https://github.com/MOT1209/my-video'
       });
     } catch {}
   }
@@ -955,10 +955,10 @@ function setupApplicationMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
     // App Menu (macOS only)
     ...(isMac ? [{
-      label: app.name || 'Nova Browser',
+      label: app.name || 'King Browser',
       submenu: [
         {
-          label: 'About Nova Browser',
+          label: 'About King Browser',
           click: () => {
             if (isMac) {
               app.showAboutPanel();
@@ -975,7 +975,7 @@ function setupApplicationMenu() {
           }
         },
         {
-          label: "What's New in Nova Browser",
+          label: "What's New in King Browser",
           click: () => {
             sendToMainWindow('shortcut', 'whats-new');
           }
@@ -1207,7 +1207,7 @@ function setupApplicationMenu() {
       label: 'Help',
       submenu: [
         {
-          label: 'Nova Browser Help Center',
+          label: 'King Browser Help Center',
           accelerator: 'F1',
           click: () => {
             sendToMainWindow('shortcut', 'open-help');
@@ -1222,7 +1222,7 @@ function setupApplicationMenu() {
         },
         { type: 'separator' as const },
         {
-          label: 'Nova AI Copilot Guide',
+          label: 'King AI Copilot Guide',
           click: () => {
             sendToMainWindow('shortcut', 'ai-help');
           }
@@ -1237,13 +1237,13 @@ function setupApplicationMenu() {
         {
           label: 'Report an Issue / Feedback',
           click: async () => {
-            await shell.openExternal('https://github.com/unitybtw/nova-browser/issues');
+            await shell.openExternal('https://github.com/MOT1209/my-video/issues');
           }
         },
         {
-          label: 'Visit Nova Browser GitHub',
+          label: 'Visit King Browser GitHub',
           click: async () => {
-            await shell.openExternal('https://github.com/unitybtw/nova-browser');
+            await shell.openExternal('https://github.com/MOT1209/my-video');
           }
         },
         {
@@ -1261,7 +1261,7 @@ function setupApplicationMenu() {
           }
         },
         {
-          label: 'About Nova Browser',
+          label: 'About King Browser',
           click: () => {
             if (isMac) {
               app.showAboutPanel();
@@ -1278,9 +1278,9 @@ function setupApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-if (!app.isDefaultProtocolClient('nova')) {
+if (!app.isDefaultProtocolClient('king')) {
   try {
-    app.setAsDefaultProtocolClient('nova');
+    app.setAsDefaultProtocolClient('king');
   } catch (_) {}
 }
 
@@ -1290,7 +1290,7 @@ function isValidDeepLinkUrl(targetUrl: unknown): boolean {
     const u = new URL(targetUrl.trim());
     if (u.username || u.password) return false;
     if (u.protocol === 'http:' || u.protocol === 'https:') return true;
-    if (u.protocol === 'nova:') {
+    if (u.protocol === 'king:') {
       const allowedPages = new Set(['newtab', 'settings', 'history', 'downloads', 'changelog', 'whats-new', 'extensions']);
       const page = (u.hostname || u.pathname.replace(/^\/+/, '')).toLowerCase().split(/[/?#]/)[0];
       return allowedPages.has(page);
@@ -1301,7 +1301,7 @@ function isValidDeepLinkUrl(targetUrl: unknown): boolean {
   }
 }
 
-// macOS deep-link handler for nova: and web URLs
+// macOS deep-link handler for king: and web URLs
 app.on('open-url', (event, url) => {
   event.preventDefault();
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1370,7 +1370,7 @@ function cleanStaleUpdateArtifacts(): void {
     if (fs.existsSync(osTemp)) {
       const tempEntries = fs.readdirSync(osTemp);
       for (const entry of tempEntries) {
-        if (entry.startsWith('nova_update_')) {
+        if (entry.startsWith('king_update_')) {
           const entryPath = path.join(osTemp, entry);
           try {
             const stat = fs.statSync(entryPath);
@@ -1408,10 +1408,10 @@ function cleanStaleUpdateArtifacts(): void {
 
           for (const entry of entries) {
             if (
-              entry.startsWith('.nova_staging_') ||
-              entry.startsWith('.nova_backup_') ||
-              entry.startsWith('Nova Browser.app.staging_') ||
-              entry.startsWith('Nova Browser.app.backup_')
+              entry.startsWith('.king_staging_') ||
+              entry.startsWith('.king_backup_') ||
+              entry.startsWith('King Browser.app.staging_') ||
+              entry.startsWith('King Browser.app.backup_')
             ) {
               const orphanPath = path.resolve(dir, entry);
               if (!orphanPath.startsWith(dir + path.sep)) continue;
@@ -2057,7 +2057,7 @@ app.whenReady().then(async () => {
   let shouldAutoStartMcp = false;
   try {
     const targetDir = process.env.PORTABLE_EXECUTABLE_DIR
-      ? path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'NovaBrowserData')
+      ? path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'KingBrowserData')
       : app.getPath('userData');
     const userSettingsPath = path.join(targetDir, 'store_user_settings.json');
     const legacySettingsPath = path.join(targetDir, 'store_settings.json');
@@ -2186,7 +2186,7 @@ app.whenReady().then(async () => {
    *    per-asset, and cannot be accidentally altered by pasting free text.
    * 2. The release body text, for releases published before digests existed.
    *    This is a weak fallback and only an exact asset-name match is accepted:
-   *    a Nova release carries ~18 assets and a checksums block, so a loose
+   *    a King release carries ~18 assets and a checksums block, so a loose
    *    "64 hex characters" match can easily pick up a DIFFERENT asset's hash
    *    and then fail a perfectly good download.
    *
@@ -2265,7 +2265,7 @@ app.whenReady().then(async () => {
       const isZip = resolvedFilePath.toLowerCase().endsWith('.zip');
 
       if (isDmg || isZip) {
-        let destinationApp = '/Applications/Nova Browser.app';
+        let destinationApp = '/Applications/King Browser.app';
         try {
           const exePath = app.getPath('exe');
           const appMatch = exePath.match(/^(.*?\.app)\/Contents\/MacOS\//);
@@ -2275,7 +2275,7 @@ app.whenReady().then(async () => {
         } catch (_) {}
 
         const backupToken = crypto.randomBytes(16).toString('hex');
-        const tempDir = path.join(app.getPath('temp'), `nova_update_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`);
+        const tempDir = path.join(app.getPath('temp'), `king_update_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`);
         fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 });
         if (process.platform !== 'win32') {
           try { fs.chmodSync(tempDir, 0o700); } catch (_) {}
@@ -2295,8 +2295,8 @@ BACKUP_TOKEN="$5"
 DEST_PARENT="$(dirname "\${DEST_APP}")"
 MOUNT_POINT="\${TEMP_DIR}/mount"
 STAGING_DIR="\${TEMP_DIR}/staging"
-STAGING_APP="\${STAGING_DIR}/Nova Browser.app"
-BACKUP_APP="\${DEST_PARENT}/.nova_backup_\${BACKUP_TOKEN}"
+STAGING_APP="\${STAGING_DIR}/King Browser.app"
+BACKUP_APP="\${DEST_PARENT}/.king_backup_\${BACKUP_TOKEN}"
 
 cleanup_mount() {
   hdiutil detach "\${MOUNT_POINT}" -force -quiet 2>/dev/null
@@ -2379,7 +2379,7 @@ TEMP_DIR="$4"
 BACKUP_TOKEN="$5"
 DEST_PARENT="$(dirname "\${DEST_APP}")"
 EXTRACT_DIR="\${TEMP_DIR}/extracted"
-BACKUP_APP="\${DEST_PARENT}/.nova_backup_\${BACKUP_TOKEN}"
+BACKUP_APP="\${DEST_PARENT}/.king_backup_\${BACKUP_TOKEN}"
 
 ditto -xk "\${FILE_PATH}" "\${EXTRACT_DIR}"
 SOURCE_APP=$(find "\${EXTRACT_DIR}" -maxdepth 2 -name "*.app" | head -n 1)
@@ -2424,7 +2424,7 @@ else
     mv "\${BACKUP_APP}" "\${DEST_APP}" 2>/dev/null
   fi
   rm -rf "\${TEMP_DIR}" 2>/dev/null
-  open "\${DEST_APP}" 2>/dev/null || open -a "Nova Browser"
+  open "\${DEST_APP}" 2>/dev/null || open -a "King Browser"
 fi
 `;
         }
@@ -2457,7 +2457,7 @@ fi
       if (resolvedFilePath.toLowerCase().endsWith('.exe')) {
         const tempDir = app.getPath('temp');
         const randomSuffix = crypto.randomBytes(8).toString('hex');
-        const updateDir = path.join(tempDir, `nova_update_${Date.now()}_${randomSuffix}`);
+        const updateDir = path.join(tempDir, `king_update_${Date.now()}_${randomSuffix}`);
         fs.mkdirSync(updateDir, { recursive: true });
         const batPath = path.join(updateDir, 'update.bat');
         const destinationExe = app.getPath('exe');
@@ -2502,7 +2502,7 @@ if not "%DEST_EXE%"=="" (
   if exist "%DEST_EXE%" (
     start "" "%DEST_EXE%"
   ) else (
-    start "" "%LOCALAPPDATA%\\Programs\\Nova Browser\\Nova Browser.exe" 2>nul
+    start "" "%LOCALAPPDATA%\\Programs\\King Browser\\King Browser.exe" 2>nul
   )
 )
 
@@ -2547,7 +2547,7 @@ exit
         try {
           fs.chmodSync(resolvedFilePath, 0o755);
           const currentAppImage = process.env.APPIMAGE || '';
-          const tempDir = path.join(app.getPath('temp'), `nova_update_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`);
+          const tempDir = path.join(app.getPath('temp'), `king_update_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`);
           fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 });
           try { fs.chmodSync(tempDir, 0o700); } catch (_) {}
           const scriptPath = path.join(tempDir, 'update_and_relaunch.sh');
@@ -2664,7 +2664,7 @@ fi
     try {
       const isManualUpdateOnly = !app.isPackaged || process.platform === 'linux' || process.platform === 'darwin' || !!process.env.PORTABLE_EXECUTABLE_DIR;
       if (isManualUpdateOnly) {
-        const res = await fetch('https://api.github.com/repos/unitybtw/nova-browser/releases', {
+        const res = await fetch('https://api.github.com/repos/MOT1209/my-video/releases', {
           headers: { 'User-Agent': getStandardUserAgent() },
           signal: AbortSignal.timeout(10000)
         });
@@ -2712,7 +2712,7 @@ fi
     } catch (err: any) {
       console.warn('Check for updates failed via primary method, checking GitHub releases directly:', err?.message);
       try {
-        const res = await fetch('https://api.github.com/repos/unitybtw/nova-browser/releases', {
+        const res = await fetch('https://api.github.com/repos/MOT1209/my-video/releases', {
           headers: { 'User-Agent': getStandardUserAgent() },
           signal: AbortSignal.timeout(10000)
         });
@@ -2843,7 +2843,7 @@ fi
     // If no URL stored yet, query GitHub releases API directly
     if (!targetUrl) {
       try {
-        const res = await fetch('https://api.github.com/repos/unitybtw/nova-browser/releases', {
+        const res = await fetch('https://api.github.com/repos/MOT1209/my-video/releases', {
           headers: { 'User-Agent': getStandardUserAgent() },
           signal: AbortSignal.timeout(10_000)
         });
@@ -2877,15 +2877,15 @@ fi
       }
       // Security: Updates must strictly originate from the official repository
       if ((parsed.hostname === 'github.com' || parsed.hostname === 'www.github.com') &&
-          !parsed.pathname.startsWith('/unitybtw/nova-browser/')) {
-        return { success: false, error: 'Untrusted update repository: updates must originate from unitybtw/nova-browser' };
+          !parsed.pathname.startsWith('/MOT1209/my-video/')) {
+        return { success: false, error: 'Untrusted update repository: updates must originate from MOT1209/my-video' };
       }
       if (customUrl && typeof customUrl === 'string') {
         const parsedCustom = new URL(customUrl.trim());
         if (parsedCustom.protocol !== 'https:' ||
             (parsedCustom.hostname !== 'github.com' && parsedCustom.hostname !== 'www.github.com') ||
-            !parsedCustom.pathname.startsWith('/unitybtw/nova-browser/')) {
-          return { success: false, error: 'Untrusted custom update URL: must originate from official unitybtw/nova-browser repository' };
+            !parsedCustom.pathname.startsWith('/MOT1209/my-video/')) {
+          return { success: false, error: 'Untrusted custom update URL: must originate from official MOT1209/my-video repository' };
         }
       }
       const isReleaseWebpage = parsed.pathname.includes('/releases/tag/') || parsed.pathname.endsWith('/releases/latest');
@@ -3112,16 +3112,16 @@ fi
           return false;
         }
         // Security: Block dangerous file extensions that could execute on the host OS,
-        // unless it is an official release package from the verified Nova repository.
+        // unless it is an official release package from the verified King repository.
         const pathname = parsed.pathname.toLowerCase();
-        const isOfficialNovaRelease = (parsed.hostname === 'github.com' || parsed.hostname === 'www.github.com' || parsed.hostname === 'objects.githubusercontent.com') &&
-          (pathname.startsWith('/unitybtw/nova-browser/releases') || pathname.includes('/unitybtw/nova-browser/releases/'));
+        const isOfficialRelease = (parsed.hostname === 'github.com' || parsed.hostname === 'www.github.com' || parsed.hostname === 'objects.githubusercontent.com') &&
+          (pathname.startsWith('/MOT1209/my-video/releases') || pathname.includes('/MOT1209/my-video/releases/'));
 
         const DANGEROUS_EXT_REGEX = /\.(exe|msi|bat|cmd|sh|app|bin|vbs|ps1|command|dmg|deb|pkg|rpm|iso)($|\?|#)/i;
         const queryHasDangerousExt = Array.from(parsed.searchParams.values()).some(val => DANGEROUS_EXT_REGEX.test(val.toLowerCase())) ||
           Array.from(parsed.searchParams.keys()).some(key => DANGEROUS_EXT_REGEX.test(key.toLowerCase()));
 
-        if (!isOfficialNovaRelease && (DANGEROUS_EXT_REGEX.test(pathname) || queryHasDangerousExt)) {
+        if (!isOfficialRelease && (DANGEROUS_EXT_REGEX.test(pathname) || queryHasDangerousExt)) {
           console.warn(`[Security] Blocked open-external for dangerous file extension: ${parsed.href}`);
           return false;
         }
@@ -3171,7 +3171,7 @@ fi
 
     // 2. Fetch fresh releases from GitHub API
     try {
-      const res = await fetch('https://api.github.com/repos/unitybtw/nova-browser/releases?per_page=10', {
+      const res = await fetch('https://api.github.com/repos/MOT1209/my-video/releases?per_page=10', {
         headers: { 'User-Agent': getStandardUserAgent() },
         signal: AbortSignal.timeout(8000)
       });
@@ -3198,7 +3198,7 @@ fi
         const prev = releases.slice(i + 1).find((x: any) => !x.draft && x.tag_name);
         const tag = r.tag_name || '';
         const version = tag.replace(/^v/, '');
-        const title = r.name || `Nova Browser v${version}`;
+        const title = r.name || `King Browser v${version}`;
 
         let dateStr = '';
         if (r.published_at) {
@@ -3243,7 +3243,7 @@ fi
             const safePrev = String(prev.tag_name).trim();
             const safeCurr = String(tag).trim();
             if (/^[a-zA-Z0-9._-]+$/.test(safePrev) && /^[a-zA-Z0-9._-]+$/.test(safeCurr)) {
-              const compRes = await fetch(`https://api.github.com/repos/unitybtw/nova-browser/compare/${encodeURIComponent(safePrev)}...${encodeURIComponent(safeCurr)}`, {
+              const compRes = await fetch(`https://api.github.com/repos/MOT1209/my-video/compare/${encodeURIComponent(safePrev)}...${encodeURIComponent(safeCurr)}`, {
                 headers: { 'User-Agent': getStandardUserAgent() },
                 signal: AbortSignal.timeout(5000)
               });
@@ -4002,10 +4002,10 @@ export async function openPageSourceViewer(currentUrl: string, wc?: any): Promis
   let isViewSource = false;
   try {
     const parsed = new URL(currentUrl);
-    isInternalPage = parsed.protocol.startsWith('nova');
+    isInternalPage = parsed.protocol.startsWith('king');
     isViewSource = parsed.protocol === 'view-source:';
   } catch {
-    isInternalPage = currentUrl.toLowerCase().startsWith('nova');
+    isInternalPage = currentUrl.toLowerCase().startsWith('king');
     isViewSource = currentUrl.toLowerCase().startsWith('view-source:');
   }
 
@@ -4129,7 +4129,7 @@ app.on('web-contents-created', (_event, wc) => {
         redo: 'Redo',
         delete: 'Delete',
         searchFor: (query: string) => `Search Google for "${query}"`,
-        aiExplain: 'Explain with Nova AI',
+        aiExplain: 'Explain with King AI',
 
         // Page Navigation
         back: 'Back',
@@ -4540,7 +4540,7 @@ ipcMain.handle('copy-mcp-config', (event) => {
   const port = mcpServer ? mcpServer.getPort() : 3020;
   const config = JSON.stringify({
     mcpServers: {
-      "nova-browser": {
+      "king-browser": {
         url: `http://localhost:${port}/sse`,
         headers: {
           Authorization: `Bearer ${token}`
@@ -4565,7 +4565,7 @@ ipcMain.handle('get-mcp-token-status', (event) => {
   const token = mcpServer?.getToken();
   return {
     configured: Boolean(token),
-    prefix: token ? 'nova_mcp_••••••••' : ''
+    prefix: token ? 'king_mcp_••••••••' : ''
   };
 });
 ipcMain.handle('rotate-mcp-token', (event) => {
@@ -6291,7 +6291,7 @@ ipcMain.handle('import-chrome-bookmarks', async (event) => {
       defaultId: 1,
       cancelId: 1,
       title: 'Import Chrome Bookmarks',
-      message: 'Nova Browser would like to read your Google Chrome bookmarks to import them.',
+      message: 'King Browser would like to read your Google Chrome bookmarks to import them.',
       detail: `Path: ${bookmarksPath}`
     });
     if (response !== 0) {
@@ -6786,7 +6786,7 @@ ipcMain.handle('show-confirm-dialog', async (event, options: { title?: string; m
     buttons,
     defaultId: 0,
     cancelId: hasCancel ? 1 : 0,
-    title: String(options?.title || (hasCancel ? 'Confirmation' : 'Nova Browser')).slice(0, 2048),
+    title: String(options?.title || (hasCancel ? 'Confirmation' : 'King Browser')).slice(0, 2048),
     message: String(options?.message || '').slice(0, 2048),
     detail: options?.detail ? String(options.detail).slice(0, 2048) : undefined,
     noLink: true

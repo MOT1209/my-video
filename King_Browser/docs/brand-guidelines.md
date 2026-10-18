@@ -75,7 +75,7 @@ font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
 ## 3. Logo & Visual Identity
 
 ### The Celestial Compass Mark
-The Nova logo embodies precision navigation, exploration, and speed. It combines an 8-facet celestial star with a central optical lens aperture inside an obsidian squircle.
+The King Browser logo embodies precision navigation, exploration, and speed. It combines an 8-facet celestial star with a central optical lens aperture inside an obsidian squircle.
 
 ```
        ▲  [North Cardinal Ray]
@@ -99,7 +99,7 @@ The Nova logo embodies precision navigation, exploration, and speed. It combines
 - **macOS App Bundle:** `build/icon.icns`
 - **Windows Executable:** `build/icon.ico`
 - **Linux & Universal PNG:** `build/icon.png` (1024x1024)
-- **Web Favicon & Avatars:** `public/logo.png`, `public/nova-icon.png`
+- **Web Favicon & Avatars:** `public/logo.png`, `public/king-icon.png`
 
 ### Absolute Don'ts
 - Prohibited: Do not apply rainbow, violet, or multi-stop gradients across the star rays.

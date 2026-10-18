@@ -169,7 +169,7 @@ const ChatMessageItem = React.memo(function ChatMessageItem({
         ) : (
           <div className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400 font-semibold">
             <Sparkles className="w-3 h-3" />
-            <span>Nova Assistant</span>
+            <span>King Assistant</span>
           </div>
         )}
       </div>
@@ -306,8 +306,8 @@ export const SidePanel = React.memo(({
         {
           role: 'assistant',
           content: isTr
-            ? '### Açık Sekmeler\n1. [Nova Browser - Ana Sayfa](nova://newtab)\n2. [Dokümantasyon](https://docs.nova-browser.org)'
-            : '### Open Tabs\n1. [Nova Browser - Home](nova://newtab)\n2. [Documentation](https://docs.nova-browser.org)',
+            ? '### Açık Sekmeler\n1. [King Browser - Ana Sayfa](king://newtab)\n2. [Dokümantasyon](https://docs.king-browser.org)'
+            : '### Open Tabs\n1. [King Browser - Home](king://newtab)\n2. [Documentation](https://docs.king-browser.org)',
         },
       ];
     }
@@ -752,7 +752,7 @@ export const SidePanel = React.memo(({
   }, [isOpen, onClose]);
 
   const currentModel = AVAILABLE_AI_MODELS.find((m) => m.id === selectedModelId) || AVAILABLE_AI_MODELS[0];
-  const hasActiveWebPage = activeTab && activeTab.url && !activeTab.url.startsWith('nova://') && activeTab.url !== 'about:blank';
+  const hasActiveWebPage = activeTab && activeTab.url && !activeTab.url.startsWith('king://') && activeTab.url !== 'about:blank';
 
   return (
     <AnimatePresence>
@@ -785,7 +785,7 @@ export const SidePanel = React.memo(({
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-800 dark:text-slate-100">
                     <NovaAssistantIcon size={15} active={isLoading || isInitializing} />
-                    <span className="tracking-tight font-medium">Nova AI</span>
+                    <span className="tracking-tight font-medium">King AI</span>
                   </div>
                   {isInitializing ? (
                     <div className="flex items-center gap-1 text-[11px] text-cyan-600 dark:text-cyan-400 font-mono">
@@ -865,7 +865,7 @@ export const SidePanel = React.memo(({
               <NovaAssistantIcon size={20} active={false} />
             </div>
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              {isTr ? 'Nova Asistan' : 'Nova Assistant'}
+              {isTr ? 'King Asistan' : 'King Assistant'}
             </h3>
             <p className="mt-1 max-w-[250px] text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
               {isTr
@@ -927,7 +927,7 @@ export const SidePanel = React.memo(({
           <div className="flex flex-col gap-1.5 w-full items-start">
             <div className="flex items-center gap-1.5 px-1 text-[11px] text-cyan-600 dark:text-cyan-400 font-semibold">
               <Sparkles className="w-3 h-3 animate-pulse" />
-              <span>Nova Assistant</span>
+              <span>King Assistant</span>
               {streamStartTime && (
                 <span className="text-[10px] font-mono text-slate-400">
                   · {((Date.now() - streamStartTime) / 1000).toFixed(1)}s
@@ -971,8 +971,8 @@ export const SidePanel = React.memo(({
           className="w-full"
           placeholder={
             hasActiveWebPage
-              ? (isTr ? 'Bu sayfa veya web hakkında bir soru sorun...' : 'Ask about this page or instruct Nova...')
-              : (isTr ? 'Nova Asistan’a bir şey sorun...' : 'Ask Nova Assistant anything...')
+              ? (isTr ? 'Bu sayfa veya web hakkında bir soru sorun...' : 'Ask about this page or instruct King...')
+              : (isTr ? 'King Asistan’a bir şey sorun...' : 'Ask King Assistant anything...')
           }
           models={AVAILABLE_AI_MODELS.map((m) => m.name.split('(')[0].trim())}
           selectedModel={currentModel.name.split('(')[0].trim()}

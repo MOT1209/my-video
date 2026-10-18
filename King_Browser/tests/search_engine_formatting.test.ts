@@ -11,7 +11,7 @@ assert.equal(isValidUrlOrDomain('127.0.0.1:8080'), true);
 assert.equal(isValidUrlOrDomain('192.168.1.1/admin'), true);
 assert.equal(isValidUrlOrDomain('my-site.internal:9000'), true);
 assert.equal(isValidUrlOrDomain('app.docker/api'), true);
-assert.equal(isValidUrlOrDomain('nova://settings'), true);
+assert.equal(isValidUrlOrDomain('king://settings'), true);
 assert.equal(isValidUrlOrDomain('about:blank'), true);
 
 // Non-URL search queries
@@ -43,9 +43,9 @@ assert.equal(getSearchEngineName('ecosia'), 'Ecosia');
 assert.equal(getSearchEngineName('yahoo'), 'Yahoo');
 
 // 4. Safe scheme preservation
-assert.equal(formatSearchUrl('nova://newtab'), 'nova://newtab');
+assert.equal(formatSearchUrl('king://newtab'), 'king://newtab');
 assert.equal(formatSearchUrl('about:blank'), 'about:blank');
 assert.equal(formatSearchUrl('localhost:3000'), 'http://localhost:3000');
-assert.equal(formatSearchUrl('github.com/unitybtw'), 'https://github.com/unitybtw');
+assert.equal(formatSearchUrl('github.com/mot1209'), 'https://github.com/mot1209');
 
 console.log('[PASS] [Search & Omnibox] 24 URL parsing, search engine formatting and dangerous scheme containment tests passed.');

@@ -1,5 +1,5 @@
 /**
- * Nova Pure Daily 4K Ultra HD Wallpaper Engine
+ * King Pure Daily 4K Ultra HD Wallpaper Engine
  * Delivers true 4K UHD (3840x2160) wallpapers daily.
  * Synchronized across all tabs, windows, and settings in real time.
  */
@@ -428,7 +428,7 @@ export function sanitizeWallpaperPhoto(item: any): WallpaperPhoto | null {
   const rawTitle = String(item.title || 'Daily 4K UHD Wallpaper').trim();
   const safeTitle = rawTitle.slice(0, 150).replace(/[\r\n\t]/g, ' ');
 
-  const rawAuthor = String(item.author || 'Nova 4K Engine').trim();
+  const rawAuthor = String(item.author || 'King 4K Engine').trim();
   const safeAuthor = rawAuthor.slice(0, 100).replace(/[\r\n\t]/g, ' ');
 
   const safeAuthorUrl = isValidWallpaperUrl(item.authorUrl) ? item.authorUrl.trim() : undefined;

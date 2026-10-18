@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "=== Nova Browser One-Line Installer ==="
+echo "=== King Browser One-Line Installer ==="
 echo ""
 
 OS=$(uname -s)
 ARCH=$(uname -m)
 
-RELEASES_API="https://api.github.com/repos/unitybtw/nova-browser/releases/latest"
+RELEASES_API="https://api.github.com/repos/MOT1209/my-video/releases/latest"
 CHECKSUMS_URL=""
 
 # Secure isolated temporary working directory via mktemp
-TMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'nova-install')
+TMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'king-install')
 chmod 0700 "$TMP_DIR"
 
 MOUNT_DIR=""
@@ -66,7 +66,7 @@ verify_sha256() {
     echo "" >&2
     echo "The downloaded file does not match the official release." >&2
     echo "Do NOT install this binary. Please open an issue at:" >&2
-    echo "  https://github.com/unitybtw/nova-browser/issues" >&2
+    echo "  https://github.com/MOT1209/my-video/issues" >&2
     exit 1
   fi
 
@@ -77,12 +77,12 @@ verify_sha256() {
 
 if [ "$OS" = "Darwin" ]; then
   if [ "$ARCH" = "arm64" ]; then
-    DMG_NAME="Nova-Browser-arm64.dmg"
+    DMG_NAME="King-Browser-arm64.dmg"
   else
-    DMG_NAME="Nova-Browser-x64.dmg"
+    DMG_NAME="King-Browser-x64.dmg"
   fi
 
-  DOWNLOAD_URL="https://github.com/unitybtw/nova-browser/releases/latest/download/${DMG_NAME}"
+  DOWNLOAD_URL="https://github.com/MOT1209/my-video/releases/latest/download/${DMG_NAME}"
   DEST="${TMP_DIR}/${DMG_NAME}"
   CHECKSUMS_LOCAL="${TMP_DIR}/SHA256SUMS.txt"
 
@@ -99,7 +99,7 @@ if [ "$OS" = "Darwin" ]; then
     exit 1
   fi
 
-  echo "Downloading Nova Browser for macOS (${ARCH})..."
+  echo "Downloading King Browser for macOS (${ARCH})..."
   curl -fsSL --progress-bar "$DOWNLOAD_URL" -o "$DEST"
 
   EXPECTED=$(grep -F "$DMG_NAME" "$CHECKSUMS_LOCAL" | awk '{print $1}' | head -1)
@@ -114,14 +114,14 @@ if [ "$OS" = "Darwin" ]; then
   mkdir -p "$MOUNT_DIR"
   hdiutil attach "$DEST" -mountpoint "$MOUNT_DIR" -nobrowse -quiet
 
-  echo "Installing Nova Browser to /Applications..."
-  cp -R "${MOUNT_DIR}/Nova Browser.app" /Applications/
+  echo "Installing King Browser to /Applications..."
+  cp -R "${MOUNT_DIR}/King Browser.app" /Applications/
 
   hdiutil detach "$MOUNT_DIR" -quiet
   MOUNT_DIR=""
 
   echo ""
-  echo "Nova Browser installed successfully to /Applications/Nova Browser.app"
+  echo "King Browser installed successfully to /Applications/King Browser.app"
   exit 0
 fi
 
@@ -137,9 +137,9 @@ if [ "$OS" = "Linux" ]; then
     exit 1
   fi
 
-  APPIMAGE_NAME="Nova-Browser-${TARGET_ARCH}.AppImage"
-  DOWNLOAD_URL="https://github.com/unitybtw/nova-browser/releases/latest/download/${APPIMAGE_NAME}"
-  DEST="${HOME}/.local/bin/nova-browser"
+  APPIMAGE_NAME="King-Browser-${TARGET_ARCH}.AppImage"
+  DOWNLOAD_URL="https://github.com/MOT1209/my-video/releases/latest/download/${APPIMAGE_NAME}"
+  DEST="${HOME}/.local/bin/king-browser"
   DEST_TMP="${TMP_DIR}/${APPIMAGE_NAME}"
   CHECKSUMS_LOCAL="${TMP_DIR}/SHA256SUMS.txt"
 
@@ -158,7 +158,7 @@ if [ "$OS" = "Linux" ]; then
     exit 1
   fi
 
-  echo "Downloading Nova Browser for Linux (${TARGET_ARCH})..."
+  echo "Downloading King Browser for Linux (${TARGET_ARCH})..."
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL --progress-bar "$DOWNLOAD_URL" -o "$DEST_TMP"
   elif command -v wget >/dev/null 2>&1; then
@@ -180,14 +180,14 @@ if [ "$OS" = "Linux" ]; then
   chmod +x "$DEST"
 
   echo ""
-  echo "Nova Browser installed to $DEST"
-  echo "You can launch it with: nova-browser"
+  echo "King Browser installed to $DEST"
+  echo "You can launch it with: king-browser"
   exit 0
 fi
 
 # ─── Unsupported OS ──────────────────────────────────────────────────────────
 
 echo "Error: Unsupported operating system: $OS" >&2
-echo "Please download Nova Browser manually from:" >&2
-echo "  https://github.com/unitybtw/nova-browser/releases" >&2
+echo "Please download King Browser manually from:" >&2
+echo "  https://github.com/MOT1209/my-video/releases" >&2
 exit 1

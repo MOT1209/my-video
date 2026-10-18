@@ -1,4 +1,4 @@
-// Nova Browser - One-Click Web Page Translation Service
+// King Browser - One-Click Web Page Translation Service
 
 export interface SupportedLanguage {
   code: string;

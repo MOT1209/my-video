@@ -718,7 +718,7 @@ export const ReaderMode: React.FC<ReaderModeProps> = React.memo(({ url, tabId, i
       setError('');
       setContent(null);
 
-      if (!url || url.startsWith('nova://') || url.startsWith('about:')) {
+      if (!url || url.startsWith('king://') || url.startsWith('about:')) {
         setError('Reader mode is not available on this special page.');
         setIsLoading(false);
         return;

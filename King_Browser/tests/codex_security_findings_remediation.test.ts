@@ -65,7 +65,7 @@ console.log('Testing Extension Popup Tab Metadata Permission Enforcement...');
 // Host match patterns
 assert.equal(matchesExtensionHostPermission(['<all_urls>'], 'https://github.com/profile'), true);
 assert.equal(matchesExtensionHostPermission(['<all_urls>'], 'http://example.com/'), true);
-assert.equal(matchesExtensionHostPermission(['<all_urls>'], 'nova://settings'), false, 'Cannot match internal scheme');
+assert.equal(matchesExtensionHostPermission(['<all_urls>'], 'king://settings'), false, 'Cannot match internal scheme');
 assert.equal(matchesExtensionHostPermission(['<all_urls>'], 'about:blank'), false, 'Cannot match about:blank');
 
 assert.equal(matchesExtensionHostPermission(['*://*.github.com/*'], 'https://github.com/repo'), true);

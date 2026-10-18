@@ -1,4 +1,4 @@
-// Nova has a single, bundled English interface.
+// King has a single, bundled English interface.
 import en from '../locales/en.json';
 import { useState, useEffect } from 'react';
 

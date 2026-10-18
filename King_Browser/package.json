@@ -118,8 +118,8 @@
       "icon": "build/icon.png",
       "extraFiles": [
         {
-          "from": "build/com.nova.browser.metainfo.xml",
-          "to": "usr/share/metainfo/com.nova.browser.metainfo.xml"
+          "from": "build/com.kingbrowser.app.metainfo.xml",
+          "to": "usr/share/metainfo/com.kingbrowser.app.metainfo.xml"
         }
       ]
     }

@@ -1,5 +1,5 @@
 /**
- * Nova Browser Security Utilities
+ * King Browser Security Utilities
  * Provides URL security classification and phishing detection helpers.
  */
 import { DANGEROUS_PROTOCOLS } from './safeNavigation';
@@ -15,8 +15,8 @@ export interface SecurityInfo {
   tooltip: string;
 }
 
-// Internal nova:// pages are always safe
-const INTERNAL_PROTOCOLS = ['nova:', 'about:', 'chrome-extension:'];
+// Internal king:// pages are always safe
+const INTERNAL_PROTOCOLS = ['king:', 'about:', 'chrome-extension:'];
 
 /**
  * Extract the hostname from a URL string safely.
@@ -241,9 +241,9 @@ export function getUrlSecurityInfo(url: string): SecurityInfo {
     };
   }
 
-  // Internal Nova pages
+  // Internal King pages
   if (
-    url.startsWith('nova://') ||
+    url.startsWith('king://') ||
     url.startsWith('about:') ||
     url === 'about:blank'
   ) {
@@ -333,7 +333,7 @@ export function getUrlSecurityInfo(url: string): SecurityInfo {
  * Format a URL for display in the address bar (strip trailing slash, protocol for common sites)
  */
 export function formatDisplayUrl(url: string): string {
-  if (!url || url.startsWith('nova://')) return url;
+  if (!url || url.startsWith('king://')) return url;
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
@@ -386,7 +386,7 @@ export function matchesExtensionHostPermission(patterns: string[], targetUrl: st
   }
 
   // Extensions cannot get host permissions on internal browser pages
-  if (['nova:', 'about:', 'chrome:', 'chrome-extension:'].includes(parsed.protocol)) {
+  if (['king:', 'about:', 'chrome:', 'chrome-extension:'].includes(parsed.protocol)) {
     return false;
   }
 

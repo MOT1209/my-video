@@ -479,7 +479,7 @@ async function runSecurityRegressionAuditSuite() {
     { input: 'HtTpS://example.com/test', expected: 'HtTpS://example.com/test' },
     { input: 'hTtP://localhost:5173', expected: 'hTtP://localhost:5173' },
     { input: 'github.com', expected: 'https://github.com' },
-    { input: 'nova://settings', expected: 'nova://settings' },
+    { input: 'king://settings', expected: 'king://settings' },
     { input: 'about:blank', expected: 'about:blank' },
     { input: 'what is quantum computing', expected: 'https://www.google.com/search?q=what%20is%20quantum%20computing' },
     { input: '999.1.1.1', expected: 'https://www.google.com/search?q=999.1.1.1' } // Invalid IP is treated as query
@@ -777,7 +777,7 @@ async function runSecurityRegressionAuditSuite() {
   );
 
   // R5.2: Staging is isolated in TEMP_DIR
-  const hasTempStaging = latestMainTsContent.includes('STAGING_APP="\\${STAGING_DIR}/Nova Browser.app"') &&
+  const hasTempStaging = latestMainTsContent.includes('STAGING_APP="\\${STAGING_DIR}/King Browser.app"') &&
     latestMainTsContent.includes('STAGING_DIR="\\${TEMP_DIR}/staging"');
   record(
     'R5-Updater-Temp-Staging',
@@ -787,7 +787,7 @@ async function runSecurityRegressionAuditSuite() {
   );
 
   // R5.3: Backup uses hidden dot-prefix without .app extension
-  const hasHiddenBackup = latestMainTsContent.includes('BACKUP_APP="\\${DEST_PARENT}/.nova_backup_\\${BACKUP_TOKEN}"');
+  const hasHiddenBackup = latestMainTsContent.includes('BACKUP_APP="\\${DEST_PARENT}/.king_backup_\\${BACKUP_TOKEN}"');
   record(
     'R5-Updater-Hidden-Backup',
     'Updater backup directory uses hidden dotfile prefix without .app extension',
@@ -796,9 +796,9 @@ async function runSecurityRegressionAuditSuite() {
   );
 
   // R5.4: Cleanup routine clears orphaned staging and backup artifacts
-  const hasCleanupOrphans = latestMainTsContent.includes('.nova_staging_') &&
-    latestMainTsContent.includes('.nova_backup_') &&
-    latestMainTsContent.includes('Nova Browser.app.staging_') &&
+  const hasCleanupOrphans = latestMainTsContent.includes('.king_staging_') &&
+    latestMainTsContent.includes('.king_backup_') &&
+    latestMainTsContent.includes('King Browser.app.staging_') &&
     latestMainTsContent.includes('lsregister');
   record(
     'R5-Updater-Artifact-Cleanup',

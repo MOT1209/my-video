@@ -23,10 +23,10 @@ jobs:
         working-directory: King_Browser
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: 'npm'
@@ -50,7 +50,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload macOS Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mac-artifacts
           path: |
@@ -68,10 +68,10 @@ jobs:
         working-directory: King_Browser
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: 'npm'
@@ -95,7 +95,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Upload Windows Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-artifacts
           path: |
@@ -113,10 +113,10 @@ jobs:
         working-directory: King_Browser
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: 'npm'
@@ -141,7 +141,7 @@ jobs:
         run: npx electron-builder --linux AppImage deb --publish never
 
       - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-artifacts
           path: |
@@ -154,12 +154,12 @@ jobs:
   publish-release:
     name: Publish Release
     needs: [release-mac, release-windows, release-linux]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Resolve Release Tag & Version
         id: vars
@@ -183,7 +183,7 @@ jobs:
           echo "Resolved Release Tag: $TAG"
 
       - name: Download all Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: release-assets
           merge-multiple: true
@@ -200,11 +200,11 @@ jobs:
 
       - name: Scan Release Binaries with VirusTotal
         id: virustotal
-        if: env.VIRUSTOTAL_API_KEY != ''
+        if: secrets.VIRUSTOTAL_API_KEY != ''
         continue-on-error: true
         env:
           VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
-        uses: crazy-max/ghaction-virustotal@v4
+        uses: crazy-max/ghaction-virustotal@v5
         with:
           vt_api_key: ${{ secrets.VIRUSTOTAL_API_KEY }}
           files: |
@@ -237,7 +237,7 @@ jobs:
           echo '```' >> release_notes_prepend.md
 
       - name: Create & Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
           name: ${{ steps.vars.outputs.title }}

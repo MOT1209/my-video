@@ -142,7 +142,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         try {
           const originUrl = new URL(e.origin);
           const isSameOrigin = e.origin === window.location.origin;
-          const isOfficialPages = originUrl.protocol === 'https:' && (originUrl.hostname === 'unitybtw.github.io' || originUrl.hostname === 'novabrowser.pages.dev');
+          const isOfficialPages = originUrl.protocol === 'https:' && (originUrl.hostname === 'mot1209.github.io');
           const isLocal = (originUrl.protocol === 'http:' || originUrl.protocol === 'https:') && (originUrl.hostname === 'localhost' || originUrl.hostname === '127.0.0.1');
           if (!isSameOrigin && !isOfficialPages && !isLocal) {
             return;
@@ -166,14 +166,14 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
     if (demoParams.isDemo) {
       if (demoParams.feature === 'ai') {
         return [
-          { id: '1', url: 'https://github.com/unitybtw/nova-browser', title: 'Nova Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
-          { id: '2', url: 'nova://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false }
+          { id: '1', url: 'https://github.com/MOT1209/my-video', title: 'King Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
+          { id: '2', url: 'king://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false }
         ];
       }
       if (demoParams.feature === 'website') {
         return [
-          { id: '1', url: 'nova://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false },
-          { id: '2', url: 'https://github.com/unitybtw/nova-browser', title: 'Nova Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
+          { id: '1', url: 'king://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false },
+          { id: '2', url: 'https://github.com/MOT1209/my-video', title: 'King Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
           { id: '3', url: 'https://react.dev', title: 'React Documentation', isLoading: false, canGoBack: false, canGoForward: false }
         ];
       }
@@ -194,7 +194,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
       if (demoParams.feature === 'shield') {
         return [
           { id: '1', url: 'https://techinsider.io/ai-revolution', title: 'Tech News & Privacy', blockedAdsCount: 148, isLoading: false, canGoBack: false, canGoForward: false },
-          { id: '2', url: 'nova://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false }
+          { id: '2', url: 'king://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false }
         ];
       }
     }
@@ -218,7 +218,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
     return [
       {
         id: '1',
-        url: 'nova://newtab',
+        url: 'king://newtab',
         title: 'New Tab',
         isLoading: false,
         canGoBack: false,
@@ -321,7 +321,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
       const newTabId = generateId('tab');
       const initialWorkspaceTab: Tab = {
         id: newTabId,
-        url: 'nova://newtab',
+        url: 'king://newtab',
         title: 'New Tab',
         isLoading: false,
         canGoBack: false,
@@ -347,7 +347,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
       const fallbackId = generateId('tab');
       setTabs([{
         id: fallbackId,
-        url: 'nova://newtab',
+        url: 'king://newtab',
         title: 'New Tab',
         isLoading: false,
         canGoBack: false,
@@ -741,7 +741,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
       // Create a new tab if empty workspace
       const newTab: Tab = {
         id: generateId('tab'),
-        url: 'nova://newtab',
+        url: 'king://newtab',
         title: 'New Tab',
         isLoading: false,
         canGoBack: false,
@@ -810,19 +810,19 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
   }, [activeTab, handleToggleBookmark]);
 
   const handleOpenHistory = useCallback(() => {
-    handleNewTab('nova://history');
+    handleNewTab('king://history');
   }, [handleNewTab]);
 
   const handleOpenDownloads = useCallback(() => {
     closeAllModals();
-    const existing = tabsRef.current.find(t => t.url === 'nova://downloads');
+    const existing = tabsRef.current.find(t => t.url === 'king://downloads');
     if (existing) {
       activateTab(existing.id);
     } else {
-      handleNewTab('nova://downloads');
+      handleNewTab('king://downloads');
     }
   }, [handleNewTab, closeAllModals, activateTab]);
-  const handleOpenSettings = useCallback(() => handleNewTab('nova://settings'), [handleNewTab]);
+  const handleOpenSettings = useCallback(() => handleNewTab('king://settings'), [handleNewTab]);
   const handleOpenExtensions = useCallback(() => openModal('extensions'), [openModal]);
 
   // Stable chrome-modal openers: inline arrows passed to memoized SidebarTabs /
@@ -894,7 +894,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
     setIsHoverRevealing(false);
   }, []);
 
-  const handleManageExtensions = useCallback(() => handleNewTab('nova://settings#extensions'), [handleNewTab]);
+  const handleManageExtensions = useCallback(() => handleNewTab('king://settings#extensions'), [handleNewTab]);
 
   const handleSpotlightSelectTab = useCallback((tabId: string) => {
     // Compute from tabsRef OUTSIDE the updater (StrictMode-safe)
@@ -1081,7 +1081,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         const lastSeen = localStorage.getItem(LAST_VERSION_KEY);
         // If lastSeen exists and differs from current version, browser was just updated!
         if (lastSeen && lastSeen !== currentVer) {
-          handleNewTab('nova://changelog', undefined, { reuseBlank: false });
+          handleNewTab('king://changelog', undefined, { reuseBlank: false });
         }
         localStorage.setItem(LAST_VERSION_KEY, currentVer);
       } catch (e) {
@@ -1652,7 +1652,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
             style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
           >
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium truncate no-drag">
-              <span className="truncate max-w-sm text-[11px]">{activeTab?.title || 'Nova Browser'}</span>
+              <span className="truncate max-w-sm text-[11px]">{activeTab?.title || 'King Browser'}</span>
             </div>
             {/* 140px reserved spacer so Windows native titlebar controls don't overlap web content */}
             <div
@@ -1838,7 +1838,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
                       {/* Clean domain info */}
                       {(() => {
                         try {
-                          if (tab.url && !tab.url.startsWith('nova://') && !tab.url.startsWith('about:')) {
+                          if (tab.url && !tab.url.startsWith('king://') && !tab.url.startsWith('about:')) {
                             const domain = new URL(tab.url).hostname.replace(/^www\./, '');
                             if (domain && domain !== tab.title) {
                               return (
@@ -1921,8 +1921,8 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
                     onCloseTab={handleCloseTab}
                     isIncognito={tab.isIncognito || false}
                     onExitIncognito={handleExitIncognitoTab}
-                    history={typeof tab?.url === 'string' && (tab.url.includes('nova://history') || tab.url === 'about:history') ? history : EMPTY_ARRAY}
-                    downloads={typeof tab?.url === 'string' && (tab.url.includes('nova://downloads') || tab.url === 'about:downloads') ? downloads : EMPTY_ARRAY}
+                    history={typeof tab?.url === 'string' && (tab.url.includes('king://history') || tab.url === 'about:history') ? history : EMPTY_ARRAY}
+                    downloads={typeof tab?.url === 'string' && (tab.url.includes('king://downloads') || tab.url === 'about:downloads') ? downloads : EMPTY_ARRAY}
                     onClearHistory={handleClearHistory}
                     onRemoveHistoryItem={handleRemoveHistoryItem}
                     onClearDownloads={handleClearDownloads}
