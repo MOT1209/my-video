@@ -154,7 +154,7 @@ async function verifyMainProcessRuntime() {
 
   if (errorsCount > 0) {
     console.error('VERIFICATION FAILED!');
-    process.exit(1);
+    process.exitCode = 1;
   } else {
     console.log('VERIFICATION PASSED CLEANLY (0 ERRORS).');
   }
@@ -162,5 +162,5 @@ async function verifyMainProcessRuntime() {
 
 verifyMainProcessRuntime().catch(err => {
   console.error('Unhandled Verification Error:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

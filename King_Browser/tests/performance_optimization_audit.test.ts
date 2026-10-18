@@ -492,5 +492,5 @@ if (failedPerf === 0) {
   console.log('\nALL PERFORMANCE AND RESOURCE OPTIMIZATION AUDIT TESTS PASSED CLEANLY.');
 } else {
   console.error(`\nFAILED: ${failedPerf} performance tests failed.`);
-  process.exit(1);
+  process.exitCode = 1;
 }

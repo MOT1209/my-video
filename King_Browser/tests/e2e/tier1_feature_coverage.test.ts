@@ -63,5 +63,5 @@ async function runTier1Tests() {
 
 runTier1Tests().catch(err => {
   console.error('Tier 1 test failure:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

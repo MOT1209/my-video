@@ -24,6 +24,7 @@
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { copyTextToClipboard } from '../src/utils/clipboard';
+import { lockTestGlobals } from './jsdom_suite_lock';
 
 // jsdom is loaded at runtime rather than imported: it resolves its own default
 // stylesheet relative to its installed directory, and inlining it into the
@@ -274,27 +275,28 @@ function installStubMessageChannel() {
 }
 
 (async () => {
-  // setImmediate, not a plain await: this suite temporarily installs
-  // window/document globals for the render, and the check phase runs after every
-  // other suite's promise chain has already settled.
-  await new Promise<void>(resolve => setImmediate(resolve));
-  // Before the ShareModal import, so framer-motion picks the stub up.
-  installStubMessageChannel();
-  const realMessageChannel = Object.getOwnPropertyDescriptor(globalThis, 'MessageChannel');
-  const realError = console.error;
-  try {
-    console.error = () => {};
-    const { generateQrDataUrl } = await import('../src/components/ShareModal');
-    await clipboardSuite();
-    await qrSuite(generateQrDataUrl);
-    console.error = realError;
-    await renderSuite();
-  } finally {
-    console.error = realError;
-    if (realMessageChannel) Object.defineProperty(globalThis, 'MessageChannel', realMessageChannel);
-  }
-  console.log(`\n${passed} clipboard/QR checks passed\n`);
+  // The globals lock is the ordering guarantee against the other jsdom suite;
+  // setImmediate keeps the historical visual ordering of the check output.
+  await lockTestGlobals(async () => {
+    await new Promise<void>(resolve => setImmediate(resolve));
+    // Before the ShareModal import, so framer-motion picks the stub up.
+    installStubMessageChannel();
+    const realMessageChannel = Object.getOwnPropertyDescriptor(globalThis, 'MessageChannel');
+    const realError = console.error;
+    try {
+      console.error = () => {};
+      const { generateQrDataUrl } = await import('../src/components/ShareModal');
+      await clipboardSuite();
+      await qrSuite(generateQrDataUrl);
+      console.error = realError;
+      await renderSuite();
+    } finally {
+      console.error = realError;
+      if (realMessageChannel) Object.defineProperty(globalThis, 'MessageChannel', realMessageChannel);
+    }
+    console.log(`\n${passed} clipboard/QR checks passed\n`);
+  });
 })().catch(err => {
   console.error('[FAIL] [Clipboard-QR] suite crashed:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

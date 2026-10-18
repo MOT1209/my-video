@@ -256,5 +256,53 @@
     "feedback": "Report a problem",
     "latest": "Latest",
     "highlights": "Highlights"
+  },
+  "agentPanel": {
+    "title": "Agent Control",
+    "expand": "Agent control",
+    "shortcutHint": "Ctrl+Shift+.",
+    "states": {
+      "idle": "Idle",
+      "running": "Running",
+      "paused": "Paused",
+      "awaiting_approval": "Awaiting approval",
+      "stopping": "Stopping...",
+      "stopped": "Stopped",
+      "error": "Error"
+    },
+    "modes": {
+      "auto": "Full control",
+      "step": "Step mode"
+    },
+    "queue": "Queued: {count}",
+    "inFlight": "Running: {tool}",
+    "noAction": "No action running",
+    "actionsUsed": "Actions this run: {used} / {max}",
+    "stopNow": "STOP NOW",
+    "stopNowHint": "Cancels queued actions and blocks new ones until you resume",
+    "autoRun": "Full control",
+    "nextStep": "Next step",
+    "pause": "Pause",
+    "resume": "Resume",
+    "cancelPhase": "Cancel phase",
+    "emergencyClose": "Emergency close",
+    "phase": "Phase: {objective}",
+    "phaseActions": "{used} / {max} actions",
+    "approvalTitle": "Approval required",
+    "approvalTool": "Action: {tool}",
+    "approvalDomain": "Site: {domain}",
+    "approve": "Approve",
+    "reject": "Reject",
+    "history": "Recent activity",
+    "noHistory": "No actions yet",
+    "stopReason": "Stopped: {reason}",
+    "resumeRequired": "STOP NOW is active — explicit resume is required before new actions run.",
+    "commandFailed": "Command failed: {error}",
+    "statusCompleted": "completed",
+    "statusFailed": "failed",
+    "statusCancelled": "cancelled",
+    "statusRejected": "rejected",
+    "statusRunning": "running",
+    "statusRequested": "queued"
   }
 }

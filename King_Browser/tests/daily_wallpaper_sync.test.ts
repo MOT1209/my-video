@@ -12,7 +12,7 @@ console.log('--- Daily 4K Wallpaper & Synchronization Test Suite ---');
 function assert(condition: boolean, message: string) {
   if (!condition) {
     console.error(`[FAIL] ${message}`);
-    process.exit(1);
+    process.exitCode = 1;
   }
 }
 

@@ -151,7 +151,7 @@ console.log(`FAILED                : ${failedTests}`);
 
 if (failedTests > 0) {
   console.error('\nCHALLENGE VERDICT: REQUEST_CHANGES (Defects detected in bundle or configuration)');
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log('\nCHALLENGE VERDICT: APPROVE (All Milestone 4 requirements empirically verified with 0 defects)');
 }

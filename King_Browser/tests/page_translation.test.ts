@@ -15,7 +15,7 @@ if (hasTurkish && hasEnglish && hasGerman && SUPPORTED_LANGUAGES.length >= 15) {
   console.log('[PASS] [Translation Engine] Supported languages verified (' + SUPPORTED_LANGUAGES.length + ' languages registered)');
 } else {
   console.error('[FAIL] [Translation Engine] Supported languages missing key codes');
-  process.exit(1);
+  process.exitCode = 1;
 }
 
 // Test 2: Extraction script syntax
@@ -24,7 +24,7 @@ if (extractScript.includes('TreeWalker') && extractScript.includes('window.__nov
   console.log('[PASS] [Translation Engine] Extract text nodes script generated successfully');
 } else {
   console.error('[FAIL] [Translation Engine] Extract script missing TreeWalker or Map setup');
-  process.exit(1);
+  process.exitCode = 1;
 }
 
 // Test 3: Apply translation script with escaping
@@ -34,7 +34,7 @@ if (applyScript.includes('Merhaba D\\u00fcnya') || applyScript.includes('Merhaba
   console.log('[PASS] [Translation Engine] Apply translation script safely serialized with targetLang="tr"');
 } else {
   console.error('[FAIL] [Translation Engine] Apply script serialization failed');
-  process.exit(1);
+  process.exitCode = 1;
 }
 
 // Test 4: Restore original script
@@ -43,6 +43,6 @@ if (restoreScript.includes('window.__novaTranslationMap') && restoreScript.inclu
   console.log('[PASS] [Translation Engine] Restore original script generated successfully');
 } else {
   console.error('[FAIL] [Translation Engine] Restore script missing cleanup logic');
-  process.exit(1);
+  process.exitCode = 1;
 }
 

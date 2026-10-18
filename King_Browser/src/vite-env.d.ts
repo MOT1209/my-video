@@ -50,6 +50,102 @@ interface ElectronMcpStatus {
   clients: ElectronMcpClientInfo[];
 }
 
+/** §11 engine state machine states as surfaced to the §10 control panel. */
+export type ElectronEngineState =
+  | 'idle'
+  | 'running'
+  | 'paused'
+  | 'awaiting_approval'
+  | 'stopping'
+  | 'stopped'
+  | 'error';
+
+export type ElectronEngineMode = 'auto' | 'step';
+type ElectronEngineRisk = 'safe' | 'sensitive';
+type ElectronEngineActionStatus =
+  | 'requested'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'rejected';
+
+/** Single agent action record as reported by the execution engine. */
+export interface ElectronEngineActionRecord {
+  id: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  risk: ElectronEngineRisk;
+  summary?: string;
+  domain?: string;
+  status: ElectronEngineActionStatus;
+  requestedAt: number;
+  startedAt?: number;
+  endedAt?: number;
+  error?: string;
+  stoppedBy?: string;
+}
+
+/** Action awaiting an explicit Approve/Reject decision. */
+export interface ElectronEnginePendingApproval {
+  actionId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  summary?: string;
+  domain?: string;
+}
+
+/** Active phase progress shown by the control panel. */
+export interface ElectronEnginePhaseInfo {
+  phase: {
+    objective: string;
+    permittedActions: string[];
+    maxActions: number;
+    approvalPoints?: string[];
+  };
+  actionsUsed: number;
+}
+
+/** Status snapshot returned by `getEngineStatus`. */
+export interface ElectronEngineStatus {
+  state: ElectronEngineState;
+  mode: ElectronEngineMode;
+  queueLength: number;
+  inFlight: ElectronEngineActionRecord | null;
+  pendingApproval: ElectronEnginePendingApproval | null;
+  phase: ElectronEnginePhaseInfo | null;
+  actionsUsedThisRun: number;
+  maxActionsPerRun: number;
+  stopReason: string | null;
+  lastFinalState: {
+    stoppedBy: string;
+    inFlightAborted: boolean;
+    inFlightSettledLater: boolean;
+  } | null;
+}
+
+/** Live engine event forwarded on the `mcp-engine-event` channel. */
+export type ElectronEngineEvent =
+  | { type: 'state_changed'; from: ElectronEngineState; to: ElectronEngineState; reason: string; at: number }
+  | { type: 'action_updated'; record: ElectronEngineActionRecord }
+  | { type: 'approval_needed'; approval: ElectronEnginePendingApproval }
+  | { type: 'approval_resolved'; actionId: string; approved: boolean }
+  | {
+      type: 'phase_updated';
+      phase: ElectronEnginePhaseInfo['phase'] | null;
+      actionsUsed: number;
+      status: 'running' | 'completed' | 'boundary' | 'failed';
+    };
+
+/** Result of a §10 control command invoked via `sendEngineCommand`. */
+export interface ElectronEngineCommandResult {
+  ok: boolean;
+  command: string;
+  detail: Record<string, unknown>;
+  state: ElectronEngineState;
+  mode: ElectronEngineMode;
+}
+
 /** Bookmark node imported from a Chrome/Chromium `Bookmarks` file. */
 interface ElectronImportedBookmark {
   title: string;
@@ -169,6 +265,15 @@ export interface ElectronAPI {
   rotateMcpToken: () => Promise<boolean>;
   getMcpToolSettings: () => Promise<string[]>;
   setMcpToolEnabled: (toolName: string, enabled: boolean) => Promise<boolean>;
+  // §10 execution control panel (engine bridge)
+  getEngineStatus: () => Promise<ElectronEngineStatus>;
+  getEngineHistory: () => Promise<ElectronEngineActionRecord[]>;
+  sendEngineCommand: (command: string, payload?: unknown) => Promise<ElectronEngineCommandResult>;
+  respondEngineApproval: (
+    actionId: string,
+    approved: boolean
+  ) => Promise<{ ok: boolean; resolved: boolean }>;
+  onEngineEvent: (callback: (event: ElectronEngineEvent) => void) => () => void;
   // MCP action bridge (main process <-> renderer round-trip)
   onMcpActionRequest: (
     callback: (id: string, toolName: string, args: unknown, deadline: number) => void

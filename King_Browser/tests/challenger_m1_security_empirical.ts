@@ -659,7 +659,7 @@ async function runChallenger2EmpiricalTests() {
 
   if (failed > 0) {
     console.error('CHALLENGE VERDICT: REQUEST_CHANGES (Failures detected)');
-    process.exit(1);
+    process.exitCode = 1;
   } else {
     console.log('CHALLENGE VERDICT: APPROVE (All empirical security tests passed cleanly)');
   }
@@ -667,5 +667,5 @@ async function runChallenger2EmpiricalTests() {
 
 runChallenger2EmpiricalTests().catch((err) => {
   console.error('Uncaught Exception during Challenger 2 test execution:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

@@ -291,11 +291,11 @@ async function runAdversarialTests() {
   }
 
   if (fails > 0) {
-    process.exit(1);
+    process.exitCode = 1;
   }
 }
 
 runAdversarialTests().catch((err) => {
   console.error(err);
-  process.exit(1);
+  process.exitCode = 1;
 });

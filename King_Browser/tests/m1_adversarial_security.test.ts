@@ -428,7 +428,7 @@ if (failCount > 0) {
   for (const r of results.filter(r => r.status === 'FAIL')) {
     console.error(`  - [FAIL] [${r.suite}] ${r.name}: ${r.details}`);
   }
-  process.exit(1);
+  process.exitCode = 1;
 } else {
   console.log('ALL ADVERSARIAL EMPIRICAL TESTS PASSED CLEANLY (0 VULNERABILITIES DETECTED).');
 }

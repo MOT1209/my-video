@@ -865,7 +865,7 @@ async function runSecurityRegressionAuditSuite() {
 
   if (failed > 0) {
     console.error('REGRESSION AUDIT VERDICT: FAIL (Regressions detected)');
-    process.exit(1);
+    process.exitCode = 1;
   } else {
     console.log('REGRESSION AUDIT VERDICT: PASS (All regression tests passed cleanly with 0 defects)');
   }
@@ -873,5 +873,5 @@ async function runSecurityRegressionAuditSuite() {
 
 runSecurityRegressionAuditSuite().catch(err => {
   console.error('Uncaught Exception during Security Regression Audit Suite execution:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

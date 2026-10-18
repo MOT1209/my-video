@@ -325,5 +325,5 @@ runSyncTests().then(() => {
   console.log('[PASS] [Sync Service Vault] All sync crypto and vault integrity tests passed cleanly.\n');
 }).catch(err => {
   console.error('[FAIL] [Sync Service Vault] Test failed:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

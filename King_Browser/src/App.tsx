@@ -27,6 +27,7 @@ import type {
 export type { DownloadItem, HistoryItem, UserSettings, BrowserDemoOptions, VpnLocation };
 import type { BlockedSiteAlertData } from './components/BlockedSiteModal';
 import { SidebarTabs } from './components/SidebarTabs';
+import { AgentControlPanel } from './components/AgentControlPanel';
 import { repairTabFolderAssignments } from './utils/verticalTabs';
 import { generateId } from './utils/idGenerator';
 import { safeParseArrayWithBackup, safeParseObjectWithBackup } from './utils/safeStorage';
@@ -1733,6 +1734,9 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
             onStopFind={handleStopFind}
           />
         </React.Suspense>
+
+        {/* §10 agent control panel (engine status, approvals, STOP NOW) */}
+        <AgentControlPanel />
 
         {/* Unified Browser Views Container (Single persistent container for primary, secondary split, and background tabs) */}
         <div

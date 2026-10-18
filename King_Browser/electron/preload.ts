@@ -107,6 +107,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   respondMcpAction: (id: string, result?: unknown, error?: unknown) => {
     ipcRenderer.send('mcp-action-response', { id, result, error });
   },
+  // §10 engine control panel bridge: status/history/commands/approvals plus the
+  // live event stream forwarded by the main process ('mcp-engine-event').
+  getEngineStatus: () => ipcRenderer.invoke('mcp-engine-status'),
+  getEngineHistory: () => ipcRenderer.invoke('mcp-engine-history'),
+  sendEngineCommand: (command: string, payload?: unknown) => ipcRenderer.invoke('mcp-engine-command', command, payload),
+  respondEngineApproval: (actionId: string, approved: boolean) => ipcRenderer.invoke('mcp-engine-approval', actionId, approved),
+  onEngineEvent: (callback: (event: any) => void) => {
+    const handler = (_event: any, data: any) => callback(data);
+    ipcRenderer.on('mcp-engine-event', handler);
+    return () => ipcRenderer.removeListener('mcp-engine-event', handler);
+  },
   clearIncognitoSession: (tabId?: string) => ipcRenderer.invoke('clear-incognito-session', tabId),
   // Security: Called by renderer when creating a new incognito tab so the main process can
   // apply full permission/download/proxy hardening to the per-tab partition before content loads.

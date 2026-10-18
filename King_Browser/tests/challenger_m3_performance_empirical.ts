@@ -688,7 +688,7 @@ async function runMilestone3ChallengerSuite() {
 
   if (failed > 0) {
     console.error('CHALLENGE VERDICT: REQUEST_CHANGES');
-    process.exit(1);
+    process.exitCode = 1;
   } else {
     console.log('CHALLENGE VERDICT: APPROVE (All Milestone 3 optimizations verified with 0 defects)');
   }
@@ -696,5 +696,5 @@ async function runMilestone3ChallengerSuite() {
 
 runMilestone3ChallengerSuite().catch(err => {
   console.error('Fatal error in challenger empirical suite:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

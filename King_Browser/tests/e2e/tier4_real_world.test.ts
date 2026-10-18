@@ -107,5 +107,5 @@ async function runTier4Tests() {
 
 runTier4Tests().catch(err => {
   console.error('Tier 4 test failure:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

@@ -74,5 +74,5 @@ async function runTier3Tests() {
 
 runTier3Tests().catch(err => {
   console.error('Tier 3 test failure:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

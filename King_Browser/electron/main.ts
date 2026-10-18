@@ -141,6 +141,7 @@ import {
   getBlocker
 } from './main/adblockManager.js';
 import { BrowserMCPServer } from './mcpServer.js';
+import { registerEngineIpc } from './main/engineIpc.js';
 import { initMcpBridge } from './main/mcpBridge.js';
 import { initDownloads, markNextDownloadAsSaveAs, registerDownloadsManager, registerKnownDownloadPath, isSafeDownloadUrl, sanitizeDownloadFilename } from './main/downloads.js';
 import { initSuggestions } from './main/suggestions.js';
@@ -2043,6 +2044,14 @@ app.whenReady().then(async () => {
   // §11/§12: forwarded agent actions go through the policy classifier and the
   // execution engine (approval dialog for sensitive decisions, STOP NOW support).
   mcpServer.setPolicyEnforcement(true);
+  // §10: expose the engine to the renderer control panel (status, controls,
+  // STOP NOW, approvals). Renderer-facing channel names live in engineIpc.ts.
+  registerEngineIpc({
+    handle: (channel, listener) => {
+      ipcMain.handle(channel, listener as (event: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown);
+    },
+    getEngine: () => (mcpServer ? mcpServer.getExecutionEngine() : null)
+  });
 
   // MCP Server is OFF by default unless explicitly enabled in user settings
   let shouldAutoStartMcp = false;

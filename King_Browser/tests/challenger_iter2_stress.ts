@@ -135,11 +135,11 @@ async function runChallengerStressTest() {
   console.log('===========================================================');
 
   if (failedTests > 0) {
-    process.exit(1);
+    process.exitCode = 1;
   }
 }
 
 runChallengerStressTest().catch((err) => {
   console.error('Fatal stress test error:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

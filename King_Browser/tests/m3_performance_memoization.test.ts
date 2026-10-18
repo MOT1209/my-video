@@ -433,5 +433,5 @@ if (failedM3 === 0) {
   console.log('\nALL M3 PERFORMANCE & MEMOIZATION TESTS PASSED CLEANLY (0 DEFECTS DETECTED).');
 } else {
   console.error(`\nFAILED: ${failedM3} tests failed.`);
-  process.exit(1);
+  process.exitCode = 1;
 }

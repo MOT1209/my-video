@@ -53,5 +53,5 @@ async function runTier2Tests() {
 
 runTier2Tests().catch(err => {
   console.error('Tier 2 test failure:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

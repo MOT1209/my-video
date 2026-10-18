@@ -28,5 +28,5 @@ aiAgent.parkModel().then(() => {
   console.log('[PASS] [AI-VRAM-4] Cooperative compositor micro-yielding verified.');
 }).catch((err) => {
   console.error('AI VRAM test failure:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });

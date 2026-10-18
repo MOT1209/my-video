@@ -26,5 +26,5 @@ async function runTier5Tests() {
 
 runTier5Tests().catch(err => {
   console.error('Tier 5 test failure:', err);
-  process.exit(1);
+  process.exitCode = 1;
 });
