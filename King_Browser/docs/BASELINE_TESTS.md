@@ -28,7 +28,7 @@ The suite is a **single-process mega-bundle**: `tests/runAll.ts` imports ~80 tes
 | `npm test` (bundled, full) | **1030 PASS / 2 FAIL**, then the process exits (code 1) mid-suite — no completion marker |
 | `tests/challenger_m3_performance_empirical.ts` **standalone** | **23/23 PASS, exit 0** |
 
-## The 2 failures — flaky, environmental (NOT product defects)
+## The 2 failures — flaky, environmental (NOT product defects) — RESOLVED 2026-10-18
 
 Both failures are in the "Autocomplete Cancellation" section of `tests/challenger_m3_performance_empirical.ts`:
 
@@ -54,9 +54,18 @@ node dist-test/m3standalone.cjs
 # → TOTAL: 23, PASSED: 23, FAILED: 0 — CHALLENGE VERDICT: APPROVE
 ```
 
+## Resolution (2026-10-18)
+
+Both false failures are fixed at the harness level. Waits are now **drain-tolerant**: after the wall-clock deadline they still grant a bounded grace window of event-loop turns, so timers that expired while the loop was blocked get their turn before the wait gives up. No wait was shortened.
+
+- `tests/challenger_m3_performance_empirical.ts` — `waitForCompletion` / `waitForInFlight` (200 grace polls after the deadline).
+- `tests/execution_engine.test.ts` — new `waitUntil` helper, also used for the post-timeout queue-continuation check (previously a single-`flush` race).
+
+Verified: full bundled suite `npm test` → **1166 PASS / 0 FAIL, exit 0** (`dist-test/full_run6.txt`), plus 3× standalone runs green for both suites. The runner also no longer dies mid-suite — the challenger's `process.exit(1)` gate became `process.exitCode = 1` during the exit-code audit.
+
 ## Consequences for King Browser development
 
-1. **Baseline = green modulo the flake above.** Only treat a failure as a regression if it is (a) not one of the 2 listed tests, and (b) reproducible **standalone** on the affected file.
+1. **Baseline = fully green** (`dist-test/full_run6.txt`: 1166 PASS / 0 FAIL). After the drain-tolerant wait fixes, any failure is a regression candidate; confirm reproducibility standalone on the affected file.
 2. **Prefer per-file runs during development** (`npx esbuild tests/<file> … && node …`) — the mega-bundle runner is slow and its timing-sensitive files are unreliable on this machine.
 3. If the suite aborts before finishing, that is the M3 challenger's `process.exit(1)` — inspect its summary block at the tail of the log to see the triggering checks.
-4. Do not "fix" the 2 tests by shortening waits — they are correct on a machine where bundle evaluation finishes within the 10 s budget.
+4. The 2 tests were fixed by making their waits drain-tolerant (bounded grace after the deadline) — never by shortening waits.

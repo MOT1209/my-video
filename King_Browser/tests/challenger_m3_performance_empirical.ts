@@ -229,9 +229,12 @@ async function runMilestone3ChallengerSuite() {
 
     async waitForCompletion(expectedCompleted: number, timeoutMs = 10000): Promise<void> {
       const start = Date.now();
+      let gracePolls = 200;
       while (this.completedFetchCount < expectedCompleted) {
         if (Date.now() - start > timeoutMs) {
-          break;
+          if (gracePolls-- <= 0) {
+            break;
+          }
         }
         await new Promise(r => setTimeout(r, 10));
       }
@@ -239,9 +242,12 @@ async function runMilestone3ChallengerSuite() {
 
     async waitForInFlight(timeoutMs = 10000): Promise<void> {
       const start = Date.now();
+      let gracePolls = 200;
       while (!this.isFetchInFlight) {
         if (Date.now() - start > timeoutMs) {
-          break;
+          if (gracePolls-- <= 0) {
+            break;
+          }
         }
         await new Promise(r => setTimeout(r, 10));
       }

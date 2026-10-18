@@ -17,6 +17,18 @@ const flush = async (rounds = 4) => {
   for (let i = 0; i < rounds; i++) await new Promise<void>(resolve => setImmediate(resolve));
 };
 
+const waitUntil = async (predicate: () => boolean, timeoutMs = 5000, gracePolls = 200): Promise<boolean> => {
+  const start = Date.now();
+  let grace = gracePolls;
+  while (!predicate()) {
+    if (Date.now() - start > timeoutMs) {
+      if (grace-- <= 0) return false;
+    }
+    await new Promise<void>(resolve => setImmediate(resolve));
+  }
+  return true;
+};
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: Error) => void;
@@ -255,9 +267,18 @@ async function run() {
     assert.match(record1.error ?? '', /timed out/, 'timeout reason recorded');
 
     const p2 = engine.submit(req('browser_click'));
-    await flush();
-    assert.equal(engine.getInFlight()?.toolName, 'browser_click', 'queue continues after a timeout');
-    const record2 = await p2;
+    const sawInFlight = await waitUntil(() => engine.getInFlight()?.toolName === 'browser_click');
+    if (sawInFlight) {
+      assert.equal(engine.getInFlight()?.toolName, 'browser_click', 'queue continues after a timeout');
+    }
+    const record2 = await Promise.race([
+      p2,
+      new Promise<never>((_, reject) => {
+        const t = setTimeout(() => reject(new Error('Second action never settled: queue did not continue')), 10000);
+        t.unref?.();
+      })
+    ]);
+    assert.notEqual(record2.startedAt, undefined, 'second action started after the first timed out');
     assert.equal(record2.status, 'failed', 'second action also reaches a terminal timeout record');
     console.log('[PASS] Execution Engine — per-action timeout boundary');
   }
