@@ -1,8 +1,8 @@
 <div align="center">
 
-  <img src="public/logo.png" alt="Nova Browser Logo" width="130" style="margin-bottom: 16px;" />
+  <img src="public/logo.png" alt="King Browser Logo" width="130" style="margin-bottom: 16px;" />
 
-  # Nova Browser
+  # King Browser
 
   **Open-Source Desktop Browser for Developers & Coding Agents**  
   *Built with Electron, React, TypeScript & Vite — Featuring Native MCP Server, On-Device WebGPU & Whisper STT, and Zero-Knowledge E2EE Sync*
@@ -10,20 +10,20 @@
   <br/>
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-  [![Release](https://img.shields.io/badge/Release-v1.5.1-6366F1?style=for-the-badge)](https://github.com/unitybtw/nova-browser/releases)
+  [![Release](https://img.shields.io/badge/Release-v0.0.1-6366F1?style=for-the-badge)](https://github.com/MOT1209/my-video/releases)
   [![Electron](https://img.shields.io/badge/Electron-43.x-47848F?style=for-the-badge&logo=electron)](https://www.electronjs.org/)
   [![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
   [![Vite](https://img.shields.io/badge/Vite-6.x-646CFF?style=for-the-badge&logo=vite)](https://vitejs.dev/)
-  [![E2EE Security](https://img.shields.io/badge/E2EE-AES--256--GCM-059669?style=for-the-badge&logo=shield)](https://github.com/unitybtw/nova-browser)
-  [![CI](https://github.com/unitybtw/nova-browser/actions/workflows/ci.yml/badge.svg)](https://github.com/unitybtw/nova-browser/actions/workflows/ci.yml)
-  [![CodeQL](https://github.com/unitybtw/nova-browser/actions/workflows/codeql.yml/badge.svg)](https://github.com/unitybtw/nova-browser/actions/workflows/codeql.yml)
-  [![Security Alerts](https://img.shields.io/badge/CodeQL%20Alerts-0%20Open-10B981?style=for-the-badge)](https://github.com/unitybtw/nova-browser/security/code-scanning)
-  [![Tests](https://img.shields.io/badge/Tests-1070%2B%20Passing-10B981?style=for-the-badge)](https://github.com/unitybtw/nova-browser)
-  [![Platforms](https://img.shields.io/badge/Platforms-macOS%20|%20Windows%20|%20Linux-6366F1?style=for-the-badge)](https://github.com/unitybtw/nova-browser)
+  [![E2EE Security](https://img.shields.io/badge/E2EE-AES--256--GCM-059669?style=for-the-badge&logo=shield)](https://github.com/MOT1209/my-video)
+  [![CI](https://github.com/MOT1209/my-video/actions/workflows/ci.yml/badge.svg)](https://github.com/MOT1209/my-video/actions/workflows/ci.yml)
+  [![CodeQL](https://github.com/MOT1209/my-video/actions/workflows/codeql.yml/badge.svg)](https://github.com/MOT1209/my-video/actions/workflows/codeql.yml)
+  [![Security Alerts](https://img.shields.io/badge/CodeQL%20Alerts-0%20Open-10B981?style=for-the-badge)](https://github.com/MOT1209/my-video/security/code-scanning)
+  [![Tests](https://img.shields.io/badge/Tests-1163%2B%20Passing-10B981?style=for-the-badge)](https://github.com/MOT1209/my-video)
+  [![Platforms](https://img.shields.io/badge/Platforms-macOS%20|%20Windows%20|%20Linux-6366F1?style=for-the-badge)](https://github.com/MOT1209/my-video)
 
   <p align="center">
-    <a href="#why-nova">Why Nova?</a> •
+    <a href="#why-king">Why King?</a> •
     <a href="#overview">Overview</a> •
     <a href="#performance-benchmarks--browser-comparison">Benchmarks</a> •
     <a href="#screenshots">Screenshots</a> •
@@ -42,9 +42,9 @@
 
 ---
 
-## Why Nova?
+## Why King?
 
-Rather than bloated cloud telemetry or generic hype, Nova focuses on concrete developer and power-user requirements:
+Rather than bloated cloud telemetry or generic hype, King focuses on concrete developer and power-user requirements:
 
 - **Native Model Context Protocol (MCP) Server (Port 3020)**: Built-in local HTTP/SSE MCP server exposing 26 browser automation and inspection tools directly to coding agents (Claude Code, Cursor, Windsurf, Antigravity) with zero configuration.
 - **On-Device Whisper Voice & Neural Execution**: Run multilingual speech-to-text locally via Transformers.js (`whisper-tiny`, ~41 MB) and on-device LLMs via WebGPU (Llama 3.2, Phi 3.5 Vision, Qwen 2.5). Exactly 0 KB of voice audio or model prompt data is transmitted to cloud servers.
@@ -56,17 +56,17 @@ Rather than bloated cloud telemetry or generic hype, Nova focuses on concrete de
 
 ## Overview
 
-**Nova Browser** is an open-source, sovereign desktop web browser built with Electron, React, TypeScript, and Vite. Designed for developers, researchers, and privacy-conscious users, Nova pairs standard Chromium rendering with a native **Model Context Protocol (MCP) server**, **on-device WebGPU neural execution**, **local Whisper speech recognition**, **zero-knowledge encrypted multi-device sync**, **Chrome Web Store extension support**, and a **dual-view split screen**.
+**King Browser** is an open-source, sovereign desktop web browser built with Electron, React, TypeScript, and Vite. Designed for developers, researchers, and privacy-conscious users, King pairs standard Chromium rendering with a native **Model Context Protocol (MCP) server**, **on-device WebGPU neural execution**, **local Whisper speech recognition**, **zero-knowledge encrypted multi-device sync**, **Chrome Web Store extension support**, and a **dual-view split screen**.
 
 ---
 
 ## Performance Benchmarks & Browser Comparison
 
-> **Architecture & Engine Parity Note:** Nova Browser is powered by modern Chromium (Blink) and Google V8 via Electron 43. Core JavaScript loop execution, HTML parsing, and DOM rendering performance are on par with Google Chrome (engine parity). Nova's distinct speed and efficiency advantages come from architectural design: zero background Google telemetry/account sync services, an aggressive idle tab hibernation engine, network-level ad/tracker interception, and an on-demand decoupled bundle structure.
+> **Architecture & Engine Parity Note:** King Browser is powered by modern Chromium (Blink) and Google V8 via Electron 43. Core JavaScript loop execution, HTML parsing, and DOM rendering performance are on par with Google Chrome (engine parity). King's distinct speed and efficiency advantages come from architectural design: zero background Google telemetry/account sync services, an aggressive idle tab hibernation engine, network-level ad/tracker interception, and an on-demand decoupled bundle structure.
 
 ### Head-to-Head Feature Matrix
 
-| Architectural Feature | Nova Browser | Google Chrome | Brave Browser | Apple Safari 18 |
+| Architectural Feature | King Browser | Google Chrome | Brave Browser | Apple Safari 18 |
 | :--- | :--- | :--- | :--- | :--- |
 | **Core Engine** | **Chromium 134 / Blink** | Chromium 134 / Blink | Chromium 134 / Blink | WebKit |
 | **AI Assistant** | **100% On-Device WebGPU (0 KB Sent)** | Cloud Gemini (Account required) | Cloud Leo (Paid tier) | Apple Intelligence |
@@ -108,11 +108,11 @@ Current English interface in Clean Minimalist mode with the light theme.
 ### 1. Vertical Tabs Layout
 
 <div align="center">
-  <img src="public/screenshots/vertical-clean-light.jpg" alt="Nova Browser Start Page with Vertical Tabs" width="850" style="border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); margin-bottom: 16px;" />
-  <p><em>Nova Start Page & Dashboard: Vertical Sidebar, Omni Search, Quick Dials & Task Management</em></p>
+  <img src="public/screenshots/vertical-clean-light.jpg" alt="King Browser Start Page with Vertical Tabs" width="850" style="border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); margin-bottom: 16px;" />
+  <p><em>King Start Page & Dashboard: Vertical Sidebar, Omni Search, Quick Dials & Task Management</em></p>
   <br/>
-  <img src="public/screenshots/vertical-assistant-clean-light.jpg" alt="Nova Browser with AI Assistant and Vertical Tabs" width="850" style="border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); margin-bottom: 16px;" />
-  <p><em>Nova Assistant beside the clean start page with vertical tabs and workspaces</em></p>
+  <img src="public/screenshots/vertical-assistant-clean-light.jpg" alt="King Browser with AI Assistant and Vertical Tabs" width="850" style="border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); margin-bottom: 16px;" />
+  <p><em>King Assistant beside the clean start page with vertical tabs and workspaces</em></p>
 </div>
 
 <br/>
@@ -120,29 +120,29 @@ Current English interface in Clean Minimalist mode with the light theme.
 ### 2. Horizontal Tabs Layout (Chrome-Style Top Tabs)
 
 <div align="center">
-  <img src="public/screenshots/horizontal-clean-light.jpg" alt="Nova Browser Start Page with Horizontal Tabs" width="850" style="border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); margin-bottom: 16px;" />
-  <p><em>Nova Start Page & Dashboard: Horizontal Top Tabs, Clean Omnibox & Customizable Speed Dials</em></p>
+  <img src="public/screenshots/horizontal-clean-light.jpg" alt="King Browser Start Page with Horizontal Tabs" width="850" style="border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); margin-bottom: 16px;" />
+  <p><em>King Start Page & Dashboard: Horizontal Top Tabs, Clean Omnibox & Customizable Speed Dials</em></p>
   <br/>
-  <img src="public/screenshots/horizontal-assistant-clean-light.jpg" alt="Nova Browser with AI Assistant and Horizontal Tabs" width="850" style="border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); margin-bottom: 16px;" />
-  <p><em>Nova Assistant beside the clean start page with horizontal tabs</em></p>
+  <img src="public/screenshots/horizontal-assistant-clean-light.jpg" alt="King Browser with AI Assistant and Horizontal Tabs" width="850" style="border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); margin-bottom: 16px;" />
+  <p><em>King Assistant beside the clean start page with horizontal tabs</em></p>
 </div>
 
 <br/>
 
-### 3. Nova Sync
+### 3. King Sync
 
 <div align="center">
-  <img src="public/screenshots/sync-clean-light.jpg" alt="Nova Sync Interface" width="850" style="border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.35);" />
-  <p><em>Nova Sync sign-in screen in the light theme</em></p>
+  <img src="public/screenshots/sync-clean-light.jpg" alt="King Sync Interface" width="850" style="border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.35);" />
+  <p><em>King Sync sign-in screen in the light theme</em></p>
 </div>
 
 ---
 
 ## Key Features
 
-### Nova Cloud Sync (Zero-Knowledge E2EE)
+### King Cloud Sync (Zero-Knowledge E2EE)
 - **End-to-End Encryption (AES-256-GCM)**: Saved passwords, bookmarks, browsing history, settings, and workspace arrangements are encrypted locally with PBKDF2 (600,000 iterations) and 256-bit AES-GCM before transmission.
-- **Encrypted Multi-Device Sync**: Sign in with your Nova Cloud account to synchronize bookmarks, passwords, and preferences across your computers in real-time over Supabase Realtime WebSockets. Encryption keys stay on your local device; the cloud server only ever receives encrypted ciphertext.
+- **Encrypted Multi-Device Sync**: Sign in with your King Cloud account to synchronize bookmarks, passwords, and preferences across your computers in real-time over Supabase Realtime WebSockets. Encryption keys stay on your local device; the cloud server only ever receives encrypted ciphertext.
 - **Code-Based Pairing (Roadmap)**: Accountless 1-click device pairing via temporary sync codes is in active development for a future release.
 
 ### On-Device Whisper Voice & Speech Recognition
@@ -185,13 +185,13 @@ Current English interface in Clean Minimalist mode with the light theme.
 
 ## MCP (Model Context Protocol) Guide
 
-Nova Browser natively exposes an MCP endpoint on port `3020`, enabling external AI assistants and coding agents to interact with web pages autonomously.
+King Browser natively exposes an MCP endpoint on port `3020`, enabling external AI assistants and coding agents to interact with web pages autonomously.
 
 ### Built-in MCP Tools (26 Tools)
 
 | Tool Name | Parameters | Description |
 | :--- | :--- | :--- |
-| `nova_browser_info` | - | Returns Nova Browser version, platform, active tabs count, and status |
+| `nova_browser_info` | - | Returns King Browser version, platform, active tabs count, and status |
 | `browser_navigate` | `url`, `tabId?` | Navigates the target tab to a specified URL |
 | `browser_read_page` | `tabId?`, `selector?` | Extracts clean text and DOM tree content from the active page |
 | `browser_screenshot` | `tabId?`, `fullPage?` | Captures a PNG screenshot of the current viewport or full page |
@@ -222,18 +222,18 @@ Nova Browser natively exposes an MCP endpoint on port `3020`, enabling external 
 
 ### Connecting External AI Agents
 
-To connect **Claude Desktop**, **Cursor**, **Windsurf**, or custom scripts to Nova Browser, configure your agent's MCP configuration file:
+To connect **Claude Desktop**, **Cursor**, **Windsurf**, or custom scripts to King Browser, configure your agent's MCP configuration file:
 
 #### Claude Desktop Configuration (`claude_desktop_config.json`)
 
 ```json
 {
   "mcpServers": {
-    "nova-browser": {
+    "king-browser": {
       "command": "node",
-      "args": ["/ABSOLUTE_PATH_TO_NOVA/mcp-bridge.mjs"],
+      "args": ["/ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs"],
       "env": {
-        "MCP_TOKEN": "YOUR_NOVA_MCP_TOKEN",
+        "MCP_TOKEN": "YOUR_KING_MCP_TOKEN",
         "MCP_PORT": "3020"
       }
     }
@@ -246,11 +246,11 @@ To connect **Claude Desktop**, **Cursor**, **Windsurf**, or custom scripts to No
 ```json
 {
   "mcpServers": {
-    "nova-browser": {
+    "king-browser": {
       "command": "node",
-      "args": ["/ABSOLUTE_PATH_TO_NOVA/mcp-bridge.mjs"],
+      "args": ["/ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs"],
       "env": {
-        "MCP_TOKEN": "YOUR_NOVA_MCP_TOKEN",
+        "MCP_TOKEN": "YOUR_KING_MCP_TOKEN",
         "MCP_PORT": "3020"
       }
     }
@@ -264,7 +264,7 @@ To connect **Claude Desktop**, **Cursor**, **Windsurf**, or custom scripts to No
 
 ## On-Device AI & Whisper Voice Architecture
 
-Nova Browser features an entirely local-first neural execution architecture:
+King Browser features an entirely local-first neural execution architecture:
 
 ```
 [User Speech Input]
@@ -291,7 +291,7 @@ Nova Browser features an entirely local-first neural execution architecture:
 ```
 
 - **Supported Neural Models**: Llama 3.2 3B (`Llama-3.2-3B-Instruct`), Phi 3.5 Vision (`Phi-3.5-vision-instruct`, Multimodal), and Qwen 2.5 0.5B (`Qwen2.5-0.5B-Instruct`, Ultra-Light).
-- **Natural Language Direct Intent Engine**: Automatically identifies direct browser actions (e.g. `"github unitybtw/nova-browser aç"`, `"duckduckgo'da webgpu ara"`, `"geçmişte react bul"`, `"açık sekmeleri listele"`, `"bu sayfayı özetle"`).
+- **Natural Language Direct Intent Engine**: Automatically identifies direct browser actions (e.g. `"github MOT1209/my-video aç"`, `"duckduckgo'da webgpu ara"`, `"geçmişte react bul"`, `"açık sekmeleri listele"`, `"bu sayfayı özetle"`).
 - **Persistent Info & Memory Vault**: Remembers user preferences (e.g. tone, language, dark theme) and automatically injects them into agent instructions.
 - **Task History Tracking**: Maintains a persistent chronological log of completed browser tasks and AI executions.
 
@@ -317,7 +317,7 @@ Nova Browser features an entirely local-first neural execution architecture:
 
 ## Configuration & Environment Variables
 
-Nova Browser runs fully offline out of the box with zero required configuration. To enable optional cloud synchronization or customize the MCP server, create a `.env` file in the project root:
+King Browser runs fully offline out of the box with zero required configuration. To enable optional cloud synchronization or customize the MCP server, create a `.env` file in the project root:
 
 | Variable | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
@@ -332,10 +332,10 @@ Nova Browser runs fully offline out of the box with zero required configuration.
 
 ### Option A: Download Official Release (Recommended)
 
-Download the latest prebuilt installer for your operating system directly from [GitHub Releases](https://github.com/unitybtw/nova-browser/releases):
-- **macOS**: `Nova-Browser-arm64.dmg` (Apple Silicon) or `Nova-Browser-x64.dmg` (Intel)
-- **Windows**: `Nova-Browser-Setup-1.5.1-x64.exe` (64-bit NSIS Installer)
-- **Linux**: `Nova-Browser-x86_64.AppImage` or `Nova-Browser-amd64.deb`
+Download the latest prebuilt installer for your operating system directly from [GitHub Releases](https://github.com/MOT1209/my-video/releases):
+- **macOS**: `King-Browser-arm64.dmg` (Apple Silicon) or `King-Browser-x64.dmg` (Intel)
+- **Windows**: `King-Browser-Setup-0.0.1-x64.exe` (64-bit NSIS Installer)
+- **Linux**: `King-Browser-x86_64.AppImage` or `King-Browser-amd64.deb`
 
 ### Option B: Build from Source
 
@@ -345,8 +345,8 @@ Download the latest prebuilt installer for your operating system directly from [
 
 #### 1. Clone the repository
 ```bash
-git clone https://github.com/unitybtw/nova-browser.git
-cd nova-browser
+git clone https://github.com/MOT1209/my-video.git
+cd my-video/King_Browser
 ```
 
 #### 2. Install dependencies
@@ -368,10 +368,10 @@ npm run build
 
 ## Testing & Verification
 
-Nova Browser maintains a comprehensive automated test and quality assurance suite:
+King Browser maintains a comprehensive automated test and quality assurance suite:
 
 ```bash
-# Run full automated test suite (1,070+ assertions: sync, security, CRX, reader mode, tab management)
+# Run full automated test suite (1,163+ assertions: sync, security, CRX, reader mode, tab management)
 npm test
 
 # Verify Electron main process and preload bundle compilation
@@ -403,7 +403,7 @@ npm run benchmark
 
 ## Architecture
 
-Nova Browser employs a multi-process Electron architecture with context isolation, a React-based renderer with WebGPU neural execution, and a dedicated AI integration layer via the Model Context Protocol (MCP).
+King Browser employs a multi-process Electron architecture with context isolation, a React-based renderer with WebGPU neural execution, and a dedicated AI integration layer via the Model Context Protocol (MCP).
 
 ```mermaid
 flowchart TB
@@ -557,14 +557,14 @@ flowchart TB
 - [x] On-Device Whisper Voice Navigation & Speech Recognition
 - [x] Modern UI with Vertical Tabs & Workspaces
 - [x] Native MCP Autonomous AI Agent Protocol (26 Built-in Tools) & Virtual Glowing Cursor
-- [x] Zero-Knowledge Encrypted Cloud Sync (AES-256-GCM via Nova Cloud)
+- [x] Zero-Knowledge Encrypted Cloud Sync (AES-256-GCM via King Cloud)
 - [x] Direct Chrome Web Store 1-Click Extension Installation
 - [x] Built-in Privacy Shield (AdBlock & Tracker Protection)
 - [x] Dual-View Split Screen with Drag-to-Resize Divider
 - [x] Reader Mode with High-Fidelity Native OS Text-to-Speech (TTS)
 - [x] Local Offline LLM Integration (Web-LLM / WebGPU)
 - [x] Persistent Info Vault & Task History Tracking
-- [x] Comprehensive Automated Test Suite (70+ Test Suites, 1,070+ Passing Tests)
+- [x] Comprehensive Automated Test Suite (81 Test Suites, 1,163+ Passing Tests)
 - [ ] Code-based 1-Click Device Pairing (without account)
 - [ ] Mobile Companion Application
 
@@ -586,7 +586,7 @@ Every release package is compiled via reproducible GitHub Actions workflows. Eac
 sha256sum -c SHA256SUMS.txt
 
 # Verify on Windows (PowerShell):
-$hash = Get-FileHash Nova-Browser-Setup-*.exe -Algorithm SHA256
+$hash = Get-FileHash King-Browser-Setup-*.exe -Algorithm SHA256
 # Compare $hash.Hash against the corresponding value in SHA256SUMS.txt
 ```
 
@@ -596,11 +596,11 @@ $hash = Get-FileHash Nova-Browser-Setup-*.exe -Algorithm SHA256
 
 <div align="center">
 
-<a href="https://star-history.com/#unitybtw/nova-browser&Date">
+<a href="https://star-history.com/#MOT1209/my-video&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=unitybtw/nova-browser&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=unitybtw/nova-browser&type=Date" />
-   <img alt="Nova Browser Star History Chart" src="https://api.star-history.com/svg?repos=unitybtw/nova-browser&type=Date" width="750" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MOT1209/my-video&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MOT1209/my-video&type=Date" />
+   <img alt="King Browser Star History Chart" src="https://api.star-history.com/svg?repos=MOT1209/my-video&type=Date" width="750" />
  </picture>
 </a>
 
@@ -632,8 +632,10 @@ Before getting started:
 
 Distributed under the **MIT License**. See `LICENSE` for details.
 
+This project is a rebranded derivative of [Nova Browser](https://github.com/unitybtw/nova-browser) (MIT), with substantial modifications — see `docs/UPSTREAM.md` for the full provenance record.
+
 <br/>
 
 <div align="center">
-  <sub>Designed & Developed by the Nova Browser Team</sub>
+  <sub>Designed & Developed by the King Browser Team</sub>
 </div>
