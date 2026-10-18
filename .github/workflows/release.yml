@@ -1,4 +1,4 @@
-name: Build & Release Nova Browser
+name: Build & Release King Browser
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release tag (e.g. v1.5.0). Leave empty to use version from package.json.'
+        description: 'Release tag (e.g. v0.0.1). Leave empty to use version from package.json.'
         required: false
         default: ''
 
@@ -18,6 +18,9 @@ jobs:
   release-mac:
     name: Build macOS (dmg)
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: King_Browser
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -27,6 +30,7 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
+          cache-dependency-path: King_Browser/package-lock.json
 
       - name: Install Dependencies
         run: npm ci
@@ -50,15 +54,18 @@ jobs:
         with:
           name: mac-artifacts
           path: |
-            dist-electron-builder/*.dmg
-            dist-electron-builder/*.zip
-            dist-electron-builder/*.blockmap
-            dist-electron-builder/latest-mac.yml
+            King_Browser/dist-electron-builder/*.dmg
+            King_Browser/dist-electron-builder/*.zip
+            King_Browser/dist-electron-builder/*.blockmap
+            King_Browser/dist-electron-builder/latest-mac.yml
           if-no-files-found: warn
 
   release-windows:
     name: Build Windows (exe)
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: King_Browser
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -68,6 +75,7 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
+          cache-dependency-path: King_Browser/package-lock.json
 
       - name: Install Dependencies
         run: npm ci
@@ -91,15 +99,18 @@ jobs:
         with:
           name: windows-artifacts
           path: |
-            dist-electron-builder/*.exe
-            dist-electron-builder/*.zip
-            dist-electron-builder/*.blockmap
-            dist-electron-builder/latest.yml
+            King_Browser/dist-electron-builder/*.exe
+            King_Browser/dist-electron-builder/*.zip
+            King_Browser/dist-electron-builder/*.blockmap
+            King_Browser/dist-electron-builder/latest.yml
           if-no-files-found: warn
 
   release-linux:
     name: Build Linux (AppImage & deb)
     runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: King_Browser
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -109,6 +120,7 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
+          cache-dependency-path: King_Browser/package-lock.json
 
       - name: Install Dependencies
         run: npm ci
@@ -133,10 +145,10 @@ jobs:
         with:
           name: linux-artifacts
           path: |
-            dist-electron-builder/*.AppImage
-            dist-electron-builder/*.deb
-            dist-electron-builder/*.blockmap
-            dist-electron-builder/latest-linux.yml
+            King_Browser/dist-electron-builder/*.AppImage
+            King_Browser/dist-electron-builder/*.deb
+            King_Browser/dist-electron-builder/*.blockmap
+            King_Browser/dist-electron-builder/latest-linux.yml
           if-no-files-found: warn
 
   publish-release:
@@ -157,7 +169,7 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
           GITHUB_REF: ${{ github.ref }}
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION=$(node -p "require('./King_Browser/package.json').version")
           TAG="$TAG_INPUT"
           if [ -z "$TAG" ]; then
             if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
@@ -167,7 +179,7 @@ jobs:
             fi
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "title=Nova Browser $TAG" >> $GITHUB_OUTPUT
+          echo "title=King Browser $TAG" >> $GITHUB_OUTPUT
           echo "Resolved Release Tag: $TAG"
 
       - name: Download all Artifacts
@@ -215,7 +227,7 @@ jobs:
           sha256sum -c SHA256SUMS.txt
 
           # Windows (PowerShell)
-          $hash = Get-FileHash Nova-Browser-Setup-*.exe -Algorithm SHA256
+          $hash = Get-FileHash King-Browser-Setup-*.exe -Algorithm SHA256
           # Compare against the value below
           ```
 
