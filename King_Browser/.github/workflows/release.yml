@@ -1,0 +1,242 @@
+name: Build & Release Nova Browser
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag (e.g. v1.5.0). Leave empty to use version from package.json.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  release-mac:
+    name: Build macOS (dmg)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build App
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Package macOS DMG
+        run: npx electron-builder --mac --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-artifacts
+          path: |
+            dist-electron-builder/*.dmg
+            dist-electron-builder/*.zip
+            dist-electron-builder/*.blockmap
+            dist-electron-builder/latest-mac.yml
+          if-no-files-found: warn
+
+  release-windows:
+    name: Build Windows (exe)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build App
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Package Windows NSIS Installer
+        run: npx electron-builder --win --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            dist-electron-builder/*.exe
+            dist-electron-builder/*.zip
+            dist-electron-builder/*.blockmap
+            dist-electron-builder/latest.yml
+          if-no-files-found: warn
+
+  release-linux:
+    name: Build Linux (AppImage & deb)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build App
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Run Tests
+        run: npm test
+
+      - name: Install System Dependencies (libfuse2 for AppImage)
+        run: sudo apt-get update && sudo apt-get install -y libfuse2
+
+      - name: Package Linux (AppImage & deb)
+        run: npx electron-builder --linux AppImage deb --publish never
+
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: |
+            dist-electron-builder/*.AppImage
+            dist-electron-builder/*.deb
+            dist-electron-builder/*.blockmap
+            dist-electron-builder/latest-linux.yml
+          if-no-files-found: warn
+
+  publish-release:
+    name: Publish Release
+    needs: [release-mac, release-windows, release-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Resolve Release Tag & Version
+        id: vars
+        shell: bash
+        env:
+          TAG_INPUT: ${{ inputs.tag_name }}
+          REF_NAME: ${{ github.ref_name }}
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="$TAG_INPUT"
+          if [ -z "$TAG" ]; then
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+              TAG="$REF_NAME"
+            else
+              TAG="v$VERSION"
+            fi
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "title=Nova Browser $TAG" >> $GITHUB_OUTPUT
+          echo "Resolved Release Tag: $TAG"
+
+      - name: Download all Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate SHA-256 Checksums
+        shell: bash
+        run: |
+          cd release-assets
+          find . -maxdepth 1 -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.zip" \) -exec sha256sum {} + | sed 's| \./|  |' | sort > SHA256SUMS.txt || true
+          echo "### SHA-256 Release Checksums" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          cat SHA256SUMS.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Scan Release Binaries with VirusTotal
+        id: virustotal
+        if: env.VIRUSTOTAL_API_KEY != ''
+        continue-on-error: true
+        env:
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+        uses: crazy-max/ghaction-virustotal@v4
+        with:
+          vt_api_key: ${{ secrets.VIRUSTOTAL_API_KEY }}
+          files: |
+            release-assets/*.exe
+            release-assets/*.dmg
+            release-assets/*.AppImage
+            release-assets/*.deb
+          request_rate: 4
+
+      - name: Generate Release Security Summary
+        shell: bash
+        run: |
+          cat << 'EOF' > release_notes_prepend.md
+          ### SHA-256 Checksums
+
+          Verify the integrity of the binary you downloaded before installing:
+
+          ```bash
+          # macOS / Linux
+          sha256sum -c SHA256SUMS.txt
+
+          # Windows (PowerShell)
+          $hash = Get-FileHash Nova-Browser-Setup-*.exe -Algorithm SHA256
+          # Compare against the value below
+          ```
+
+          ```text
+          EOF
+          cat release-assets/SHA256SUMS.txt >> release_notes_prepend.md
+          echo '```' >> release_notes_prepend.md
+
+      - name: Create & Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: ${{ steps.vars.outputs.title }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body_path: release_notes_prepend.md
+          append_body: true
+          files: |
+            release-assets/*
+          fail_on_unmatched_files: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
