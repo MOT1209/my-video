@@ -39,6 +39,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Tab, Bookmark, Workspace, Folder, UserSettings } from '../types/browser';
+import { useTitlebarInsets } from '../hooks/useTitlebarInsets';
 import { formatSearchUrl } from '../utils/searchEngine';
 import { isSafeNavigationUrl } from '../utils/safeNavigation';
 import { getClientCachedSuggestions, setClientCachedSuggestions } from '../utils/suggestionCache';
@@ -543,6 +544,7 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = React.memo(({
   const isMac = useMemo(() => {
     return typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
   }, []);
+  const titlebarInsets = useTitlebarInsets();
 
   const [hoveredTab, setHoveredTab] = useState<Tab | null>(null);
   const [hoverRect, setHoverRect] = useState<{ top: number; left: number; width: number; height: number; right: number; bottom: number } | null>(null);
@@ -890,7 +892,14 @@ export const SidebarTabs: React.FC<SidebarTabsProps> = React.memo(({
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         >
           <div className="flex items-center gap-1">
-            {isMac && (
+            {titlebarInsets.active ? (
+              titlebarInsets.left > 0 && (
+                <div
+                  className="h-full shrink-0 select-none drag-region"
+                  style={{ width: Math.max(0, titlebarInsets.left - 12), WebkitAppRegion: 'drag' } as React.CSSProperties}
+                />
+              )
+            ) : isMac && (
               <div
                 className="w-[72px] h-full shrink-0 select-none drag-region"
                 style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}

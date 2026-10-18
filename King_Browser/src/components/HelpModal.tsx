@@ -484,7 +484,7 @@ export const HelpModal: React.FC<HelpModalProps> = React.memo(({
                 <div className="space-y-5 text-center py-2">
                   <div className="w-20 h-20 mx-auto rounded-3xl p-1 flex items-center justify-center relative overflow-hidden">
                     <img 
-                      src="./logo.svg" 
+                      src="./logo.png" 
                       alt="King Browser" 
                       className="w-full h-full object-contain" 
                     />

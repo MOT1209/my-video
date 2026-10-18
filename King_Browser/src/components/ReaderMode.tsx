@@ -11,6 +11,7 @@ import { detectLanguage, getBestVoice, getMacDefaultVoice, splitIntoSentences, N
 import { safeBase64 as safeBase64Util } from '../utils/securityUtils';
 import { generateId } from '../utils/idGenerator';
 import { getLocale } from '../services/i18n';
+import { useTitlebarInsets } from '../hooks/useTitlebarInsets';
 
 const safeBase64 = (str: string): string => {
   return safeBase64Util(str);
@@ -247,6 +248,7 @@ export const ReaderMode: React.FC<ReaderModeProps> = React.memo(({ url, tabId, i
   }>({ visible: false, note: '', top: 0, left: 0 });
 
   const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  const titlebarInsets = useTitlebarInsets();
 
   // Fetch Native macOS voices & Web Speech voices
   useEffect(() => {
@@ -902,7 +904,9 @@ export const ReaderMode: React.FC<ReaderModeProps> = React.memo(({ url, tabId, i
           {/* Header Bar */}
           <div className={`sticky top-0 px-4 py-3 flex items-center justify-between backdrop-blur-md bg-opacity-90 border-b z-40 ${theme === 'dark' ? 'border-white/10 bg-slate-950/90' : theme === 'sepia' ? 'border-amber-900/10 bg-[#f6f0e2]/90' : 'border-black/5 bg-white/90'}`}>
             <div className="flex items-center gap-2 no-drag">
-              {isMac && <div className="w-[68px] shrink-0" />}
+              {titlebarInsets.active
+                ? titlebarInsets.left > 0 && <div className="shrink-0" style={{ width: Math.max(0, titlebarInsets.left - 16) }} />
+                : isMac && <div className="w-[68px] shrink-0" />}
               <button
                 onClick={onClose}
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full transition-colors text-sm font-medium no-drag cursor-pointer ${theme === 'dark' ? 'hover:bg-white/10 text-slate-200' : 'hover:bg-black/5 text-slate-800'}`}

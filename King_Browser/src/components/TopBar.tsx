@@ -63,6 +63,7 @@ import { getClientCachedSuggestions, setClientCachedSuggestions } from '../utils
 import { TabHoverPreview } from './TabHoverPreview';
 import { getElectronAPI } from '../utils/electronBridge';
 import { OmniboxBar } from './topbar/OmniboxBar';
+import { useTitlebarInsets } from '../hooks/useTitlebarInsets';
 export { OmniboxBar };
 
 /** Stable identity handed to the downloads popover while it is closed. */
@@ -1090,6 +1091,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
 
   const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
   const isWindows = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('win');
+  const titlebarInsets = useTitlebarInsets();
 
   const activeWorkspace = workspaces?.find(w => w.id === activeWorkspaceId) || workspaces?.[0];
 
@@ -1137,8 +1139,17 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           transition={{ duration: 0.2 }}
           className="flex items-end px-2 pt-2.5 gap-1"
         >
-          {/* macOS Traffic Lights Spacer: 78px so native traffic lights never collide with Workspace or Tabs */}
-          {isMac && (
+          {/* Native window controls inset. macOS reserves a fixed 78px for the
+              traffic lights; the Windows overlay reports live geometry and can
+              sit on either edge (RTL Windows mirrors the caption buttons left). */}
+          {titlebarInsets.active ? (
+            titlebarInsets.left > 0 && (
+              <div
+                className="h-full shrink-0 select-none drag-region"
+                style={{ width: Math.max(0, titlebarInsets.left - 8), WebkitAppRegion: 'drag' } as React.CSSProperties}
+              />
+            )
+          ) : isMac && (
             <div
               className="w-[78px] h-full shrink-0 select-none drag-region"
               style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
@@ -1365,13 +1376,23 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           </AnimatePresence>
         </div>
 
-        {/* Spacer for Windows controls */}
-        {isWindows && (
-          <div
-            className="w-[140px] shrink-0 select-none drag-region"
-            style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-          />
-        )}
+        {/* Spacer for Windows controls (right edge). With the native overlay the
+            width follows the reported geometry; when Windows mirrors the buttons
+            to the left this collapses to 0 (the left inset above covers them). */}
+        {isWindows &&
+          (titlebarInsets.active ? (
+            titlebarInsets.right > 0 && (
+              <div
+                className="shrink-0 select-none drag-region"
+                style={{ width: Math.max(0, titlebarInsets.right - 8), WebkitAppRegion: 'drag' } as React.CSSProperties}
+              />
+            )
+          ) : (
+            <div
+              className="w-[140px] shrink-0 select-none drag-region"
+              style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+            />
+          ))}
       </motion.div>
       )}
       </AnimatePresence>
@@ -1789,11 +1810,14 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
             </AnimatePresence>
           </div>
 
-          {/* Spacer for Windows controls when vertical tabs are active */}
+          {/* Spacer for Windows controls when vertical tabs are active (geometry-driven) */}
           {isWindows && useVerticalTabs && (
             <div
-              className="w-[140px] shrink-0 select-none drag-region"
-              style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+              className="shrink-0 select-none drag-region"
+              style={{
+                width: titlebarInsets.active ? Math.max(0, titlebarInsets.right - 12) : 140,
+                WebkitAppRegion: 'drag',
+              } as React.CSSProperties}
             />
           )}
         </div>

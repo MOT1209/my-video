@@ -17,7 +17,7 @@ export function UpdateWalkthrough() {
           {icons.map((StepIcon, i) => <button key={i} aria-pressed={step === i} onClick={() => setStep(i)}><StepIcon size={17} />{t(`releaseJournal.step${i}Title`)}</button>)}
         </div>
         <div className="journal-step-detail">
-          <div className="journal-step-art" aria-hidden="true"><img src="./logo.svg" alt="" /><span><Icon size={26} /></span></div>
+          <div className="journal-step-art" aria-hidden="true"><img src="./logo.png" alt="" /><span><Icon size={26} /></span></div>
           <div><h3>{t(`releaseJournal.step${step}Heading`)}</h3><p>{t(`releaseJournal.step${step}Body`)}</p><button className="journal-text-button" onClick={() => setStep((step + 1) % 3)}>{t('releaseJournal.nextStep')}<ArrowRight size={16} /></button></div>
         </div>
         <p className="journal-demo-note">{t('releaseJournal.illustration')}</p>

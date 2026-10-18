@@ -537,8 +537,22 @@ function initAdBlocker() {
   }).catch((e: unknown) => console.error('Failed to initialize adblocker:', e));
 }
 
+// Window/app icon: the crown PNG lives in public/ (dev) and dist/ (packaged).
+const APP_ICON_PATH = (() => {
+  for (const candidate of [
+    path.join(__dirname, '../dist/logo.png'),
+    path.join(__dirname, '../public/logo.png'),
+  ]) {
+    try {
+      if (fs.existsSync(candidate)) return candidate;
+    } catch { /* ignore */ }
+  }
+  return undefined;
+})();
+
 function createWindow() {
   mainWindow = new BrowserWindow({
+    ...(APP_ICON_PATH ? { icon: APP_ICON_PATH } : {}),
     width: 1400,
     height: 900,
     minWidth: 1000,

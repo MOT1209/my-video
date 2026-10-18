@@ -56,6 +56,7 @@ import { useScreenshots } from './hooks/useScreenshots';
 import { useWebviewNavigation } from './hooks/useWebviewNavigation';
 import { useDemoShowcase } from './hooks/useDemoShowcase';
 import { useSettings } from './hooks/useSettings';
+import { useTitlebarInsets } from './hooks/useTitlebarInsets';
 import { getElectronAPI } from './utils/electronBridge';
 
 // Performance: Lazy load heavy modals and panels with resilient retry mechanism
@@ -1338,6 +1339,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
   }, [downloads]);
   const isWebsiteDemo = demoParams.isDemo && demoParams.feature === 'website';
   const useVerticalTabs = isWebsiteDemo ? false : settings.useVerticalTabs;
+  const titlebarInsets = useTitlebarInsets();
   // Keep the settings object identity stable between unrelated App renders so
   // memoized BrowserViews do not re-render just because tab/sidebar state changed.
   const browserViewSettings = useMemo(() => ({
@@ -1649,15 +1651,21 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         {useVerticalTabs && isWindows && (
           <div
             className="w-full h-8 shrink-0 flex items-center justify-between drag-region select-none px-3 bg-slate-100/60 dark:bg-slate-900/60 border-b border-slate-200/60 dark:border-white/5"
-            style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+            style={{
+              ...(titlebarInsets.active ? { paddingLeft: Math.max(12, titlebarInsets.left + 8) } : {}),
+              WebkitAppRegion: 'drag',
+            } as React.CSSProperties}
           >
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium truncate no-drag">
               <span className="truncate max-w-sm text-[11px]">{activeTab?.title || 'King Browser'}</span>
             </div>
-            {/* 140px reserved spacer so Windows native titlebar controls don't overlap web content */}
+            {/* Native window-control spacer; geometry-driven so mirrored (RTL) controls are never covered */}
             <div
-              className="w-[140px] h-full shrink-0 select-none drag-region"
-              style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+              className="h-full shrink-0 select-none drag-region"
+              style={{
+                width: titlebarInsets.active ? Math.max(0, titlebarInsets.right - 12) : 140,
+                WebkitAppRegion: 'drag',
+              } as React.CSSProperties}
             />
           </div>
         )}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sun, Moon, Monitor, Search, Shield, Ban, EyeOff, Bug, ArrowRight } from 'lucide-react';
+import { useTitlebarInsets } from '../hooks/useTitlebarInsets';
 
 interface OnboardingProps {
   onComplete: (prefs: {
@@ -115,6 +116,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importedData, setImportedData] = useState<any[]>([]);
+  const titlebarInsets = useTitlebarInsets();
 
   const goNext = () => {
     setDir(1);
@@ -160,7 +162,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
       >
         <div className="w-28 h-28 rounded-3xl p-1 flex items-center justify-center mb-6 mx-auto relative overflow-hidden">
           <img 
-            src="./logo.svg" 
+            src="./logo.png" 
             alt="King" 
             className="w-full h-full object-contain scale-105" 
           />
@@ -426,7 +428,13 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         className="w-full h-11 flex items-center justify-between px-4 shrink-0 drag-region z-50 select-none"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
-        <div className="flex items-center gap-2 pl-20 no-drag" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <div
+          className="flex items-center gap-2 pl-20 no-drag"
+          style={{
+            ...(titlebarInsets.active ? { paddingLeft: Math.max(8, titlebarInsets.left - 8) } : {}),
+            WebkitAppRegion: 'no-drag',
+          } as React.CSSProperties}
+        >
           <span className="text-[11px] font-semibold text-slate-500 tracking-wider uppercase">
             King Browser Setup
           </span>
