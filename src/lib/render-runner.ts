@@ -8,6 +8,7 @@ import {
 import { bundleRemotionProject } from "./remotion-bundle";
 import { isStoppedSandboxError } from "./render-errors";
 import { DEV_SANDBOX_VCPUS, PROD_SANDBOX_VCPUS } from "./render-metrics";
+import { isSandboxSnapshotUnavailableError } from "./snapshot-errors";
 import { restoreSnapshot } from "./restore-snapshot";
 import {
   acquireSessionSandbox,
@@ -63,23 +64,58 @@ export function runtimeVcpus(isProd: boolean): number {
   return isProd ? PROD_SANDBOX_VCPUS : DEV_SANDBOX_VCPUS;
 }
 
+interface CreatedRenderSandbox {
+  sandbox: VercelSandbox;
+  /** Fresh sandboxes need the bundled Remotion project uploaded before rendering. */
+  needsBundleUpload: boolean;
+}
+
 async function createRenderSandbox(
   options: RunRenderOptions,
   isProd: boolean,
-): Promise<VercelSandbox> {
+): Promise<CreatedRenderSandbox> {
   await options.onProgress?.({ phase: "Creating sandbox...", progress: 0 });
+  const onProgress = async ({
+    progress,
+    message,
+  }: {
+    progress: number;
+    message: string;
+  }) => {
+    await options.onProgress?.({
+      phase: message,
+      progress,
+      subtitle: isProd
+        ? "Preparing a fresh render environment."
+        : "This is only needed during development.",
+    });
+  };
+
   if (isProd) {
-    return restoreSnapshot(runtimeVcpus(isProd));
+    try {
+      return {
+        sandbox: await restoreSnapshot(runtimeVcpus(isProd)),
+        needsBundleUpload: false,
+      };
+    } catch (error) {
+      if (!isSandboxSnapshotUnavailableError(error)) throw error;
+      console.warn(
+        "[Render] No usable deployment snapshot; creating a fresh sandbox and uploading the bundled Remotion project.",
+      );
+      return {
+        sandbox: await createSandbox({
+          resources: { vcpus: runtimeVcpus(isProd) },
+          onProgress,
+        }),
+        needsBundleUpload: true,
+      };
+    }
   }
-  return createSandbox({
-    onProgress: async ({ progress, message }) => {
-      await options.onProgress?.({
-        phase: message,
-        progress,
-        subtitle: "This is only needed during development.",
-      });
-    },
-  });
+
+  return {
+    sandbox: await createSandbox({ onProgress }),
+    needsBundleUpload: true,
+  };
 }
 
 /** تصيير ورفع على sandbox جاهز — يُرمي أي فشل طبيعياً. */
@@ -87,9 +123,10 @@ async function renderAndUpload(
   sandbox: VercelSandbox,
   options: RunRenderOptions,
   isProd: boolean,
+  needsBundleUpload: boolean,
 ): Promise<{ url: string; size: number }> {
-  if (!isProd) {
-    bundleRemotionProject(".remotion");
+  if (needsBundleUpload) {
+    if (!isProd) bundleRemotionProject(".remotion");
     await addBundleToSandbox({ sandbox, bundleDir: ".remotion" });
   }
 
@@ -170,14 +207,25 @@ async function attempt(
     ? (acquireSessionSandbox(options.sessionKey) as VercelSandbox | null)
     : null;
   const reusedSandbox = Boolean(sandbox);
+  let needsBundleUpload = false;
   if (sandbox) {
-    await options.onProgress?.({ phase: "Reusing sandbox session...", progress: 0.05 });
+    await options.onProgress?.({
+      phase: "Reusing sandbox session...",
+      progress: 0.05,
+    });
   } else {
-    sandbox = await createRenderSandbox(options, isProd);
+    const created = await createRenderSandbox(options, isProd);
+    sandbox = created.sandbox;
+    needsBundleUpload = created.needsBundleUpload;
   }
 
   try {
-    const { url, size } = await renderAndUpload(sandbox, options, isProd);
+    const { url, size } = await renderAndUpload(
+      sandbox,
+      options,
+      isProd,
+      needsBundleUpload,
+    );
     await keepOrStop(sandbox, options, isProd);
     return {
       url,
@@ -201,6 +249,8 @@ async function attempt(
   }
 }
 
-export async function runRenderOnce(options: RunRenderOptions): Promise<RunRenderOutcome> {
+export async function runRenderOnce(
+  options: RunRenderOptions,
+): Promise<RunRenderOutcome> {
   return attempt(options, isProductionRuntime(), true);
 }

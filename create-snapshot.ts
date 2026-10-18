@@ -1,6 +1,7 @@
 import { BlobAccessError, del, put } from "@vercel/blob";
 import { addBundleToSandbox, createSandbox } from "@remotion/vercel";
 import { bundleRemotionProject } from "./src/lib/remotion-bundle";
+import { isSnapshotStorageQuotaError } from "./src/lib/snapshot-errors";
 
 const getSnapshotBlobKey = () =>
   `snapshot-cache/${process.env.VERCEL_DEPLOYMENT_ID ?? "local"}.json`;
@@ -21,13 +22,17 @@ if (!blobToken) {
 // التطبيق يخدم فيديوهات وصوتيات بروابط عامة، لذلك يحتاج store يقبل public access.
 const probeKey = `snapshot-cache/.write-probe.json`;
 try {
-  const probe = await put(probeKey, JSON.stringify({ ok: true, at: Date.now() }), {
-    access: "public",
-    contentType: "application/json",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    token: blobToken,
-  });
+  const probe = await put(
+    probeKey,
+    JSON.stringify({ ok: true, at: Date.now() }),
+    {
+      access: "public",
+      contentType: "application/json",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      token: blobToken,
+    },
+  );
   await del(probe.url, { token: blobToken });
 } catch (err) {
   if (err instanceof BlobAccessError) {
@@ -48,20 +53,34 @@ const sandbox = await createSandbox({
   },
 });
 
-console.log("[create-snapshot] Adding Remotion bundle...");
-bundleRemotionProject(".remotion");
-await addBundleToSandbox({ sandbox, bundleDir: ".remotion" });
+try {
+  console.log("[create-snapshot] Adding Remotion bundle...");
+  bundleRemotionProject(".remotion");
+  await addBundleToSandbox({ sandbox, bundleDir: ".remotion" });
 
-console.log("[create-snapshot] Taking snapshot...");
-const snapshot = await sandbox.snapshot({ expiration: 0 });
-const { snapshotId } = snapshot;
+  console.log("[create-snapshot] Taking snapshot...");
+  let snapshotId: string | null = null;
+  try {
+    snapshotId = (await sandbox.snapshot({ expiration: 0 })).snapshotId;
+  } catch (error) {
+    if (!isSnapshotStorageQuotaError(error)) throw error;
+    console.warn(
+      "[create-snapshot] Vercel Snapshot Storage quota is exhausted. Continuing deployment without a snapshot; production rendering will create a fresh sandbox and upload the Remotion bundle for each new session.",
+    );
+  }
 
-await put(getSnapshotBlobKey(), JSON.stringify({ snapshotId }), {
-  access: "public",
-  contentType: "application/json",
-  addRandomSuffix: false,
-  allowOverwrite: true,
-  token: blobToken,
-});
-
-console.log(`[create-snapshot] Snapshot saved: ${snapshotId} (never expires)`);
+  if (snapshotId) {
+    await put(getSnapshotBlobKey(), JSON.stringify({ snapshotId }), {
+      access: "public",
+      contentType: "application/json",
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      token: blobToken,
+    });
+    console.log(
+      `[create-snapshot] Snapshot saved: ${snapshotId} (never expires)`,
+    );
+  }
+} finally {
+  await sandbox.stop().catch(() => {});
+}
