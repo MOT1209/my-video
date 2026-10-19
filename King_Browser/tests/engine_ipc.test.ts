@@ -260,6 +260,48 @@ async function run() {
     console.log('[PASS] Engine IPC — unavailable engine fails closed');
   }
 
+  // 11. Sender gate: when the composition root supplies isTrustedSender, every
+  //     channel rejects an untrusted renderer and still serves the trusted one.
+  //     These channels can resume/auto-run the agent, so a webview or any other
+  //     webContents must not reach them.
+  {
+    const { executor: gexec } = makeControlledExecutor();
+    const gatedEngine = new ExecutionEngine({ executor: gexec });
+    const handlers = new Map<string, Handler>();
+    registerEngineIpc({
+      handle: (channel, listener) => {
+        handlers.set(channel, listener);
+      },
+      getEngine: () => gatedEngine,
+      isTrustedSender: (event) => event === trustedEvent
+    });
+    const trustedEvent = { sender: 'main-window' };
+    const untrustedEvent = { sender: 'webview' };
+    const callAs = async (event: unknown, channel: string, ...args: unknown[]): Promise<unknown> => {
+      const handler = handlers.get(channel);
+      assert.ok(handler, `handler registered for ${channel}`);
+      return await handler!(event, ...args);
+    };
+
+    for (const channel of ENGINE_IPC_CHANNELS) {
+      const args = channel === 'mcp-engine-command' ? ['pause'] : channel === 'mcp-engine-approval' ? ['act_x', true] : [];
+      await assert.rejects(
+        () => callAs(untrustedEvent, channel, ...args),
+        /Unauthorized sender/,
+        `${channel} rejects an untrusted sender`
+      );
+    }
+    // The gate runs before the command allowlist, so a forged command cannot
+    // probe which commands exist either.
+    await assert.rejects(() => callAs(untrustedEvent, 'mcp-engine-command', 'fly'), /Unauthorized sender/);
+
+    const trustedStatus = (await callAs(trustedEvent, 'mcp-engine-status')) as Record<string, unknown>;
+    assert.equal(trustedStatus.state, 'idle', 'trusted sender still reaches the engine');
+    const trustedPause = (await callAs(trustedEvent, 'mcp-engine-command', 'pause')) as Record<string, unknown>;
+    assert.equal(trustedPause.ok, true, 'trusted sender can still command the engine');
+    console.log('[PASS] Engine IPC — sender gate');
+  }
+
   console.log('[PASS] Engine IPC suite complete');
 }
 

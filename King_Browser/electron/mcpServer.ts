@@ -750,6 +750,12 @@ export class BrowserMCPServer {
       this.engineInstance = new ExecutionEngine({
         executor: (request) => this.dispatchToRenderer(request),
         askApproval: (approval) => this.promptSensitiveApproval(approval),
+        // §10/§11 STOP NOW parity: every stop path — the control panel's
+        // stop/emergency_close (engineIpc) as well as MCP browser_stop — must
+        // abort the in-flight renderer action, not just prevent new ones. The
+        // renderer receives 'mcp-action-cancel' for the pending id, so the
+        // action stops instead of running out its 15s bridge timeout.
+        abortInFlight: (reason) => cancelPendingMcpActions(reason),
         onEvent: (event) => this.forwardEngineEvent(event)
       });
     }

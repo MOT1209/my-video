@@ -21,6 +21,10 @@ async function run() {
   const forwarded: Array<{ tool: string; args: any }> = [];
   let dialogResponse = 0;
   let dialogCalls = 0;
+  const cancelCalls: Array<{ reason: string; toolName?: string }> = [];
+  let holdRenderer = false;
+  let releaseRenderer: (() => void) | null = null;
+  let rejectRenderer: ((err: Error) => void) | null = null;
 
   const executionEngineModule = loadSource('electron/main/executionEngine.ts', { setTimeout, clearTimeout, setImmediate }, {});
   const policyEngineModule = loadSource('electron/main/policyEngine.ts', { setTimeout, clearTimeout, setImmediate }, {});
@@ -37,9 +41,20 @@ async function run() {
     './main/mcpBridge.js': {
       requestRendererMcpAction: async (_win: any, tool: string, args: any) => {
         forwarded.push({ tool, args });
+        if (holdRenderer) {
+          await new Promise<void>((resolve, reject) => { releaseRenderer = resolve; rejectRenderer = reject; });
+        }
         return `ok:${tool}`;
       },
-      cancelPendingMcpActions: () => {}
+      cancelPendingMcpActions: (reason: string, toolName?: string) => {
+        cancelCalls.push({ reason, toolName });
+        if (rejectRenderer) {
+          const rejectPending = rejectRenderer;
+          rejectRenderer = null;
+          releaseRenderer = null;
+          rejectPending(new Error(reason));
+        }
+      }
     },
     './main/executionEngine.js': executionEngineModule,
     './main/policyEngine.js': policyEngineModule
@@ -151,7 +166,68 @@ async function run() {
     );
   }
 
-  console.log('[PASS] MCP engine wiring: status, engine controls, aliases, approvals, STOP NOW');
+  // 8) UI STOP NOW (engineIpc → engine.stop) aborts the in-flight renderer
+  // action through the wired abortInFlight hook — the same enforcement the MCP
+  // browser_stop path gets, not just "no new actions".
+  {
+    const server = makeServer();
+    server.setPolicyEnforcement(true);
+    cancelCalls.length = 0;
+    holdRenderer = true;
+    const before = forwarded.length;
+    const submit = server.executeTool('browser_open', { url: 'https://example.com' });
+    const deadline = Date.now() + 2000;
+    while (forwarded.length === before && Date.now() < deadline) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    assert.ok(forwarded.length > before, 'the action reached the renderer and is now in flight');
+
+    const stopAck = server.getExecutionEngine().stop('STOP NOW from control panel');
+    assert.equal(stopAck.inFlightAborted, true, 'control-panel STOP NOW aborts the in-flight renderer action');
+    assert.equal(cancelCalls.length, 1, 'cancelPendingMcpActions was called exactly once for the in-flight action');
+    assert.equal(cancelCalls[0].reason, 'STOP NOW from control panel', 'the cancel carries the exact operator reason');
+
+    await assert.rejects(submit, /STOP NOW from control panel/, 'the aborted tool call fails with the operator reason, never a fake success');
+    const settled = server.getExecutionEngine().getHistory().filter(r => r.toolName === 'browser_navigate').pop();
+    assert.equal(settled?.stoppedBy, 'STOP NOW from control panel', 'the settle is tagged with the stop reason in history');
+    assert.equal(server.getExecutionEngine().getState(), 'stopped', 'engine settles to stopped, never back to running');
+
+    releaseRenderer?.();
+    releaseRenderer = null;
+    rejectRenderer = null;
+    holdRenderer = false;
+  }
+
+  // 9) Emergency Close takes the same abort path.
+  {
+    const server = makeServer();
+    server.setPolicyEnforcement(true);
+    cancelCalls.length = 0;
+    holdRenderer = true;
+    const before = forwarded.length;
+    const submit = server.executeTool('browser_open', { url: 'https://example.com' });
+    const deadline = Date.now() + 2000;
+    while (forwarded.length === before && Date.now() < deadline) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    assert.ok(forwarded.length > before, 'the action reached the renderer and is now in flight');
+
+    const closeAck = server.getExecutionEngine().emergencyClose('Emergency Close from control panel');
+    assert.equal(closeAck.accepted, true, 'emergency close acknowledged');
+    assert.match(closeAck.note, /Emergency close/, 'note names the emergency close');
+    assert.equal(cancelCalls.length, 1, 'emergency close aborts the in-flight renderer action too');
+    assert.equal(cancelCalls[0].reason, 'Emergency Close from control panel', 'the cancel carries the exact operator reason');
+
+    await assert.rejects(submit, /Emergency Close from control panel/, 'the aborted tool call fails, never a fake success');
+    assert.equal(server.getExecutionEngine().getState(), 'stopped', 'engine stays stopped after the emergency close');
+
+    releaseRenderer?.();
+    releaseRenderer = null;
+    rejectRenderer = null;
+    holdRenderer = false;
+  }
+
+  console.log('[PASS] MCP engine wiring: status, engine controls, aliases, approvals, STOP NOW, UI-stop abort parity');
 }
 
 run().catch(err => {

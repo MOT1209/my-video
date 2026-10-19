@@ -13,6 +13,12 @@ import type { ExecutionEngine } from './executionEngine.js';
 export interface EngineIpcHost {
   handle: (channel: string, listener: (event: unknown, ...args: unknown[]) => unknown) => void;
   getEngine: () => ExecutionEngine | null;
+  /**
+   * Sender validation, supplied by the composition root. These channels can
+   * resume or auto-run the agent, so a renderer that is not the privileged main
+   * window must never reach them. Optional only so tests can omit it.
+   */
+  isTrustedSender?: (event: unknown) => boolean;
 }
 
 export const ENGINE_IPC_CHANNELS = [
@@ -58,10 +64,25 @@ export function registerEngineIpc(host: EngineIpcHost): void {
     return engine;
   };
 
-  host.handle('mcp-engine-status', () => requireEngine().getStatusSnapshot());
-  host.handle('mcp-engine-history', () => requireEngine().getHistory());
+  // Fail closed when a sender check was supplied: the engine can be driven only
+  // by the trusted main window, matching every other IPC surface in main.ts.
+  const assertTrusted = (event: unknown): void => {
+    if (host.isTrustedSender && !host.isTrustedSender(event)) {
+      throw new Error('Unauthorized sender');
+    }
+  };
 
-  host.handle('mcp-engine-command', (_event, command, payload) => {
+  host.handle('mcp-engine-status', (event) => {
+    assertTrusted(event);
+    return requireEngine().getStatusSnapshot();
+  });
+  host.handle('mcp-engine-history', (event) => {
+    assertTrusted(event);
+    return requireEngine().getHistory();
+  });
+
+  host.handle('mcp-engine-command', (event, command, payload) => {
+    assertTrusted(event);
     if (typeof command !== 'string' || !ENGINE_COMMANDS.includes(command as EngineCommand)) {
       throw new Error(`Unknown engine command: ${String(command)}`);
     }
@@ -103,7 +124,8 @@ export function registerEngineIpc(host: EngineIpcHost): void {
     };
   });
 
-  host.handle('mcp-engine-approval', (_event, actionId, approved) => {
+  host.handle('mcp-engine-approval', (event, actionId, approved) => {
+    assertTrusted(event);
     if (typeof actionId !== 'string' || !actionId || actionId.length > MAX_ACTION_ID_LENGTH) {
       throw new Error('Invalid approval action id.');
     }

@@ -29,10 +29,21 @@ The dependency tree is inherited from the Nova Browser snapshot above (via `pack
 
 - Pre-release gate: run an automated license sweep (e.g., `license-checker` / `licensee`) over the full dependency tree.
 - Any dependency with AGPL/GPL/SSPL or unknown/absent license must be reviewed before distribution.
-- Results will be appended below once generated (pending release phase).
 
 ```text
-(Pending — generated during release gate)
+Sweep: 2026-10-19 — package-lock.json, 1130 entries, license metadata only.
+
+Production dependencies: no GPL/AGPL/SSPL/UNLICENSED entries found.
+- jszip is dual-licensed "(MIT OR GPL-3.0-or-later)"; distribution uses the MIT option.
+
+Dev-only tooling (not packaged with the app, no source imports):
+- @img/sharp-* platform binaries: LGPL-3.0-or-later.
+- remotion / @remotion/*: Remotion License; several platform packages carry no
+  license field in the lockfile. Review the Remotion License before using the
+  generated output commercially.
+
+27 MPL-2.0 packages remain in the tree (file-level copyleft); retain their notices.
+This is a metadata scan, not a legal review. Rerun the sweep before each release.
 ```
 
 ## 4. King Browser itself

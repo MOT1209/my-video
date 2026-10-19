@@ -2064,7 +2064,8 @@ app.whenReady().then(async () => {
     handle: (channel, listener) => {
       ipcMain.handle(channel, listener as (event: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown);
     },
-    getEngine: () => (mcpServer ? mcpServer.getExecutionEngine() : null)
+    getEngine: () => (mcpServer ? mcpServer.getExecutionEngine() : null),
+    isTrustedSender: (event) => isTrustedSender(event as Electron.IpcMainInvokeEvent)
   });
 
   // MCP Server is OFF by default unless explicitly enabled in user settings
