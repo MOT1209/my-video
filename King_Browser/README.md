@@ -273,12 +273,14 @@ The terminal CLI and the desktop app's Code tab read the same MCP configuration 
 
 ```bash
 # Available in all your projects (stored in ~/.claude.json, not shared)
-claude mcp add --transport stdio --scope user \
-  --env MCP_TOKEN="$MCP_TOKEN" --env MCP_PORT=3020 \
+claude mcp add --scope user \
+  --env MCP_TOKEN="$MCP_TOKEN" --env MCP_PORT=3020 --transport stdio \
   king-browser -- node /ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs
 ```
 
-Windows (cmd): replace `"$MCP_TOKEN"` with `%MCP_TOKEN%` and write the command on one line.
+Keep another option (here `--transport stdio`) between the last `--env` and the server name; otherwise the CLI reads the name as another `KEY=value` pair and fails with `Invalid environment variable format`.
+
+Windows (cmd): replace `"$MCP_TOKEN"` with `%MCP_TOKEN%` and write the command on one line. After `setx`, open a **new** terminal first; `setx` does not change the current one.
 
 To share a team setup without sharing the token, commit a project `.mcp.json` that expands the variable from each developer's environment:
 
