@@ -12,6 +12,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # onnxruntime-node's install script downloads the optional CUDA/TensorRT
+  # libraries from NuGet on linux/x64; that download intermittently times out
+  # on GitHub runners and fails `npm ci`. The CPU binaries ship inside the npm
+  # package, so tests don't need it. Release builds (release.yml) are unchanged.
+  ONNXRUNTIME_NODE_INSTALL: skip
+
 jobs:
   test-and-typecheck:
     name: Test & Typecheck
