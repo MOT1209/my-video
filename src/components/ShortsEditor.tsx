@@ -305,7 +305,7 @@ export const ShortsEditor: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8 md:flex-row md:items-start" dir="rtl">
+    <div className="flex flex-col gap-8 lg:flex-row lg:items-start" dir="rtl">
       {/* المحرر */}
       <InputContainer>
         {loadedTitle ? (
@@ -536,7 +536,7 @@ export const ShortsEditor: React.FC = () => {
       </div>
 
       {/* الحساب: المشاريع + السجل + الكريدت */}
-      <div className="w-full md:max-w-[360px] shrink-0">
+      <div className="w-full lg:max-w-[360px] shrink-0">
         <AccountPanel currentProps={inputProps} onLoad={applyProject} />
       </div>
     </div>
