@@ -265,7 +265,7 @@ export function normalizeBookmarkUrl(url: unknown): string {
   if (typeof url !== 'string' || url.length === 0) return '';
   try {
     const parsed = new URL(url);
-    let path = parsed.pathname;
+    const path = parsed.pathname;
     if (path.length > 1 && path.endsWith('/')) {
       parsed.pathname = path.slice(0, -1);
     }

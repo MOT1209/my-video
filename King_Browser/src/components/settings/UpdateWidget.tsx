@@ -35,7 +35,7 @@ export const UpdateWidget = () => {
   const [showNotesModal, setShowNotesModal] = React.useState(false);
 
   React.useEffect(() => {
-    let unsubs: (() => void)[] = [];
+    const unsubs: (() => void)[] = [];
     const api = (window as any).electronAPI;
     if (api) {
       if (api.getUpdateInfo) {

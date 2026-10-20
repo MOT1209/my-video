@@ -281,6 +281,7 @@ export function isSafeDownloadUrl(urlStr: string): boolean {
 export function sanitizeDownloadFilename(rawFilename: string): string {
   const normalized = (rawFilename || '').replace(/\\/g, '/');
   let name = path.basename(normalized).replace(/^\.+/, '').trim();
+  // eslint-disable-next-line no-control-regex -- يُزيل أحرف التحكم عمداً
   name = name.replace(/[\x00-\x1f\x7f<>:"/\\|?*]/g, '_').trim();
   name = name.replace(/[.\s]+$/, '');
   const ext = path.extname(name);

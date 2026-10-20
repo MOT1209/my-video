@@ -17,8 +17,7 @@ export function useSafeTimeout() {
   }, []);
 
   const setSafeTimeout = useCallback((callback: () => void, delayMs: number): TimeoutId => {
-    let timerId: TimeoutId;
-    timerId = setTimeout(() => {
+    const timerId: TimeoutId = setTimeout(() => {
       timersRef.current.delete(timerId);
       callback();
     }, delayMs);

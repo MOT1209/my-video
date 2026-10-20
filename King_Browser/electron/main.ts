@@ -2254,7 +2254,7 @@ app.whenReady().then(async () => {
     publishedAt?: string;
     expectedSha256?: string;
   } | null = null;
-  let downloadedUpdateFilePath: string | null = null;
+  const downloadedUpdateFilePath: string | null = null;
   let isDownloadingUpdate = false;
 
   async function performSelfUpdateAndRelaunch(filePath: string): Promise<{ success: boolean; error?: string }> {
@@ -5964,8 +5964,8 @@ ipcMain.handle('open-extension-popup', async (event, url: unknown, bounds?: { x?
   const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : BrowserWindow.getAllWindows().find(w => w !== activeExtensionPopupWin) || BrowserWindow.getAllWindows()[0];
   if (!win) return { error: 'No main window available' };
 
-  let popupWidth = 380;
-  let popupHeight = 520;
+  const popupWidth = 380;
+  const popupHeight = 520;
   let posX: number | undefined;
   let posY: number | undefined;
 

@@ -14,6 +14,10 @@ class FakeBlobNotFoundError extends Error {
 mock.module("@vercel/blob", () => ({
   BlobNotFoundError: FakeBlobNotFoundError,
   head: () => fakeHead(),
+  // mock.module يتسرّب بين الملفات في bun: نوفّر بقية واجهة الحزمة كي لا تنكسر اختبارات أخرى
+  put: () => Promise.reject(new Error("put غير مُحاكى في render-cache.test")),
+  del: () => Promise.resolve(),
+  list: () => Promise.resolve({ blobs: [], hasMore: false }),
 }));
 
 const { findCachedRender, RENDER_CACHE_PREFIX, renderCachePath, stableStringify } =

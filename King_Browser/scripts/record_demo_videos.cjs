@@ -141,6 +141,7 @@ app.whenReady().then(async () => {
   let sawNonArxivAfterArxiv = false;
   let boundaryFound = false;
   while (Date.now() < deadline) {
+    const url = await readOmnibox();
     let isArxiv = false;
     try {
       const host = new URL(url).hostname.toLowerCase();

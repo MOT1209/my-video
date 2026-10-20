@@ -591,7 +591,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
     reopenLastClosed,
   } = useClosedTabs({
     onReopen: (lastTab) => {
-      let tabToRestore: Tab = {
+      const tabToRestore: Tab = {
         ...lastTab,
         isLoading: false,
         webContentsId: undefined,
@@ -961,7 +961,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
       const droppedT = prev.find(t => t.id === targetTabId);
       if (!activeT || !droppedT) return prev;
 
-      let updated = prev.map(t => {
+      const updated = prev.map(t => {
         if (t.id === partnerTabId) return { ...t, splitWith: targetTabId };
         if (t.id === targetTabId) return { ...t, splitWith: partnerTabId };
         if (t.splitWith === partnerTabId || t.splitWith === targetTabId) return { ...t, splitWith: undefined };

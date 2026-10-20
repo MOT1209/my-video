@@ -733,8 +733,8 @@ async function runSecurityRegressionAuditSuite() {
     onNavigate?: (url: string) => void,
     onNewTab?: (url: string) => void
   ) {
-    let navigatedUrl = '';
-    let newTabUrl = '';
+    const navigatedUrl = '';
+    const newTabUrl = '';
 
     const url = formatSearchUrl(searchValue, 'google');
     if (onNavigate) {

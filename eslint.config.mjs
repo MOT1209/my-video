@@ -24,6 +24,8 @@ export default [
       ".agents/**",
       ".claude/**",
       "public/**",
+      // King_Browser هو مشروع Electron مستقل بحزمه واختباراته (npm test داخله)، وليس جزءاً من تطبيق الفيديو
+      "King_Browser/**",
     ],
   },
   // Base JS recommended

@@ -23,7 +23,7 @@ function getUserDataPath(): string {
 
 function resolveMcpConfig(): { port: number; token?: string } {
   let port = 3020;
-  let token = process.env.MCP_TOKEN;
+  const token = process.env.MCP_TOKEN;
 
   if (process.env.MCP_PORT) {
     const parsed = parseInt(process.env.MCP_PORT, 10);
