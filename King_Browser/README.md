@@ -222,7 +222,129 @@ King Browser natively exposes an MCP endpoint on port `3020`, enabling external 
 
 ### Connecting External AI Agents
 
-To connect **Claude Desktop**, **Cursor**, **Windsurf**, or custom scripts to King Browser, configure your agent's MCP configuration file:
+King Browser exposes its tools through a local MCP server (`127.0.0.1`, bearer-token protected). Every agent connects through the same stdio bridge, `mcp-bridge.mjs`, so only the agent-side config differs.
+
+| Agent | Config location | Section |
+|---|---|---|
+| **OpenCode** | `opencode.json` | [OpenCode](#opencode) |
+| **Claude Code (terminal)** | `claude mcp add` / `.mcp.json` | [Claude Code](#claude-code-terminal-and-desktop-app) |
+| **Claude Code (desktop app)** | same `~/.claude.json` / `.mcp.json` as the terminal | [Claude Code](#claude-code-terminal-and-desktop-app) |
+| **Codex** | `~/.codex/config.toml` | [Codex](#codex) |
+| Claude Desktop (chat app) | `claude_desktop_config.json` | [Claude Desktop](#claude-desktop-configuration-claude_desktop_configjson) |
+| Cursor / Windsurf | `.cursor/mcp.json` | [Cursor / Windsurf](#cursor--windsurf-configuration-cursormcpjson) |
+| Any other stdio MCP client | its own MCP config | [Generic client](#any-other-mcp-client) |
+
+#### Before you connect
+
+1. Start King Browser (the MCP server must be running).
+2. Open `king://settings` → Developer / MCP Server and **copy the MCP token**. The token on disk is encrypted, so the bridge needs it from you.
+3. Keep the token **out of config files that are committed or shared**. Put it in an environment variable named `MCP_TOKEN` and let the agent forward it (examples below):
+   - Windows (persistent, applies to newly started apps): `setx MCP_TOKEN "<your token>"`, then restart the agent.
+   - macOS / Linux: `export MCP_TOKEN="<your token>"` in your shell profile. GUI apps on macOS do not inherit shell variables, so for desktop apps use the agent's own `env` setting instead.
+4. The token must match `[A-Za-z0-9._~-]{16,4096}`; the bridge rejects anything else. `MCP_PORT` defaults to `3020`.
+5. Use an absolute path to `mcp-bridge.mjs`. In JSON on Windows, escape backslashes (`C:\\path\\to\\mcp-bridge.mjs`) or use forward slashes.
+
+#### OpenCode
+
+Add to `opencode.json` (project root) or your global OpenCode config. Keys (`type`, `command` as an array, `environment`, `enabled`) follow the [OpenCode MCP docs](https://opencode.ai/docs/mcp-servers/):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "king-browser": {
+      "type": "local",
+      "command": ["node", "/ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs"],
+      "enabled": true,
+      "environment": {
+        "MCP_TOKEN": "{env:MCP_TOKEN}",
+        "MCP_PORT": "3020"
+      }
+    }
+  }
+}
+```
+
+> The OpenCode docs show `{env:VAR}` in remote-server examples but not inside a local server's `environment` block. If the token does not arrive, replace `"{env:MCP_TOKEN}"` with the literal token and keep that file out of version control.
+
+#### Claude Code (terminal and desktop app)
+
+The terminal CLI and the desktop app's Code tab read the same MCP configuration (`~/.claude.json` and project `.mcp.json`), so one setup covers both.
+
+```bash
+# Available in all your projects (stored in ~/.claude.json, not shared)
+claude mcp add --scope user \
+  --env MCP_TOKEN="$MCP_TOKEN" --env MCP_PORT=3020 --transport stdio \
+  king-browser -- node /ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs
+```
+
+Keep another option (here `--transport stdio`) between the last `--env` and the server name; otherwise the CLI reads the name as another `KEY=value` pair and fails with `Invalid environment variable format`.
+
+Windows (cmd): replace `"$MCP_TOKEN"` with `%MCP_TOKEN%` and write the command on one line. After `setx`, open a **new** terminal first; `setx` does not change the current one.
+
+To share a team setup without sharing the token, commit a project `.mcp.json` that expands the variable from each developer's environment:
+
+```json
+{
+  "mcpServers": {
+    "king-browser": {
+      "command": "node",
+      "args": ["/ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs"],
+      "env": {
+        "MCP_TOKEN": "${MCP_TOKEN}",
+        "MCP_PORT": "${MCP_PORT:-3020}"
+      }
+    }
+  }
+}
+```
+
+Claude Code asks you to approve project-scoped servers on first use. Check the connection with `claude mcp list`.
+
+#### Codex
+
+Use the CLI:
+
+```bash
+codex mcp add king-browser --env MCP_PORT=3020 -- node /ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs
+```
+
+and forward the token from your environment by editing `~/.codex/config.toml` (or `.codex/config.toml` for a trusted project):
+
+```toml
+[mcp_servers.king-browser]
+command = "node"
+args = ["/ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs"]
+env_vars = ["MCP_TOKEN"]
+
+[mcp_servers.king-browser.env]
+MCP_PORT = "3020"
+```
+
+#### Any other MCP client
+
+Any client that can launch a stdio MCP server works with these four values:
+
+| Setting | Value |
+|---|---|
+| Command | `node` |
+| Arguments | `/ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs` |
+| Environment | `MCP_TOKEN` (from King settings), optional `MCP_PORT` (default `3020`) |
+| Transport | stdio |
+
+#### Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| `Set a valid MCP_TOKEN…` | The variable is missing or not in the allowed format. Copy the token from King settings again. |
+| `Make sure King Browser is running.` | King Browser is closed, or `MCP_PORT` does not match the port shown in its settings. |
+| Server missing in the agent after editing | Restart the agent (and the desktop app) so it re-reads the config and environment. |
+| Works in the terminal but not in a desktop app | The app did not inherit your shell variables; set `MCP_TOKEN` in the agent's `env` setting instead. |
+| Token was shared by accident | Rotate it in King settings; the old token stops working. |
+
+#### Other configuration examples
+
+The same bridge also works with these agents. Use the per-agent sections above for OpenCode, Claude Code and Codex.
 
 #### Claude Desktop Configuration (`claude_desktop_config.json`)
 
