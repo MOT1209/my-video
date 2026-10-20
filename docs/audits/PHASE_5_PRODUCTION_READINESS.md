@@ -30,7 +30,7 @@ Stripe test-mode check, and resolve the PR #6 dependency.
 | Item | Value |
 |---|---|
 | `main` | `8b777b2` (merge of PR #5) |
-| `origin/phase-5/my-video-production-readiness` | `c9e914c`. This is an **ancestor of `main`, 15 commits behind, with 0 unique commits**. No Phase 5 work existed. |
+| `origin/phase-5/my-video-production-readiness` | `dd06d90`. This is an **ancestor of `main`, 15 commits behind, with 0 unique commits**. No Phase 5 work existed. |
 | Open PR #6 (`ccr-be6ab278-migkb8`, head `de3242d`) | Not merged. Adds `guardPaidRoute` (fail-closed paid routes in production), constant-time cron secret, safe JSON parsing in `/api/render`, and security headers. **This work builds on PR #6's head** so that it does not conflict with or duplicate PR #6. |
 | Open PR #7 | King_Browser docs only. Not touched. |
 | Baseline `bun test` | 94 pass / 0 fail (16 files) |
