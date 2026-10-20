@@ -173,7 +173,7 @@ export function useBrowserAgentBridge({
       const activeWebview = guardedGuest(canExecute);
 
       switch (toolName) {
-        case 'browser_navigate':
+        case 'browser_navigate': {
           if (!safeArgs.url || typeof safeArgs.url !== 'string') return "Error: Missing or invalid 'url' parameter";
           // Agent boundary: the URL here comes from an MCP client or LLM, and
           // page content the agent reads can author it. So the stricter
@@ -190,6 +190,7 @@ export function useBrowserAgentBridge({
           }
           mcpHandlersRef.current.handleNavigate(safeArgs.url, activeTabId || undefined);
           return `Navigated to ${safeArgs.url}`;
+        }
 
         case 'browser_read_page':
           if (activeWebview && activeWebview.executeJavaScript) {
@@ -232,7 +233,7 @@ export function useBrowserAgentBridge({
           }
           return "Error: No active webview.";
 
-        case 'browser_type':
+        case 'browser_type': {
           if (typeof safeArgs.selector !== 'string' || !safeArgs.selector) return "Error: Missing or invalid 'selector' parameter";
           const textToType = typeof safeArgs.text === 'string' ? safeArgs.text : String(safeArgs.text ?? '');
           if (activeWebview && activeWebview.executeJavaScript) {
@@ -267,6 +268,7 @@ export function useBrowserAgentBridge({
             return result.error || "Error";
           }
           return "Error: No active webview.";
+        }
 
         case 'browser_run_js':
           return "Error: browser_run_js has been removed for security reasons (VULN-01).";
@@ -650,6 +652,7 @@ export function useBrowserAgentBridge({
       onWait: (ms: number) => {
         const clampedMs = Math.min(30000, Math.max(0, Number.isFinite(Number(ms)) ? Math.floor(Number(ms)) : 0));
         return new Promise<void>(resolve => {
+          // eslint-disable-next-line prefer-const -- يُشار إليه داخل cleanup قبل الإسناد
           let timer: ReturnType<typeof setTimeout>;
           const cleanup = () => {
             activeWaitTimersRef.current.delete(timer);

@@ -490,6 +490,7 @@ class FakeVaultTable implements VaultTable {
   }
 
   private chain(): any {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- المحاكاة تحتاج مرجعاً للمالك داخل دالة مستقلة
     const owner = this;
     const chain: any = {
       eq(column: string, value: unknown) { owner.filters[column] = value; return chain; },

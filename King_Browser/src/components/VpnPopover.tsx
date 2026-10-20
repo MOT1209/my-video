@@ -72,7 +72,7 @@ export const VpnPopover: React.FC<VpnPopoverProps> = ({
       setError('Please provide a name');
       return;
     }
-    let url = customUrl.trim();
+    const url = customUrl.trim();
     if (!url) {
       setError('Please provide a proxy URL');
       return;

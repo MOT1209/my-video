@@ -161,6 +161,7 @@ async function run() {
     const pathMod = require('node:path');
     const normalized = (rawFilename || '').replace(/\\/g, '/');
     let name = pathMod.basename(normalized).replace(/^\.+/, '').trim();
+    // eslint-disable-next-line no-control-regex -- يُحاكي تنقية أسماء الملفات عمداً
     name = name.replace(/[\x00-\x1f\x7f<>:"/\\|?*]/g, '_').trim();
     name = name.replace(/[.\s]+$/, '');
     const ext = pathMod.extname(name);

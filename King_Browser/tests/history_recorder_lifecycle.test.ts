@@ -6,7 +6,7 @@ console.log('\n--- History Recorder Lifecycle & Normalization Test Suite ---');
 function normalizeUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    let pathname = parsed.pathname;
+    const pathname = parsed.pathname;
     if (pathname.length > 1 && pathname.endsWith('/')) {
       parsed.pathname = pathname.slice(0, -1);
     }

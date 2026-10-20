@@ -20,6 +20,7 @@ function sanitizeAgentInput(raw: string): string {
 
   // 1. Strip null bytes and invisible unicode separator / tag characters
   //    commonly used to hide injected instructions from human reviewers.
+  // eslint-disable-next-line no-control-regex -- يُزيل أحرف التحكم عمداً
   text = text.replace(/\u0000/g, '');
   text = text.replace(/[\u2028\u2029\u200B-\u200D\uFEFF\uE0000-\uE007F]/g, '');
 
@@ -462,7 +463,7 @@ export function detectDirectIntent(userText: string): { name: string; arguments:
   // 11. GitHub Search (e.g. "github'da react ara")
   const githubSearchMatch = normalized.match(/^github(?:['']?(?:da|de)|\s+da|\s+de)?\s+(?:aç|ac|a git|git)?\s*(?:ve|,)?\s*(?:bana\s+)?(.+?)\s*(?:ara|bul|aç|ac)?$/i);
   if (githubSearchMatch && githubSearchMatch[1]) {
-    let query = githubSearchMatch[1].replace(/^(aç|ac|ve|git)\s+/gi, '').replace(/\s+(ara|bul|aç|ac)$/gi, '').trim();
+    const query = githubSearchMatch[1].replace(/^(aç|ac|ve|git)\s+/gi, '').replace(/\s+(ara|bul|aç|ac)$/gi, '').trim();
     if (query && query !== 'github' && query !== 'aç' && query !== 'ac') {
       return {
         name: 'navigate_to_url',
@@ -475,7 +476,7 @@ export function detectDirectIntent(userText: string): { name: string; arguments:
   // 12. DuckDuckGo Search (e.g. "duckduckgo'da webgpu ara", "duckduckgo webgpu benchmarks")
   const ddgMatch = normalized.match(/^(?:duckduckgo|ddg)(?:['']?(?:da|de)|\s+da|\s+de)?\s+(?:aç|ac|a git|git)?\s*(?:ve|,)?\s*(?:bana\s+)?(.+?)\s*(?:ara|bul|aç|ac)?$/i);
   if (ddgMatch && ddgMatch[1]) {
-    let query = ddgMatch[1].replace(/^(aç|ac|ve|git)\s+/gi, '').replace(/\s+(ara|bul|aç|ac)$/gi, '').trim();
+    const query = ddgMatch[1].replace(/^(aç|ac|ve|git)\s+/gi, '').replace(/\s+(ara|bul|aç|ac)$/gi, '').trim();
     if (query && query !== 'duckduckgo' && query !== 'ddg' && query !== 'aç') {
       return {
         name: 'navigate_to_url',
@@ -488,7 +489,7 @@ export function detectDirectIntent(userText: string): { name: string; arguments:
   // 13. Wikipedia Search (e.g. "wikipedia'da web browser ara", "wikipedia electron framework")
   const wikiMatch = normalized.match(/^wikipedia(?:['']?(?:da|de)|\s+da|\s+de)?\s+(?:aç|ac|a git|git)?\s*(?:ve|,)?\s*(?:bana\s+)?(.+?)\s*(?:ara|bul|maddesini\s*aç|aç|ac)?$/i);
   if (wikiMatch && wikiMatch[1]) {
-    let query = wikiMatch[1].replace(/^(aç|ac|ve|git)\s+/gi, '').replace(/\s+(ara|bul|aç|ac|maddesini)$/gi, '').trim();
+    const query = wikiMatch[1].replace(/^(aç|ac|ve|git)\s+/gi, '').replace(/\s+(ara|bul|aç|ac|maddesini)$/gi, '').trim();
     if (query && query !== 'wikipedia' && query !== 'aç') {
       return {
         name: 'navigate_to_url',
@@ -3791,7 +3792,7 @@ Output a JSON array of objects with { "selector": "...", "value": "..." } for fi
       const memoryPrompt = aiMemory.getFormattedMemoryPrompt();
 
       // Internal loop messages (isolated from user-facing conversation)
-      let internalMessages: ChatCompletionMessageParam[] = [
+      const internalMessages: ChatCompletionMessageParam[] = [
         {
           role: 'system',
           content: systemInstruction + (memoryPrompt ? `\n\nUser Profile & Memories:\n${memoryPrompt}` : '')

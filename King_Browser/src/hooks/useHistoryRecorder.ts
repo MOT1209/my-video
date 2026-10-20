@@ -20,7 +20,7 @@ function cleanUrlForHistory(url: string): { cleanUrl: string; canonicalKey: stri
     for (const p of trackingParams) {
       parsed.searchParams.delete(p);
     }
-    let pathname = parsed.pathname;
+    const pathname = parsed.pathname;
     if (pathname.length > 1 && pathname.endsWith('/')) {
       parsed.pathname = pathname.slice(0, -1);
     }
