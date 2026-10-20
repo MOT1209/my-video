@@ -40,7 +40,7 @@ function resolveMcpConfig() {
 }
 async function main() {
   const config = resolveMcpConfig();
-  const defaultUrl = `http://localhost:${config.port}/sse`;
+  const defaultUrl = `http://127.0.0.1:${config.port}/sse`;
   const sseUrl = new URL(process.env.MCP_SSE_URL || defaultUrl);
   const activeToken = process.env.MCP_TOKEN || config.token;
   const sseTransport = new SSEClientTransport(sseUrl, activeToken ? {
