@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { DEFAULT_AR_VOICE } from "../../../../types/shorts";
 import { executeApi } from "../../../helpers/api-response";
+import { guardPaidRoute } from "../../../lib/auth";
 import {
   checkRateLimit,
   clientIp,
-  rateLimitedResponse,
+  rateLimitRejection,
 } from "../../../lib/rate-limit";
 import { generateScript } from "../../../lib/script-generator";
 
@@ -36,9 +37,13 @@ const handleScript = executeApi(ScriptRequest, async (req, body) => {
 
 /** 6 طلبات سكربت لكل IP كل 10 دقائق (LLM مكلف نسبياً). */
 export const POST = async (req: Request) => {
+  const guard = await guardPaidRoute();
+  if ("response" in guard) {
+    return guard.response;
+  }
   const verdict = await checkRateLimit(`script:${clientIp(req)}`, 6, 10 * 60 * 1000);
   if (!verdict.allowed) {
-    return rateLimitedResponse(verdict.retryAfterSec);
+    return rateLimitRejection(verdict);
   }
   return handleScript(req);
 };

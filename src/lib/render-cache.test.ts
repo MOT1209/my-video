@@ -13,6 +13,7 @@ class FakeBlobNotFoundError extends Error {
 // نتجاهل معاملا head هنا، حفنا لا نقهّر الفحص على المعاملات
 mock.module("@vercel/blob", () => ({
   BlobNotFoundError: FakeBlobNotFoundError,
+  BlobAccessError: class BlobAccessError extends Error {},
   head: () => fakeHead(),
   // mock.module يتسرّب بين الملفات في bun: نوفّر بقية واجهة الحزمة كي لا تنكسر اختبارات أخرى
   put: () => Promise.reject(new Error("put غير مُحاكى في render-cache.test")),

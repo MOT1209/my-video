@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { FREE_SIGNUP_CREDITS } from "./credits";
-import { openBillingSession } from "./billing-session";
+import { openBillingSession, type BillingSession } from "./billing-session";
 import { createTestDb } from "./db/testing";
-import { ensureUser, getCredits, listRenders, listUsage } from "./db/repository";
+import { ensureUser, getCredits, listRenders, listUsage, usageSummary } from "./db/repository";
 import type { RequestUser } from "./auth";
 
 const { db } = await createTestDb();
@@ -13,90 +13,101 @@ function nextUser(): RequestUser {
   return { clerkId: `billing-${unique}`, email: null, authenticated: true };
 }
 
-test("الكاش ليس تصييراً: بلا قاعدة بيانات تُعطَّل الفوترة بدل كسر التصيير", async () => {
+async function session(): Promise<BillingSession> {
+  const opened = await openBillingSession(nextUser(), db);
+  if (!opened) throw new Error("جلسة غير متوقعة");
+  return opened;
+}
+
+let renderSeq = 0;
+function renderArgs(hook = "خطاف") {
+  renderSeq += 1;
+  return {
+    compositionId: "ShortsComp",
+    inputProps: { hook },
+    cacheKey: `renders-cache/ShortsComp/session-${renderSeq}.mp4`,
+  };
+}
+
+test("بلا قاعدة بيانات تُعاد null — قرار الرفض في الإنتاج مسؤولية المسار", async () => {
   expect(await openBillingSession(nextUser(), null)).toBeNull();
 });
 
-test("الخصم يُنقص الكريدت ويسجّل استهلاك تصيير", async () => {
-  const user = nextUser();
-  const session = await openBillingSession(user, db);
-  expect(session).not.toBeNull();
-  if (!session) return;
+test("الخصم يفتح صف التصيير ويُنقص الكريدت ويسجّل الاستهلاك معاً", async () => {
+  const s = await session();
+  const started = await s.startPaidRender(renderArgs());
+  expect(started.status).toBe("started");
+  if (started.status !== "started") return;
+  expect(started.credits).toBe(FREE_SIGNUP_CREDITS - 1);
+  expect(await getCredits(db, s.userId)).toBe(FREE_SIGNUP_CREDITS - 1);
 
-  const charged = await session.charge();
-  expect(charged).toEqual({ ok: true, credits: FREE_SIGNUP_CREDITS - 1 });
-  expect(await getCredits(db, session.userId)).toBe(FREE_SIGNUP_CREDITS - 1);
-
-  const usage = await listUsage(db, session.userId);
-  expect(usage).toHaveLength(1);
-  expect(usage[0]).toMatchObject({ kind: "render", units: 1 });
-});
-
-test("رصيد صفر ⇒ الخصم يُرفض ولا يُسجَّل استهلاك", async () => {
-  const user = nextUser();
-  const session = await openBillingSession(user, db);
-  if (!session) throw new Error("جلسة غير متوقعة");
-  for (let i = 0; i < FREE_SIGNUP_CREDITS; i += 1) {
-    expect((await session.charge()).ok).toBe(true);
-  }
-  expect((await session.charge()).ok).toBe(false);
-  expect(await getCredits(db, session.userId)).toBe(0);
-  expect(await listUsage(db, session.userId)).toHaveLength(FREE_SIGNUP_CREDITS);
-});
-
-test("إرجاع الكريدت يقع مرة واحدة فقط مهما تكرّر النداء", async () => {
-  const user = nextUser();
-  const session = await openBillingSession(user, db);
-  if (!session) throw new Error("جلسة غير متوقعة");
-
-  await session.charge();
-  await session.refund();
-  await session.refund();
-  expect(await getCredits(db, session.userId)).toBe(FREE_SIGNUP_CREDITS);
-
-  // إرجاع بلا خصم لا يمنح كريدتاً مجانياً
-  const fresh = await openBillingSession(nextUser(), db);
-  if (!fresh) throw new Error("جلسة غير متوقعة");
-  await fresh.refund();
-  expect(await getCredits(db, fresh.userId)).toBe(FREE_SIGNUP_CREDITS);
-});
-
-test("صف التصيير يُفتح بحالة جارية ويُغلق بالنتيجة", async () => {
-  const user = nextUser();
-  const session = await openBillingSession(user, db);
-  if (!session) throw new Error("جلسة غير متوقعة");
-
-  const renderId = await session.startRender({
-    compositionId: "ShortsComp",
-    inputProps: { hook: "خطاف" },
-    cacheKey: "renders-cache/ShortsComp/xyz.mp4",
-  });
-  expect(renderId).toBeTruthy();
-
-  let rows = await listRenders(db, session.userId);
+  const rows = await listRenders(db, s.userId);
   expect(rows).toHaveLength(1);
-  expect(rows[0].status).toBe("running");
+  expect(rows[0]).toMatchObject({ id: started.renderId, status: "running", creditsUsed: 1 });
   expect(rows[0].inputProps).toEqual({ hook: "خطاف" });
 
-  await session.finishRender(renderId, {
-    status: "done",
-    url: "https://blob.example/xyz.mp4",
-    sizeBytes: 2048,
-    sandboxMs: 12_345,
-    durationSec: 42,
-  });
+  const usage = await listUsage(db, s.userId);
+  expect(usage).toHaveLength(1);
+  expect(usage[0]).toMatchObject({ kind: "render", units: 1 });
+  expect(usage[0].meta).toEqual({ renderId: started.renderId });
+});
 
-  rows = await listRenders(db, session.userId);
+test("رصيد صفر ⇒ رفض بلا صف ولا استهلاك", async () => {
+  const s = await session();
+  for (let i = 0; i < FREE_SIGNUP_CREDITS; i += 1) {
+    expect((await s.startPaidRender(renderArgs())).status).toBe("started");
+  }
+  expect(await s.startPaidRender(renderArgs())).toEqual({ status: "insufficient", credits: 0 });
+  expect(await getCredits(db, s.userId)).toBe(0);
+  expect(await listRenders(db, s.userId)).toHaveLength(FREE_SIGNUP_CREDITS);
+  expect(await listUsage(db, s.userId)).toHaveLength(FREE_SIGNUP_CREDITS);
+});
+
+test("الإرجاع يقع مرة واحدة فقط مهما تكرّر النداء، ويُصفّر الاستهلاك الصافي", async () => {
+  const s = await session();
+  const started = await s.startPaidRender(renderArgs());
+  if (started.status !== "started") throw new Error(started.status);
+
+  expect(await s.refund(started.renderId)).toBe(true);
+  expect(await s.refund(started.renderId)).toBe(true);
+  expect(await getCredits(db, s.userId)).toBe(FREE_SIGNUP_CREDITS);
+  expect(await usageSummary(db, s.userId)).toContainEqual({ kind: "render", units: 0 });
+
+  // جلسة جديدة (عملية أخرى) لا تستطيع إرجاعه مرة ثانية
+  const other = await openBillingSession({ clerkId: `billing-${unique}`, email: null, authenticated: true }, db);
+  await other?.refund(started.renderId);
+  expect(await getCredits(db, s.userId)).toBe(FREE_SIGNUP_CREDITS);
+});
+
+test("صف مكتمل لا يُرجع ولا يُكتب فوقه بفشل متأخر", async () => {
+  const s = await session();
+  const started = await s.startPaidRender(renderArgs());
+  if (started.status !== "started") throw new Error(started.status);
+
+  expect(
+    await s.finishRender(started.renderId, {
+      status: "done",
+      url: "https://blob.example/xyz.mp4",
+      sizeBytes: 2048,
+      sandboxMs: 12_345,
+      durationSec: 42,
+    }),
+  ).toBe(true);
+
+  // معالج فشل متأخر: لا إرجاع، ولا إغلاق ثانٍ
+  await s.refund(started.renderId);
+  expect(await s.finishRender(started.renderId, { status: "error", error: "متأخر" })).toBe(false);
+
+  expect(await getCredits(db, s.userId)).toBe(FREE_SIGNUP_CREDITS - 1);
+  const rows = await listRenders(db, s.userId);
   expect(rows[0]).toMatchObject({
     status: "done",
     url: "https://blob.example/xyz.mp4",
     sizeBytes: 2048,
     sandboxMs: 12_345,
     durationSec: 42,
+    refundedAt: null,
   });
-
-  // تسجيل النتيجة بلا معرّف (تعذّر فتح الصف) لا يرمي
-  await session.finishRender(null, { status: "error", error: "x" });
 });
 
 test("الفوترة تعمل بلا مصادقة Clerk (الوضع المحلي) — الفرض مسؤولية الحارس", async () => {
@@ -106,6 +117,6 @@ test("الفوترة تعمل بلا مصادقة Clerk (الوضع المحلي
     authenticated: false,
   };
   const existing = await ensureUser(db, { clerkId: local.clerkId });
-  const session = await openBillingSession(local, db);
-  expect(session?.userId).toBe(existing.id);
+  const s = await openBillingSession(local, db);
+  expect(s?.userId).toBe(existing.id);
 });

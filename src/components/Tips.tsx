@@ -9,7 +9,7 @@ const Tip: React.FC<{
     <a href={href} target="_blank" rel="noreferrer" className="flex-1">
       <div className="transition-transform duration-200 ease-in-out p-2.5 group hover:-translate-y-0.5">
         <div className="flex flex-row items-center justify-start">
-          <h4 className="my-3 font-bold text-foreground">{title}</h4>
+          <h2 className="my-3 font-bold text-foreground">{title}</h2>
           <div className="flex-1"></div>
           <svg
             className="opacity-0 transition-opacity duration-200 ease-in-out group-hover:opacity-100"

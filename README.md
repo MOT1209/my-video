@@ -101,14 +101,16 @@ npm run dev            # http://localhost:3000
 |---|---|---|
 | `BLOB_READ_WRITE_TOKEN` | **نعم** للتصيير | التصيير ورفع الصوت والخلفيات (الصوت المحلي يعمل) |
 | `GEMINI_API_KEY` (+ `GEMINI_MODEL`, `GEMINI_IMAGE_MODEL`) | اختياري | اقتراح السكربت والخلفيات وتفريغ الصوت |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | **موصى به بشدة** | تسجيل الدخول، ويبقى `/api/render` **مفتوحاً لأي زائر** (خطر تكلفة في الإنتاج) |
-| `DATABASE_URL` (Neon) | اختياري | المشاريع والكريدت وسجل التصييرات (تعطي 503 برسالة واضحة) |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | **مطلوب لتفعيل التصيير في الإنتاج** | تسجيل الدخول. بدونهما **تُغلق في الإنتاج** مسارات التصيير والسكربت والصور والصوت والتفريغ (ردّ 503) حمايةً من التكلفة، ويُرفض الشراء (401) |
+| `ALLOW_ANONYMOUS_PAID_ROUTES` | اختياري، **بحذر** | `true` يفتح تلك المسارات لأي زائر بلا Clerk، ويسمح بالتصيير بلا فرض كريدت إن غابت `DATABASE_URL` (أداة شخصية فقط) |
+| `DATABASE_URL` (Neon) | **نعم للتصيير في الإنتاج** | المشاريع والكريدت وسجل التصييرات. بدونها يُرفض التصيير في الإنتاج 503 (لا تصيير مجاني بصمت) إلا مع `ALLOW_ANONYMOUS_PAID_ROUTES=true` |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | اختياري | شراء حزم الكريدت |
 | `CRON_SECRET` | اختياري | إعادة محاولة التصييرات الفاشلة (`/api/cron/retry-renders`) |
-| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | اختياري | حد المعدل والقفل الموزّعان (يعمل بديل الذاكرة محلياً) |
+| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | **نعم في الإنتاج** | حد المعدل والقفل الموزّعان. بدونهما (أو عند تعطّل Upstash) تُغلق المسارات المكلفة في الإنتاج 503؛ محلياً يعمل بديل الذاكرة |
+| `RATE_LIMIT_ALLOW_IN_MEMORY` | اختياري، **بحذر** | `true` يقبل عدّاد الذاكرة (لكل نسخة على حدة) بديلاً في الإنتاج — لا يحمي التكلفة عبر النسخ |
 | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` | اختياري | البديل الرسمي للصوت (يبقى Edge-TTS المجاني) |
 
-بعد ضبط `DATABASE_URL` طبّق الهجرة مرة واحدة: `npx drizzle-kit migrate`.
+بعد ضبط `DATABASE_URL` طبّق الهجرات: `npx drizzle-kit migrate` (بعد كل ترقية تضيف ملفاً في `drizzle/`). تفاصيل المرحلة 5 وترتيب النشر: [`docs/audits/PHASE_5_PRODUCTION_READINESS.md`](docs/audits/PHASE_5_PRODUCTION_READINESS.md).
 
 ## حدود الاستخدام
 

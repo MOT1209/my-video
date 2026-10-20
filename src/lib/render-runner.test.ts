@@ -28,7 +28,12 @@ mock.module("@remotion/vercel", () => ({
 }));
 mock.module("./remotion-bundle", () => ({ bundleRemotionProject }));
 mock.module("./restore-snapshot", () => ({ restoreSnapshot }));
-mock.module("./render-errors", () => ({ isStoppedSandboxError: () => false }));
+// mock.module يتسرّب بين الملفات في bun: نُبقي بقية واجهة الوحدة حقيقية
+const realRenderErrors = await import("./render-errors");
+mock.module("./render-errors", () => ({
+  ...realRenderErrors,
+  isStoppedSandboxError: () => false,
+}));
 
 const { runRenderOnce } = await import("./render-runner");
 const originalVercel = process.env.VERCEL;

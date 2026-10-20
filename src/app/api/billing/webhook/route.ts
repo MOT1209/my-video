@@ -60,6 +60,7 @@ export async function POST(req: Request) {
       type: event.type,
       userId: user.id,
       credits: decision.credits,
+      checkoutSessionId: decision.checkoutSessionId,
       meta: { packId: decision.packId },
     });
     return NextResponse.json({
@@ -68,7 +69,12 @@ export async function POST(req: Request) {
       duplicate: result.duplicate,
     });
   } catch (err) {
-    console.error("billing/webhook: فشل التطبيق — ستُعيد Stripe المحاولة", err);
+    // لا نسجّل الحدث كاملاً (بيانات العميل) — المعرّف ونوع الخطأ يكفيان للتتبع
+    console.error(
+      "billing/webhook: فشل التطبيق — ستُعيد Stripe المحاولة",
+      event.id,
+      (err as Error)?.message,
+    );
     return apiError("تعذّر تطبيق حدث الدفع.", 500);
   }
 }

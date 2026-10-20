@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import type { ShortProps } from "../../../types/shorts";
 import { FREE_SIGNUP_CREDITS } from "../credits";
 import type { Db } from "./client";
@@ -206,7 +206,17 @@ export async function createRender(
   return rows[0];
 }
 
-/** إغلاق صف تصيير (نجاح أو فشل) — يُستدعى من finally دائماً. */
+/** حالات يجوز إغلاقها: صف `done` أو `error` لا يُكتب فوقه أبداً من عامل متأخر. */
+const OPEN_RENDER_STATUSES: RenderStatus[] = ["running", "queued"];
+
+/**
+ * إغلاق صف تصيير (نجاح أو فشل) **مشروطاً**:
+ * - الصف ما زال مفتوحاً (`running`/`queued`) — فعامل متأخر لا يُفسد صفاً
+ *   مكتملاً ولا يُعيد فتح صف أُعلن فاشلاً.
+ * - `fence.attempts` (اختياري): رقم المحاولة التي حجزها العامل؛ إن حجزت
+ *   عملية أحدث الصفّ بعده فكتابته تُتجاهل (fencing token).
+ * يُعيد true إن كُتب الإغلاق فعلاً.
+ */
 export async function finishRender(
   db: Db,
   renderId: string,
@@ -218,8 +228,16 @@ export async function finishRender(
     sandboxMs?: number | null;
     error?: string | null;
   },
-): Promise<void> {
-  await db
+  fence: { from?: RenderStatus[]; attempts?: number } = {},
+): Promise<boolean> {
+  const conditions = [
+    eq(renders.id, renderId),
+    inArray(renders.status, fence.from ?? OPEN_RENDER_STATUSES),
+  ];
+  if (fence.attempts !== undefined) {
+    conditions.push(eq(renders.attempts, fence.attempts));
+  }
+  const rows = await db
     .update(renders)
     .set({
       status: args.status,
@@ -230,7 +248,131 @@ export async function finishRender(
       error: args.error ?? null,
       updatedAt: new Date(),
     })
-    .where(eq(renders.id, renderId));
+    .where(and(...conditions))
+    .returning({ id: renders.id });
+  return rows.length > 0;
+}
+
+/** رمز Postgres لانتهاك قيد فريد (يصل مباشرة أو داخل `cause` من Drizzle). */
+function isUniqueViolation(err: unknown, constraint: string): boolean {
+  for (let cur: unknown = err, depth = 0; cur && depth < 4; depth += 1) {
+    const e = cur as { code?: unknown; constraint?: unknown; message?: unknown; cause?: unknown };
+    if (
+      e.code === "23505" &&
+      (e.constraint === constraint ||
+        (typeof e.message === "string" && e.message.includes(constraint)))
+    ) {
+      return true;
+    }
+    cur = e.cause;
+  }
+  return false;
+}
+
+export const ACTIVE_RENDER_UNIQUE = "renders_active_user_cache_uq";
+
+export type StartChargedRenderResult =
+  | { status: "started"; renderId: string; credits: number }
+  | { status: "insufficient"; credits: number }
+  | { status: "duplicate" };
+
+/**
+ * خصم الكريدت + فتح صف التصيير + تسجيل الاستهلاك في **جملة SQL واحدة**:
+ * - لا نافذة بين «خُصم» و«سُجّل» يمكن أن تُقطع (انهيار العملية بينهما كان
+ *   يُضيّع كريدتاً بلا أي أثر يسمح بإرجاعه).
+ * - الخصم مشروط بالرصيد (لا رصيد سالب)، والصف محكوم بالفهرس الفريد الجزئي
+ *   `renders_active_user_cache_uq`: طلب مكرر لنفس الفيديو أثناء تصيير نشط
+ *   يُسقط الجملة كلها ⇒ لا خصم مزدوج حتى عبر نسخ خادم مختلفة.
+ */
+export async function startChargedRender(
+  db: Db,
+  args: {
+    userId: string;
+    cost: number;
+    compositionId: string;
+    inputProps: Record<string, unknown> | null;
+    cacheKey: string;
+    projectId?: string | null;
+  },
+): Promise<StartChargedRenderResult> {
+  let result: unknown;
+  try {
+    result = await db.execute(sql`
+      WITH charged AS (
+        UPDATE ${users}
+        SET credits = ${users.credits} - ${args.cost}, updated_at = now()
+        WHERE ${users.id} = ${args.userId} AND ${users.credits} >= ${args.cost}
+        RETURNING ${users.id} AS user_id, ${users.credits} AS credits
+      ),
+      created AS (
+        INSERT INTO ${renders}
+          (user_id, project_id, composition_id, input_props, cache_key, status, credits_used, attempts)
+        SELECT user_id, ${args.projectId ?? null}, ${args.compositionId},
+               ${args.inputProps === null ? null : JSON.stringify(args.inputProps)}::jsonb,
+               ${args.cacheKey}, 'running', ${args.cost}, 1
+        FROM charged
+        RETURNING id, user_id
+      ),
+      usage AS (
+        INSERT INTO ${usageEvents} (user_id, kind, units, meta)
+        SELECT user_id, 'render', ${args.cost}, jsonb_build_object('renderId', id)
+        FROM created
+      )
+      SELECT created.id AS render_id, charged.credits AS credits
+      FROM created, charged
+    `);
+  } catch (err) {
+    if (isUniqueViolation(err, ACTIVE_RENDER_UNIQUE)) {
+      return { status: "duplicate" };
+    }
+    throw err;
+  }
+  const rows = executedRows<{ render_id: string; credits: number }>(result);
+  if (rows[0]) {
+    return { status: "started", renderId: rows[0].render_id, credits: Number(rows[0].credits) };
+  }
+  return { status: "insufficient", credits: await getCredits(db, args.userId) };
+}
+
+/**
+ * إرجاع كريدت صف تصيير **مرة واحدة على الأكثر** وفي جملة واحدة:
+ * يُضبط `refunded_at` ويُزاد الرصيد ويُسجَّل استهلاك سالب معاً، ولا يقع
+ * شيء إن كان الصف قد أُرجع سابقاً أو اكتمل (`done`) — فلا يُرجَع تصيير
+ * ناجح بسبب معالج فشل متأخر، ولا يُدفع الإرجاع مرتين من عمليتين.
+ */
+export async function refundRender(
+  db: Db,
+  renderId: string,
+): Promise<{ refunded: boolean; credits: number | null }> {
+  const result = await db.execute(sql`
+    WITH target AS (
+      UPDATE ${renders}
+      SET refunded_at = now(), updated_at = now()
+      WHERE ${renders.id} = ${renderId}
+        AND ${renders.refundedAt} IS NULL
+        AND ${renders.creditsUsed} > 0
+        AND ${renders.status} <> 'done'
+      RETURNING id, user_id, credits_used
+    ),
+    credited AS (
+      UPDATE ${users}
+      SET credits = ${users.credits} + target.credits_used, updated_at = now()
+      FROM target
+      WHERE ${users.id} = target.user_id
+      RETURNING ${users.credits} AS credits
+    ),
+    usage AS (
+      INSERT INTO ${usageEvents} (user_id, kind, units, meta)
+      SELECT user_id, 'render', -credits_used,
+             jsonb_build_object('renderId', id, 'refund', true)
+      FROM target
+    )
+    SELECT credits FROM credited
+  `);
+  const rows = executedRows<{ credits: number }>(result);
+  return rows[0]
+    ? { refunded: true, credits: Number(rows[0].credits) }
+    : { refunded: false, credits: null };
 }
 
 export async function listRenders(
@@ -284,40 +426,48 @@ export async function claimRetry(
   renderId: string,
   from: RenderStatus = "error",
 ): Promise<RenderRow | null> {
-  const rows = await db
-    .update(renders)
-    .set({
-      status: "queued",
-      attempts: sql`${renders.attempts} + 1`,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(renders.id, renderId),
-        eq(renders.status, from),
-        lt(renders.attempts, MAX_RENDER_ATTEMPTS),
-      ),
-    )
-    .returning();
-  return rows[0] ?? null;
+  try {
+    const rows = await db
+      .update(renders)
+      .set({
+        status: "queued",
+        attempts: sql`${renders.attempts} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(renders.id, renderId),
+          eq(renders.status, from),
+          lt(renders.attempts, MAX_RENDER_ATTEMPTS),
+        ),
+      )
+      .returning();
+    return rows[0] ?? null;
+  } catch (err) {
+    // نفس المستخدم يُصيّر نفس الفيديو الآن (صف نشط آخر) ⇒ لا حاجة لإعادة
+    // المحاولة الآن؛ يُعاد النظر في التشغيل التالي بدل إسقاط الطابور كله.
+    if (isUniqueViolation(err, ACTIVE_RENDER_UNIQUE)) {
+      return null;
+    }
+    throw err;
+  }
 }
 
 /**
- * صفوف `running` مهجورة: التصيير التفاعلي مات مع عمليته (فلا وصل ناتج
- * ولا أُغلق الصف). تُعاد كي يُعلَن فشلها ويُرجَع كريدتها للعميل.
+ * صفوف `running` مهجورة: التصيير التفاعلي مات مع عمليته (فلا أُغلق الصف).
+ * **قراءة فقط** — لا نُعلن الفشل هنا: قد يكون الناتج رُفع إلى Blob ثم
+ * انقطعت العملية قبل كتابة `done`. المستدعي يفحص الكاش أولاً ثم يُغلق
+ * الصف (نجاحاً أو فشلاً + إرجاع) عبر `finishRender`/`refundRender` المشروطتين.
  */
-export async function reclaimStaleRunning(
+export async function listStaleRunning(
   db: Db,
   now = Date.now(),
+  limit = 25,
 ): Promise<RenderRow[]> {
   const staleBefore = new Date(now - STALE_RENDER_MS);
   return db
-    .update(renders)
-    .set({
-      status: "error",
-      error: "انتهت مهلة العملية قبل إغلاق صف التصيير.",
-      updatedAt: new Date(),
-    })
+    .select()
+    .from(renders)
     .where(
       and(
         eq(renders.status, "running"),
@@ -325,7 +475,8 @@ export async function reclaimStaleRunning(
         lt(renders.updatedAt, staleBefore),
       ),
     )
-    .returning();
+    .orderBy(renders.updatedAt)
+    .limit(limit);
 }
 
 export async function recordUsage(
@@ -400,14 +551,19 @@ export async function applyStripeCreditGrant(
     type: string;
     userId: string;
     credits: number;
+    /** معرّف جلسة الدفع — فريد في القاعدة: الحزمة تُمنح مرة لكل جلسة. */
+    checkoutSessionId?: string | null;
     meta?: Record<string, unknown>;
   },
 ): Promise<{ applied: boolean; duplicate: boolean; credits: number }> {
+  const sessionId = args.checkoutSessionId ?? null;
+  // ON CONFLICT بلا هدف: يمتص تعارض المفتاح الأساسي (نفس الحدث) **و** تعارض
+  // جلسة الدفع (حدث آخر لنفس الجلسة) معاً — كلاهما «مُعالج سابقاً».
   const result = await db.execute(sql`
     WITH claimed AS (
-      INSERT INTO ${stripeEvents} (id, type, credits, user_id)
-      VALUES (${args.eventId}, ${args.type}, ${args.credits}, ${args.userId})
-      ON CONFLICT (id) DO NOTHING
+      INSERT INTO ${stripeEvents} (id, type, credits, user_id, checkout_session_id)
+      VALUES (${args.eventId}, ${args.type}, ${args.credits}, ${args.userId}, ${sessionId})
+      ON CONFLICT DO NOTHING
       RETURNING id
     )
     UPDATE ${users}
@@ -422,7 +578,11 @@ export async function applyStripeCreditGrant(
     const existing = await db
       .select({ id: stripeEvents.id })
       .from(stripeEvents)
-      .where(eq(stripeEvents.id, args.eventId))
+      .where(
+        sessionId
+          ? or(eq(stripeEvents.id, args.eventId), eq(stripeEvents.checkoutSessionId, sessionId))
+          : eq(stripeEvents.id, args.eventId),
+      )
       .limit(1);
     if (existing.length > 0) {
       return {
@@ -439,11 +599,11 @@ export async function applyStripeCreditGrant(
       userId: args.userId,
       kind: "purchase",
       units: args.credits,
-      meta: { eventId: args.eventId, ...(args.meta ?? {}) },
+      meta: { eventId: args.eventId, checkoutSessionId: sessionId, ...(args.meta ?? {}) },
     });
   } catch (err) {
     console.warn("stripe: فشل تسجيل استهلاك الشراء (الكريدت مُطبَّق)", err);
   }
 
-  return { applied: true, duplicate: false, credits: granted[0].credits };
+  return { applied: true, duplicate: false, credits: Number(granted[0].credits) };
 }

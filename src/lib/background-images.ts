@@ -115,9 +115,9 @@ export async function generateBackgroundImage(
   );
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(
-      `فشل استدعاء توليد الصورة (${response.status}) ${detail.slice(0, 300)}`,
-    );
+    // نص رد المزوّد يُسجَّل في الخادم فقط — قد يحمل تفاصيل داخلية لا تخصّ العميل
+    console.warn("background-images: رد غير ناجح", response.status, detail.slice(0, 300));
+    throw new Error(`فشل استدعاء توليد الصورة (${response.status}).`);
   }
   const payload = (await response.json()) as GeminiImageResponse;
   const imageBytes = extractImageBytes(payload);

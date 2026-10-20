@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { DEFAULT_AR_VOICE } from "../../../../types/shorts";
 import { executeApi } from "../../../helpers/api-response";
+import { guardPaidRoute } from "../../../lib/auth";
 import {
   checkRateLimit,
   clientIp,
-  rateLimitedResponse,
+  rateLimitRejection,
 } from "../../../lib/rate-limit";
 import {
   getCachedAudio,
@@ -34,9 +35,14 @@ const handleTts = executeApi(TtsRequest, async (_req, body) => {
 
 /** 20 طلب صوت لكل IP كل 5 دقائق (حماية قبل النشر العام). */
 export const POST = async (req: Request) => {
+  // نفس بوابة المسارات المكلفة: Azure TTS مدفوع، والرفع إلى Blob يستهلك تخزيناً
+  const guard = await guardPaidRoute();
+  if ("response" in guard) {
+    return guard.response;
+  }
   const verdict = await checkRateLimit(`tts:${clientIp(req)}`, 20, 5 * 60 * 1000);
   if (!verdict.allowed) {
-    return rateLimitedResponse(verdict.retryAfterSec);
+    return rateLimitRejection(verdict);
   }
   return handleTts(req);
 };

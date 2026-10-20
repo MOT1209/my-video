@@ -14,7 +14,7 @@ import {
   listRenders,
   listRetryableRenders,
   MAX_RENDER_ATTEMPTS,
-  reclaimStaleRunning,
+  listStaleRunning,
   saveProject,
   spendCredits,
   usageSummary,
@@ -195,7 +195,7 @@ test("الطابور يستعيد الصف المعلّق المهجور ولا 
   expect(await claimRetry(db, parked.id, "queued")).not.toBeNull();
 });
 
-test("صف running مهجور يُعلَن فاشلاً ويُرجع كريدته", async () => {
+test("صف running مهجور يُكتشف للقراءة فقط — الحسم (كاش/إرجاع) للمستدعي", async () => {
   const user = await ensureUser(db, { clerkId: nextClerkId("ghost") });
   const ghost = await createRender(db, {
     userId: user.id,
@@ -214,13 +214,12 @@ test("صف running مهجور يُعلَن فاشلاً ويُرجع كريدت�
     [ghost.id],
   );
 
-  const reclaimed = await reclaimStaleRunning(db);
-  expect(reclaimed.map((r) => r.id)).toEqual([ghost.id]);
-  // النداء نفسه لا يُعيد صفاً ثانياً (انتقل إلى error)
-  expect(await reclaimStaleRunning(db)).toHaveLength(0);
-
+  const stale = await listStaleRunning(db);
+  expect(stale.map((r) => r.id)).toContain(ghost.id);
+  expect(stale.map((r) => r.id)).not.toContain(live.id);
+  // الاكتشاف لا يغيّر الحالة: الصف ما زال running حتى يُحسم صراحة
   const rows = await listRenders(db, user.id);
-  expect(rows.find((r) => r.id === ghost.id)?.status).toBe("error");
+  expect(rows.find((r) => r.id === ghost.id)?.status).toBe("running");
   expect(rows.find((r) => r.id === live.id)?.status).toBe("running");
 });
 
