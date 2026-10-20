@@ -1,108 +1,210 @@
-# my-video — Shorts عمودية 9:16 (Remotion + Next.js)
+<div align="center">
 
-تطبيق توليد فيديوهات Shorts عمودية: Hook + مشاهد + تعليق صوتي Edge-TTS + كابشن كلمة-كلمة، معاينة عبر `@remotion/player` وتصيير عبر Vercel Sandbox + تخزين Blob.
+<img src="docs/assets/hero.svg" alt="my-video: فيديوهات Shorts عمودية من النص إلى الفيديو" width="100%" />
 
-الموقع الحي: `https://my-video-kappa-one.vercel.app`
+<br/>
 
-## سير عمل Shorts
+[![CI](https://github.com/MOT1209/my-video/actions/workflows/ci.yml/badge.svg)](https://github.com/MOT1209/my-video/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/MOT1209/my-video/actions/workflows/codeql.yml/badge.svg)](https://github.com/MOT1209/my-video/actions/workflows/codeql.yml)
+![Next.js](https://img.shields.io/badge/Next.js-16.4-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white)
+![Remotion](https://img.shields.io/badge/Remotion-4.0.535-0b84f3)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind-4.2-38bdf8?logo=tailwindcss&logoColor=white)
 
-1. اكتب **الخطاف** (حتى 120 حرف — أول 2.5 ثانية) والمشاهد (سطر = مشهد، حتى 12 مشهد، 280 حرف للمشهد).
-2. اختر الثيم (`dark` / `paper` / `neon` / `news` / `quotes`) والصوت (عربي: زارية/حامد، إنجليزي: Ava/Andrew).
-3. اضغط **توليد الصوت** — يُولّد mp3 عبر Edge-TTS (مع توكن Sec-MS-GEC v2) مع كابشن بمستوى الكلمة، ويُحفظ في الكاش (Blob إن توفر وإلا `public/audio`).
-4. عاين الفيديو 9:16 (1080×1920، 30fps) — المدة تُحسب من آخر كلمة + ثانية أمان، بسقف 60 ثانية ليوتيوب Shorts.
-5. اضغط **تصيير الفيديو** — يُصيّر عبر `/api/render` ويُرفع إلى Blob مع رابط تحميل.
+**[الموقع الحي](https://my-video-kappa-one.vercel.app)** ·
+**[سير العمل](#سير-العمل)** ·
+**[البدء السريع](#البدء-السريع)** ·
+**[المتغيرات](#متغيرات-البيئة)** ·
+**[البنية](#البنية)**
 
-ملاحظات:
-- النص الكامل = Hook + المشاهد، الحد 1000 حرف (`MAX_TTS_CHARS` في `src/lib/tts.ts`).
-- الكاش بمفتاح hash (`voiceId::text`) — نفس النص لا يُولّد مرتين.
-- بدون `BLOB_READ_WRITE_TOKEN` يعمل الصوت محلياً لكن التصيير يفشل.
+</div>
 
-## حدود الاستخدام (Rate Limiting)
+---
 
-حماية لكل IP عبر **Upstash Redis** (موزّع عبر النسخ، مع fallback للذاكرة محلياً):
-- الصوت `/api/tts`: **20 طلب / 5 دقائق** — الرد 429 مع رسالة عربية و`Retry-After`.
-- التصيير `/api/render`: **5 عمليات / ساعة** (التصيير مكلف: دقائق sandbox).
+## نبذة
+
+تطبيق يحوّل نصاً قصيراً إلى فيديو **Shorts عمودي 9:16** (1080×1920 بسرعة 30fps): خطاف في أول ثانيتين، ثم مشاهد، مع **تعليق صوتي** وكابشن يتحرك **كلمة بكلمة**. المعاينة فورية في المتصفح عبر `@remotion/player`، والتصيير النهائي يجري على **Vercel Sandbox** ويُرفع إلى **Vercel Blob** مع رابط تحميل.
+
+> [!NOTE]
+> المشروع مبني على قالب [Remotion on Vercel](https://remotion.dev/docs/vercel-sandbox)، ويضيف إليه محرر Shorts عربياً، وتوليد الصوت والسكربت والخلفيات، وطبقة حسابات وكريدت (SaaS).
+
+## سير العمل
+
+```mermaid
+flowchart LR
+    A["الخطاف + المشاهد<br/>(سطر = مشهد)"] --> B["توليد الصوت<br/>Edge-TTS"]
+    B --> C["كابشن بمستوى الكلمة<br/>WordBoundary"]
+    C --> D["معاينة 9:16<br/>@remotion/player"]
+    D --> E["تصيير الفيديو<br/>/api/render"]
+    E --> F[("Vercel Blob<br/>رابط تحميل")]
+    B -. "فشل Edge-TTS" .-> G["Azure Speech<br/>(بديل رسمي)"]
+    G --> C
+```
+
+1. **اكتب** الخطاف (حتى 120 حرفاً) والمشاهد (حتى 12 مشهداً، 280 حرفاً للمشهد). يمكنك أيضاً لصق رابط مقال أو موضوع ليقترح Gemini سكربتاً.
+2. **اختر** الثيم والصوت وأسلوب حركة الكابشن.
+3. **ولّد الصوت**: يُنتج mp3 مع توقيت كل كلمة ويُحفظ في الكاش.
+4. **عاين** الفيديو. المدة تُحسب من آخر كلمة + ثانية أمان، بسقف **60 ثانية** (حد يوتيوب Shorts).
+5. **صيّر** الفيديو واحصل على رابط التحميل.
+
+## المزايا
+
+| | الميزة | التفاصيل |
+|---|---|---|
+| 🎙️ | **تعليق صوتي** | Edge-TTS مجاني (عربي: زارية وحامد، إنجليزي: Ava وAndrew)، وAzure Speech بديلاً رسمياً عند الفشل |
+| 💬 | **كابشن كلمة بكلمة** | 4 أنماط حركة: `pop` و`karaoke` و`slide-up` و`glow` |
+| 🎨 | **5 ثيمات** | `dark` و`paper` و`neon` و`news` و`quotes` |
+| 🤖 | **سكربت بالذكاء الاصطناعي** | من رابط أو موضوع عبر Gemini (يحتاج `GEMINI_API_KEY`) |
+| 🖼️ | **خلفيات AI** | عبر Gemini مع كاش بمفتاح المحتوى (يحتاج `GEMINI_API_KEY`) |
+| 🎧 | **تفريغ صوت** | تحويل ملف صوتي إلى نص عبر Gemini |
+| ⚡ | **كاش التصيير** | الناتج الحتمي نفسه لا يُصيَّر مرتين، مع قياس تكلفة الفيديو |
+| 🔐 | **حسابات وكريدت** | Clerk وNeon وStripe (اختيارية، انظر [المتغيرات](#متغيرات-البيئة)) |
+| 🛡️ | **حدود استخدام** | لكل IP عبر Upstash Redis مع بديل في الذاكرة محلياً |
+
+## البدء السريع
+
+المتطلبات: **Node 22** و**Bun** (لتشغيل الاختبارات).
+
+```bash
+git clone https://github.com/MOT1209/my-video.git
+cd my-video
+npm ci
+
+# اسحب المتغيرات من Vercel (أو أنشئ .env.local من .env.example)
+vercel login && vercel link
+vercel env pull .env.local
+
+npm run dev            # http://localhost:3000
+```
+
+> [!TIP]
+> بدون أي مفتاح يعمل المحرر والمعاينة وتوليد الصوت محلياً. التصيير يحتاج `BLOB_READ_WRITE_TOKEN`.
 
 ## الأوامر
 
-```bash
-npm run dev          # خادم التطوير
-npm test             # اختبارات الوحدة (bun test — حالياً 91 اختباراً عبر 15 ملفاً)
-npm run lint         # فحص ESLint (يستبعد .agents/ و .claude/)
-npm run cleanup-blobs            # عرض Blobs الأقدم من 30 يوم (dry-run)
-npm run cleanup-blobs -- --delete --older-than-days=7   # حذف فعلي
-npx remotion studio  # Remotion Studio
-```
+| الأمر | الوظيفة |
+|---|---|
+| `npm run dev` | خادم التطوير |
+| `npm run build` | بناء الإنتاج (Next.js) |
+| `npm test` | الاختبارات عبر `bun test` على `src/` (93 اختباراً في 16 ملفاً وقت كتابة هذا الملف) |
+| `npm run lint` | فحص ESLint للتطبيق |
+| `npx remotion studio` | استوديو Remotion |
+| `npm run cleanup-blobs` | عرض الملفات الأقدم من 30 يوماً في Blob (تجريبي، لا يحذف) |
+| `npm run cleanup-blobs -- --delete --older-than-days=7` | حذف فعلي |
+
+## متغيرات البيئة
+
+تُضبط في Vercel ← Settings ← Environment Variables. غياب أي متغير اختياري **يعطّل ميزته فقط** برسالة إرشادية.
+
+| المتغير | مطلوب؟ | ما الذي يتعطل بدونه |
+|---|---|---|
+| `BLOB_READ_WRITE_TOKEN` | **نعم** للتصيير | التصيير ورفع الصوت والخلفيات (الصوت المحلي يعمل) |
+| `GEMINI_API_KEY` (+ `GEMINI_MODEL`, `GEMINI_IMAGE_MODEL`) | اختياري | اقتراح السكربت والخلفيات وتفريغ الصوت |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | **موصى به بشدة** | تسجيل الدخول، ويبقى `/api/render` **مفتوحاً لأي زائر** (خطر تكلفة في الإنتاج) |
+| `DATABASE_URL` (Neon) | اختياري | المشاريع والكريدت وسجل التصييرات (تعطي 503 برسالة واضحة) |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | اختياري | شراء حزم الكريدت |
+| `CRON_SECRET` | اختياري | إعادة محاولة التصييرات الفاشلة (`/api/cron/retry-renders`) |
+| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | اختياري | حد المعدل والقفل الموزّعان (يعمل بديل الذاكرة محلياً) |
+| `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` | اختياري | البديل الرسمي للصوت (يبقى Edge-TTS المجاني) |
+
+بعد ضبط `DATABASE_URL` طبّق الهجرة مرة واحدة: `npx drizzle-kit migrate`.
+
+## حدود الاستخدام
+
+| المسار | الحد | عند التجاوز |
+|---|---|---|
+| `/api/tts` | **20 طلباً / 5 دقائق** لكل IP | 429 مع رسالة عربية و`Retry-After` |
+| `/api/render` | **5 عمليات / ساعة** لكل IP | 429 (التصيير مكلف: دقائق من Sandbox) |
 
 ## البنية
 
+<details>
+<summary><b>الفيديو والتصيير</b></summary>
+
+<br/>
+
 | المسار | الدور |
 |---|---|
-| `src/remotion/Shorts/` | تكوين الفيديو (خلفية + عنوان + بطاقات + كابشن) |
+| `src/remotion/Shorts/` | تكوين الفيديو: خلفية وعنوان وبطاقات وكابشن |
 | `src/components/ShortsEditor.tsx` | المحرر والمعاينة والتصيير |
-| `src/app/api/tts/` | توليد الصوت + الكاش |
-| `src/lib/edge-tts.ts` | عميل Edge TTS (WebSocket + حدود الكلمات) |
-| `src/lib/sec-ms-gec.ts` | توكن Sec-MS-GEC v2 (نقل مطابق للمكتبة الرسمية، مُغطى باختبارات) |
-| `src/lib/rate-limit.ts` | حد المعدل (Upstash Redis + fallback محلي) |
-| `src/lib/azure-tts.ts` | fallback رسمي للصوت (يعمل مع `AZURE_SPEECH_KEY/REGION`) |
-| `src/app/api/script/` | رابط/موضوع ← سكربت عبر Gemini |
-| `src/app/api/image/` | خلفيات AI + كاش content-hash |
-| `src/lib/render-cache.ts` | كاش ناتج التصيير (مفتاح حتمي) |
-| `src/lib/render-metrics.ts` | قياس $/video |
-| `src/app/api/render/` | التصيير عبر Sandbox + رفع Blob (SSE) |
-| `scripts/cleanup-blobs.ts` | تنظيف الملفات القديمة من Blob |
-| `types/shorts.ts` | الأنواع والقواعد (60 ثانية، 12 مشهد) |
+| `src/app/api/render/` | التصيير عبر Sandbox ورفع Blob (SSE للتقدم) |
+| `src/lib/render-cache.ts` | كاش ناتج التصيير بمفتاح حتمي |
+| `src/lib/render-metrics.ts` | قياس تكلفة الفيديو |
+| `types/shorts.ts` | الأنواع والقواعد (60 ثانية، 12 مشهداً) |
 
-## مسارات SaaS (المرحلة 4)
+</details>
+
+<details>
+<summary><b>الصوت والذكاء الاصطناعي</b></summary>
+
+<br/>
 
 | المسار | الدور |
 |---|---|
-| `src/app/api/projects/` + `[id]` | حفظ/تحميل/حذف مشاريع المستخدم |
+| `src/app/api/tts/` | توليد الصوت والكاش (مفتاح `voiceId::text`) |
+| `src/lib/edge-tts.ts` | عميل Edge TTS (WebSocket وحدود الكلمات) |
+| `src/lib/sec-ms-gec.ts` | توكن Sec-MS-GEC v2، منقول من المكتبة الرسمية ومغطى باختبارات |
+| `src/lib/azure-tts.ts` | البديل الرسمي للصوت |
+| `src/app/api/script/` | رابط أو موضوع ← سكربت عبر Gemini |
+| `src/app/api/image/` | خلفيات AI وكاش المحتوى |
+| `src/app/api/transcribe/` | تفريغ صوت مرفوع إلى نص |
+| `src/lib/rate-limit.ts` | حد المعدل (Upstash مع بديل محلي) |
+
+النص الكامل (الخطاف + المشاهد) محدود بـ 1000 حرف (`MAX_TTS_CHARS` في `src/lib/tts.ts`).
+
+</details>
+
+<details>
+<summary><b>الحسابات والكريدت (SaaS)</b></summary>
+
+<br/>
+
+| المسار | الدور |
+|---|---|
+| `src/app/api/projects/` و`[id]` | حفظ وتحميل وحذف مشاريع المستخدم |
 | `src/app/api/renders/` | سجل التصييرات وإعادة التنزيل |
-| `src/app/api/credits/` | رصيد الكريدت الحالي |
-| `src/app/api/billing/checkout` | إنشاء جلسة Stripe لشراء حزمة |
-| `src/app/api/billing/webhook` | استقبال أحداث Stripe (بتحقق التوقيع) |
-| `src/app/api/cron/retry-renders` | إعادة محاولة التصييرات الفاشلة (يحميه `CRON_SECRET`) |
-| `src/app/api/transcribe/` | تحويل صوت مرفوع إلى نص (Gemini ASR) |
-| `src/app/sign-in/` | تسجيل الدخول (Clerk) |
+| `src/app/api/credits/` | الرصيد الحالي |
+| `src/app/api/billing/checkout` | جلسة Stripe لشراء حزمة |
+| `src/app/api/billing/webhook` | أحداث Stripe بعد التحقق من التوقيع |
+| `src/app/api/cron/retry-renders` | إعادة التصييرات الفاشلة (يحميه `CRON_SECRET`) |
+| `src/app/sign-in/` | تسجيل الدخول عبر Clerk |
 
-نموذج الكريدت (`src/lib/credits.ts`): تصيير واحد = 1 كريدت، 3 مجانية عند التسجيل، والحزم 10 بـ$5 و30 بـ$12 و100 بـ$35. الكريدت يُخصم بعد تأكد غياب الكاش ويُرجَع عند فشل التصيير.
+**نموذج الكريدت** (`src/lib/credits.ts`): كل تصيير = 1 كريدت، و3 مجاناً عند التسجيل، والحزم: 10 بـ $5 و30 بـ $12 و100 بـ $35. يُخصم الكريدت بعد التأكد من غياب الكاش، ويُرجَع إن فشل التصيير.
 
-## اعتبارات الإنتاج
+</details>
 
-- فعّل [Vercel Spend Management](https://vercel.com/docs/accounts/spend-management) للتحكم بالتكاليف.
-- نظّف الـ snapshots والفيديوهات القديمة دورياً (`npm run cleanup-blobs -- --delete`).
-- الـ Blob store يجب أن يقبل **public access** (الفيديوهات والصوتيات تُخدم بروابط عامة).
+<details>
+<summary><b>مشروع <code>King_Browser/</code> داخل المستودع</b></summary>
+
+<br/>
+
+مجلد `King_Browser/` مشروع **منفصل** (متصفح سطح مكتب مبني بـ Electron) يعيش في المستودع نفسه، وله `package.json` واختباراته وإعداد ESLint الخاص به. لا علاقة له بتطبيق الفيديو، وهو مستثنى من فحص `lint` و`tsc` للجذر.
+
+```bash
+cd King_Browser
+npm ci
+npm test                         # اختباراته الخاصة (esbuild + Node)
+../node_modules/.bin/eslint .    # فحص ESLint بإعداده الخاص
+```
+
+</details>
 
 ## النشر على Vercel
 
-1. من لوحة التحكم: Storage ← Create ← Blob، وأنشئ store بإعداد **public** واربطه بالمشروع.
-2. يُضاف `BLOB_READ_WRITE_TOKEN` تلقائياً لبيئات المشروع — ثم أعد النشر.
+1. من لوحة Vercel: **Storage ← Create ← Blob**، بإعداد **public** (الفيديوهات والصوتيات تُخدم بروابط عامة)، واربطه بالمشروع. يُضاف `BLOB_READ_WRITE_TOKEN` تلقائياً.
+2. أضف بقية [المتغيرات](#متغيرات-البيئة) التي تحتاجها ثم أعد النشر.
+3. للـ Cron: `vercel.json` يعرّف مهمة يومية على `/api/cron/retry-renders`، وتحتاج `CRON_SECRET`.
 
-## النشر الكامل (ميزات الحساب)
-
-كل بند اختياري — غيابه يعطّل ميزته برسالة إرشادية لا بعطل:
-
-1. **Neon**: أنشئ قاعدة من console.neon.tech، أضف `DATABASE_URL`، ثم طبّق الهجرة: `npx drizzle-kit migrate`.
-2. **Clerk**: أضف `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` و`CLERK_SECRET_KEY` — بدونهما يبقى `/api/render` مفتوحاً لأي زائر (يظهر تحذير في السجلات).
-3. **Stripe**: أضف `STRIPE_SECRET_KEY` ووجّه الـ webhook إلى `/api/billing/webhook` مع `STRIPE_WEBHOOK_SECRET`.
-4. **Upstash**: أضف `UPSTASH_REDIS_REST_URL` و`UPSTASH_REDIS_REST_TOKEN` للحد والقفل الموزعين.
-5. **Cron**: أضف `CRON_SECRET` واضبط مهمة Vercel Cron على `/api/cron/retry-renders`.
-
-## التطوير المحلي
-
-```bash
-vercel login
-vercel link
-vercel env pull .env.local   # يسحب BLOB_READ_WRITE_TOKEN
-npm run dev
-```
+> [!WARNING]
+> **قبل الإنتاج:** فعّل [Vercel Spend Management](https://vercel.com/docs/accounts/spend-management)، وأضف مفاتيح **Clerk** (وإلا بقي التصيير مفتوحاً للجميع)، ونظّف الـ snapshots والفيديوهات القديمة دورياً بـ `npm run cleanup-blobs -- --delete`.
 
 ## توثيق إضافي
 
-- `report.html` — تقرير المراجعة والتطوير الكامل (يُفتح في المتصفح).
-- عن القالب الأصلي: [Remotion on Vercel](https://remotion.dev/docs/vercel-sandbox) — [Discord](https://remotion.dev/discord).
+- [`report.html`](report.html): تقرير المراجعة والتطوير الكامل (يُفتح في المتصفح).
+- [`plan.md`](plan.md): خارطة الطريق التنفيذية.
+- [Remotion on Vercel](https://remotion.dev/docs/vercel-sandbox) · [Discord](https://remotion.dev/discord)
 
 ## الرخصة
 
-لبعض الاستخدامات يلزم ترخيص شركة. [الشروط هنا](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
+لبعض الاستخدامات يلزم ترخيص شركة من Remotion. [الشروط هنا](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
