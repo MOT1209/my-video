@@ -207,4 +207,7 @@ npm test                         # اختباراته الخاصة (esbuild + No
 
 ## الرخصة
 
-لبعض الاستخدامات يلزم ترخيص شركة من Remotion. [الشروط هنا](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
+كود هذا المشروع مرخّص تحت [رخصة MIT](LICENSE) (مجلد `King_Browser/` له ملف `LICENSE` خاص به). وللمساهمة انظر [CONTRIBUTING.md](CONTRIBUTING.md).
+
+> [!IMPORTANT]
+> رخصة MIT تغطي كود المشروع فقط. **Remotion** له شروطه الخاصة، ولبعض الاستخدامات يلزم ترخيص شركة. [الشروط هنا](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
