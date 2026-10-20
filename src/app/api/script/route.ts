@@ -5,7 +5,7 @@ import { guardPaidRoute } from "../../../lib/auth";
 import {
   checkRateLimit,
   clientIp,
-  rateLimitedResponse,
+  rateLimitRejection,
 } from "../../../lib/rate-limit";
 import { generateScript } from "../../../lib/script-generator";
 
@@ -43,7 +43,7 @@ export const POST = async (req: Request) => {
   }
   const verdict = await checkRateLimit(`script:${clientIp(req)}`, 6, 10 * 60 * 1000);
   if (!verdict.allowed) {
-    return rateLimitedResponse(verdict.retryAfterSec);
+    return rateLimitRejection(verdict);
   }
   return handleScript(req);
 };

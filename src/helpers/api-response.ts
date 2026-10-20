@@ -31,17 +31,26 @@ export const executeApi =
     handler: (req: Request, body: z.infer<Req>) => Promise<Res>,
   ) =>
   async (req: Request) => {
+    // JSON تالف أو بيانات مخالفة للمخطط ⇒ 400 برسالة عامة (لا تفاصيل Zod الداخلية)
+    const payload = await req.json().catch(() => undefined);
+    const parsed = schema.safeParse(payload);
+    if (payload === undefined || !parsed.success) {
+      return NextResponse.json(
+        { type: "error", message: "طلب غير صالح: تحقّق من الحقول المرسلة." },
+        { status: 400 },
+      );
+    }
     try {
-      const payload = await req.json();
-      const parsed = schema.parse(payload);
-      const data = await handler(req, parsed);
+      const data = await handler(req, parsed.data);
       return NextResponse.json({
         type: "success",
         data: data,
       });
     } catch (err) {
+      // رسائل المعالِجات عربية من صنعنا (نص ردود المزوّدين يُسجَّل في الخادم فقط)
+      console.error("api: فشل المعالِج", (err as Error)?.message);
       return NextResponse.json(
-        { type: "error", message: (err as Error).message },
+        { type: "error", message: (err as Error)?.message || "حدث خطأ غير متوقع." },
         {
           status: 500,
         },

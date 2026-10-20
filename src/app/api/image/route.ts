@@ -4,7 +4,7 @@ import { guardPaidRoute } from "../../../lib/auth";
 import {
   checkRateLimit,
   clientIp,
-  rateLimitedResponse,
+  rateLimitRejection,
 } from "../../../lib/rate-limit";
 import {
   buildImagePrompt,
@@ -39,7 +39,7 @@ export const POST = async (req: Request) => {
     10 * 60 * 1000,
   );
   if (!verdict.allowed) {
-    return rateLimitedResponse(verdict.retryAfterSec);
+    return rateLimitRejection(verdict);
   }
   return handleImage(req);
 };

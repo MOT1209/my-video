@@ -5,8 +5,10 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { ShortProps } from "../../../types/shorts";
 
 /**
@@ -70,10 +72,24 @@ export const renders = pgTable(
     creditsUsed: integer("credits_used").notNull().default(0),
     attempts: integer("attempts").notNull().default(0),
     error: text("error"),
+    /**
+     * لحظة إرجاع كريدت الصف — وجودها = أُرجع. يُضبط في نفس جملة SQL التي
+     * تزيد الرصيد، فلا يُرجَع الكريدت مرتين ولو تكرّر النداء من عمليات مختلفة.
+     */
+    refundedAt: timestamp("refunded_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("renders_user_created_idx").on(t.userId, t.createdAt)],
+  (t) => [
+    index("renders_user_created_idx").on(t.userId, t.createdAt),
+    /**
+     * تصيير نشط واحد لكل (مستخدم، ناتج): طلبان متزامنان لنفس الفيديو لا
+     * يُخصمان مرتين حتى لو سقط القفل الموزّع (القاعدة هي الضامن الأخير).
+     */
+    uniqueIndex("renders_active_user_cache_uq")
+      .on(t.userId, t.cacheKey)
+      .where(sql`${t.status} in ('queued', 'running') and ${t.cacheKey} is not null`),
+  ],
 );
 
 export const USAGE_KINDS = [
@@ -112,6 +128,11 @@ export const stripeEvents = pgTable("stripe_events", {
   id: text("id").primaryKey(),
   type: text("type").notNull(),
   credits: integer("credits").notNull().default(0),
+  /**
+   * جلسة الدفع التي مُنح بسببها الكريدت — فريد: حدثان مختلفان لنفس الجلسة
+   * (`completed` ثم `async_payment_succeeded`) لا يمنحان الحزمة مرتين.
+   */
+  checkoutSessionId: text("checkout_session_id").unique(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
 });

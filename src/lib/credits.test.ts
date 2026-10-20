@@ -15,7 +15,10 @@ function paidEvent(object: Record<string, unknown> = {}) {
     type: "checkout.session.completed",
     data: {
       object: {
+        id: "cs_test_1",
         payment_status: "paid",
+        amount_total: 500,
+        currency: "usd",
         metadata: { clerkId: "user_123", packId: "starter", credits: "10" },
         ...object,
       },
@@ -56,7 +59,37 @@ test("حدث دفع مكتمل صالح ⇒ قرار تلقيت", () => {
     clerkId: "user_123",
     credits: 10,
     packId: "starter",
+    checkoutSessionId: "cs_test_1",
   });
+});
+
+test("الدفع المؤجّل يمنح الكريدت عند async_payment_succeeded لا عند الاكتمال غير المدفوع", () => {
+  // الجلسة تكتمل أولاً بحالة unpaid (تحويل بنكي مثلاً) ⇒ لا منح
+  expect(creditsFromStripeEvent(paidEvent({ payment_status: "unpaid" })).grant).toBe(false);
+  // ثم يصل حدث التحصيل لنفس الجلسة ⇒ منح بمفتاح الجلسة نفسها
+  const decision = creditsFromStripeEvent({
+    ...paidEvent(),
+    id: "evt_2",
+    type: "checkout.session.async_payment_succeeded",
+  });
+  expect(decision.grant).toBe(true);
+  expect(decision.checkoutSessionId).toBe("cs_test_1");
+  // فشل التحصيل المؤجّل لا يمنح شيئاً
+  expect(
+    creditsFromStripeEvent({ ...paidEvent(), type: "checkout.session.async_payment_failed" }).grant,
+  ).toBe(false);
+});
+
+test("جلسة بلا حزمة، أو بمبلغ/عملة لا يطابقان الحزمة، أو بلا دفع، لا تمنح", () => {
+  expect(
+    creditsFromStripeEvent(paidEvent({ metadata: { clerkId: "user_123", credits: "10" } })).reason,
+  ).toBe("invalid-credits");
+  expect(creditsFromStripeEvent(paidEvent({ amount_total: 1 })).reason).toBe("invalid-credits");
+  expect(creditsFromStripeEvent(paidEvent({ currency: "eur" })).reason).toBe("invalid-credits");
+  expect(
+    creditsFromStripeEvent(paidEvent({ payment_status: "no_payment_required", amount_total: 0 }))
+      .reason,
+  ).toBe("unpaid");
 });
 
 test("حالات لا تمنح كريدت: نوع آخر، دفع غير مكتمل، بلا مستخدم، كريدت غير صالح", () => {

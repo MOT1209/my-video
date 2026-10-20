@@ -27,6 +27,11 @@ export async function POST(req: Request) {
   if (!user) {
     return unauthorizedResponse();
   }
+  // الشراء يتطلب هوية حقيقية في الإنتاج: المستخدم المحلي المشترك
+  // (بلا Clerk) سيضع كريدت مدفوعاً في حساب لا يملكه أحد.
+  if (!user.authenticated && process.env.NODE_ENV === "production") {
+    return unauthorizedResponse();
+  }
 
   const parsed = CheckoutRequest.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {

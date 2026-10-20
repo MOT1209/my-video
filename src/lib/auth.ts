@@ -132,3 +132,20 @@ export async function guardPaidRoute(): Promise<
   }
   return { user };
 }
+
+/**
+ * رد موحّد حين تُطلب ميزة مدفوعة في الإنتاج وطبقة الفوترة غير مهيأة
+ * (لا DATABASE_URL): نرفض بدل أن نُصيّر مجاناً بصمت. الاستثناء الوحيد
+ * هو الفتح الصريح `ALLOW_ANONYMOUS_PAID_ROUTES=true` (أداة شخصية تقبل
+ * الاستخدام غير المقاس عن علم).
+ */
+export function billingUnavailableResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      type: "error",
+      message:
+        "التصيير معطّل مؤقتاً: طبقة الفوترة غير متاحة على الخادم (DATABASE_URL). حاول لاحقاً.",
+    },
+    { status: 503 },
+  );
+}

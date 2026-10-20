@@ -82,11 +82,39 @@ function getUpstashRatelimit(limit: number, windowMs: number): Ratelimit | null 
   return instance;
 }
 
+export interface RateLimitVerdict {
+  allowed: boolean;
+  retryAfterSec: number;
+  /** true = الرفض سببه غياب/تعطّل المحدِّد الموزّع (503) لا تجاوز الحد (429). */
+  unavailable?: boolean;
+}
+
+/**
+ * هل يُقبل المحدِّد المحلي (لكل نسخة على حدة) بديلاً؟
+ * - خارج الإنتاج: نعم دائماً (التطوير لا يتطلب Upstash).
+ * - في الإنتاج: لا، إلا بفتح صريح `RATE_LIMIT_ALLOW_IN_MEMORY=true` —
+ *   فالعدّاد في الذاكرة يتجزأ على نسخ serverless ولا يحمي الكلفة، ومساراتنا
+ *   المحدودة كلها مكلفة (تصيير، LLM، صور، صوت، نسخ).
+ */
+export function inMemoryRateLimitAllowed(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.RATE_LIMIT_ALLOW_IN_MEMORY === "true"
+  );
+}
+
+/** رفض مغلق عند تعذّر الحد الموزّع في الإنتاج — نعيد المحاولة بعد دقيقة. */
+const DISTRIBUTED_LIMITER_UNAVAILABLE: RateLimitVerdict = {
+  allowed: false,
+  retryAfterSec: 60,
+  unavailable: true,
+};
+
 export async function checkRateLimit(
   key: string,
   limit: number,
   windowMs: number,
-): Promise<{ allowed: boolean; retryAfterSec: number }> {
+): Promise<RateLimitVerdict> {
   const ratelimit = getUpstashRatelimit(limit, windowMs);
   if (ratelimit) {
     try {
@@ -98,10 +126,33 @@ export async function checkRateLimit(
           : Math.max(1, Math.ceil((res.reset - Date.now()) / 1000)),
       };
     } catch (err) {
+      if (!inMemoryRateLimitAllowed()) {
+        console.error("rate-limit: فشل Upstash في الإنتاج — رفض مغلق", err);
+        return DISTRIBUTED_LIMITER_UNAVAILABLE;
+      }
       console.warn("rate-limit: فشل Upstash — سقوط محلي (ذاكرة)", err);
     }
+  } else if (!inMemoryRateLimitAllowed()) {
+    console.error(
+      "rate-limit: Upstash غير مهيأ في الإنتاج — المسارات المكلفة مغلقة (أضف UPSTASH_REDIS_REST_URL/TOKEN).",
+    );
+    return DISTRIBUTED_LIMITER_UNAVAILABLE;
   }
   return inMemoryCheckRateLimit(key, limit, windowMs);
+}
+
+/** الرد المناسب لحكم رافض: 503 لتعذّر المحدِّد، 429 لتجاوز الحد. */
+export function rateLimitRejection(verdict: RateLimitVerdict): NextResponse {
+  if (verdict.unavailable) {
+    return NextResponse.json(
+      {
+        type: "error",
+        message: "الخدمة غير متاحة مؤقتاً (حماية الاستخدام غير مهيأة). حاول لاحقاً.",
+      },
+      { status: 503, headers: { "Retry-After": String(verdict.retryAfterSec) } },
+    );
+  }
+  return rateLimitedResponse(verdict.retryAfterSec);
 }
 
 export function rateLimitedResponse(

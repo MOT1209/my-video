@@ -4,13 +4,21 @@ import { AnyRenderRequest } from "../../../../types/schema";
 import { SHORT_COMP_NAME, ShortProps } from "../../../../types/shorts";
 import { apiError } from "../../../helpers/api-response";
 import {
+  allowAnonymousPaidRoutes,
+  billingUnavailableResponse,
   guardPaidRoute,
   warnIfUnauthenticatedProduction,
 } from "../../../lib/auth";
-import { openBillingSession } from "../../../lib/billing-session";
-import { RENDER_CREDIT_COST } from "../../../lib/credits";
+import {
+  openBillingSession,
+  type BillingSession,
+} from "../../../lib/billing-session";
 import { findCachedRender, renderCachePath } from "../../../lib/render-cache";
-import { friendlyRenderError } from "../../../lib/render-errors";
+import {
+  executeRenderJob,
+  MAX_RENDER_BODY_BYTES,
+  readJsonBody,
+} from "../../../lib/render-job";
 import {
   estimateRenderCostUsd,
   logRenderMetrics,
@@ -29,6 +37,7 @@ import {
   checkRateLimit,
   clientIp,
   rateLimitedResponse,
+  rateLimitRejection,
 } from "../../../lib/rate-limit";
 import { formatSSE, type RenderProgress } from "./helpers";
 
@@ -42,6 +51,9 @@ import { formatSSE, type RenderProgress } from "./helpers";
  * 4) كاش: نفس التكوين = رابط جاهز بلا كلفة.
  * 5) كريدت: يُخصم **بعد** التأكد من غياب الكاش (الكاش ليس تصييراً)،
  *    ويُرجَع تلقائياً إذا فشل التصيير.
+ *
+ * في الإنتاج بلا قاعدة بيانات (لا فرض للكريدت) يُرفض التصيير 503 بدل أن
+ * يُقدَّم مجاناً بصمت — إلا بالفتح الصريح ALLOW_ANONYMOUS_PAID_ROUTES=true.
  */
 export async function POST(req: Request) {
   // 1) الهوية أولاً — أرخص رفض، وقبل أي عمل مكلف
@@ -72,7 +84,7 @@ export async function POST(req: Request) {
     60 * 60 * 1000,
   );
   if (!verdict.allowed) {
-    return rateLimitedResponse(verdict.retryAfterSec);
+    return rateLimitRejection(verdict);
   }
 
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
@@ -83,16 +95,19 @@ export async function POST(req: Request) {
     );
   }
 
-  const payload = await req.json().catch(() => null);
+  const bodyResult = await readJsonBody(req, MAX_RENDER_BODY_BYTES);
+  if (!bodyResult.ok) {
+    return apiError(
+      bodyResult.status === 413 ? "طلب التصيير أكبر من المسموح." : "طلب تصيير غير صالح.",
+      bodyResult.status,
+    );
+  }
+  const payload = bodyResult.value;
   const parsedBody = AnyRenderRequest.safeParse(payload);
   if (!parsedBody.success) {
     return apiError("طلب تصيير غير صالح.", 400);
   }
   const body = parsedBody.data;
-
-  const encoder = new TextEncoder();
-  const stream = new TransformStream();
-  const writer = stream.writable.getWriter();
 
   // تحقق من inputProps حسب التكوين المطلوب (MyComp القديم أو ShortsComp الجديد)
   let compositionId: string;
@@ -115,6 +130,23 @@ export async function POST(req: Request) {
     return apiError("معرّف التكوين غير معروف.", 400);
   }
 
+  /**
+   * جلسة الفوترة قبل القفل: فشلها (قاعدة معطّلة) يُرد 503 ولا يترك قفلاً
+   * معلّقاً. null يعني «الكريدت غير مفروض» (لا DATABASE_URL) — مقبول فقط
+   * خارج الإنتاج أو بالفتح الصريح.
+   */
+  let billing: BillingSession | null;
+  try {
+    billing = await openBillingSession(requestUser);
+  } catch (err) {
+    console.error("render: تعذّر فتح جلسة الفوترة", err);
+    return billingUnavailableResponse();
+  }
+  if (!billing && !allowAnonymousPaidRoutes()) {
+    console.error("render: DATABASE_URL غير مهيأ في الإنتاج — التصيير مغلق");
+    return billingUnavailableResponse();
+  }
+
   /** قفل موزّع: موضوع واحد = تصيير واحد نشط في كل نسخ الخادم. */
   const lockKey = `render-lock:${subject}`;
   if (!(await acquireRenderLock(lockKey))) {
@@ -132,15 +164,25 @@ export async function POST(req: Request) {
   const sessionKey = `render-sandbox:${subject}`;
   const inputPropsRecord = inputProps as Record<string, unknown>;
 
-  /** جلسة الفوترة: null يعني «الكريدت غير مفروض» (لا DATABASE_URL). */
-  const billing = await openBillingSession(requestUser);
+  const encoder = new TextEncoder();
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
 
+  /**
+   * انقطاع العميل لا يُفشل التصيير: الكتابة على تيار مغلق تُبتلع ويكمل
+   * العمل حتى نهايته فيُسجَّل الناتج (لا إرجاع كريدت لتصيير ربما نجح).
+   */
+  let clientGone = false;
   const send = async (message: RenderProgress) => {
-    await writer.write(encoder.encode(formatSSE(message)));
+    if (clientGone) {
+      return;
+    }
+    try {
+      await writer.write(encoder.encode(formatSSE(message)));
+    } catch {
+      clientGone = true;
+    }
   };
-
-  const currentCredits = async (): Promise<number | null> =>
-    billing ? await billing.balance() : null;
 
   /** تسجيل مقاييس عملية ناجحة (كاش أو تصيير) وإرجاع أرقامها للعميل. */
   const reportSuccess = (
@@ -188,99 +230,30 @@ export async function POST(req: Request) {
   };
 
   const runRender = async () => {
-    const startMs = Date.now();
-    let renderId: string | null = null;
     try {
-      // 4) الكاش أولاً — قبل أي sandbox: نتيجة سابقة = صفر تكلفة
-      await send({ type: "phase", phase: "التحقق من الكاش...", progress: 0 });
-      const cached = await findCachedRender(cachePath, blobToken);
-      if (cached) {
-        const metrics = reportSuccess(
-          Math.round((Date.now() - startMs) / 1000),
-          cached.size,
-          true,
-        );
-        await send({
-          type: "done",
-          url: cached.url,
-          size: cached.size,
-          cached: true,
-          metrics,
-          credits: await currentCredits(),
-        });
-        return;
-      }
-
-      // 5) الكاش ليس تصييراً ⇒ الخصم الآن، قبل إنشاء أي مورد مدفوع
-      if (billing) {
-        const charged = await billing.charge();
-        if (!charged.ok) {
-          await send({
-            type: "error",
-            message: `رصيدك لا يكفي: التصيير يستهلك ${RENDER_CREDIT_COST} كريدت ولديك ${charged.credits}. أضف كريدت من لوحة الحساب ثم أعد المحاولة.`,
-          });
-          return;
-        }
-        renderId = await billing.startRender({
-          compositionId,
-          inputProps: inputPropsRecord,
-          cacheKey: cachePath,
-        });
-      }
-
-      const outcome = await runRenderOnce({
+      await executeRenderJob({
         compositionId,
         inputProps: inputPropsRecord,
-        blobPath: cachePath,
-        blobToken,
-        sessionKey,
-        onProgress: (event) =>
-          send({
-            type: "phase",
-            phase: event.phase,
-            progress: event.progress,
-            subtitle: event.subtitle,
+        cachePath,
+        billing,
+        send,
+        findCached: (path) => findCachedRender(path, blobToken),
+        render: (onProgress) =>
+          runRenderOnce({
+            compositionId,
+            inputProps: inputPropsRecord,
+            blobPath: cachePath,
+            blobToken,
+            sessionKey,
+            onProgress,
           }),
+        reportSuccess,
+        reportFailure,
       });
-
-      const metrics = reportSuccess(
-        outcome.sandboxWallSeconds,
-        outcome.size,
-        false,
-      );
-      if (billing) {
-        await billing.finishRender(renderId, {
-          status: "done",
-          url: outcome.url,
-          sizeBytes: outcome.size,
-          sandboxMs: outcome.sandboxWallSeconds * 1000,
-        });
-      }
-
-      await send({
-        type: "done",
-        url: outcome.url,
-        size: outcome.size,
-        cached: false,
-        metrics,
-        credits: await currentCredits(),
-      });
-    } catch (err) {
-      console.error(err);
-      reportFailure(Math.round((Date.now() - startMs) / 1000));
-      // الكريدت يُرجَع والصف يُغلق فاشلاً — لا استهلاك مقابل نتيجة غير موجودة
-      if (billing) {
-        await billing.refund();
-        await billing.finishRender(renderId, {
-          status: "error",
-          error: friendlyRenderError(err),
-        });
-      }
-      await send({ type: "error", message: friendlyRenderError(err) });
     } finally {
       // القفل يُستهلك فقط أثناء التصيير الفعلي — يُحرَّر دائماً هنا
       await releaseRenderLock(lockKey);
-      // إغلاق واحد آمن حتى مع عبارات return الداخلية أعلاه
+      // إغلاق واحد آمن حتى مع عبارات return الداخلية
       await writer.close().catch(() => {});
     }
   };

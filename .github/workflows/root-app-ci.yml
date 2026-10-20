@@ -1,0 +1,98 @@
+name: MY-VIDEO CI
+
+# Root Next.js + Remotion app only. King_Browser has its own jobs in ci.yml,
+# which this workflow does not touch.
+
+on:
+  push:
+    branches:
+      - main
+      - 'phase-*/**'
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: MY-VIDEO — lint, typecheck, migrations, tests, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    services:
+      # Disposable database for the multi-connection concurrency tests
+      # (src/lib/db/postgres.integration.test.ts). Never a real environment.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: myvideo
+          POSTGRES_PASSWORD: myvideo
+          POSTGRES_DB: myvideo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U myvideo -d myvideo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgres://myvideo:myvideo@localhost:5432/myvideo_test
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies (lockfile)
+        run: npm ci
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Check Drizzle migrations match the schema
+        run: |
+          npx drizzle-kit generate
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "::error::src/lib/db/schema.ts changed without a committed migration (run npx drizzle-kit generate)."
+            git status --porcelain drizzle
+            exit 1
+          fi
+
+      - name: Unit and integration tests (PGlite + PostgreSQL 16)
+        run: bun test
+
+      - name: Confirm the PostgreSQL concurrency suite ran (not skipped)
+        run: |
+          bun test src/lib/db/postgres.integration.test.ts 2>&1 | tee pg.log
+          if grep -Eq '^ *[1-9][0-9]* skip' pg.log || ! grep -Eq '^ *[1-9][0-9]* pass' pg.log; then
+            echo "::error::PostgreSQL concurrency tests were skipped — TEST_DATABASE_URL is not reaching the service."
+            exit 1
+          fi
+
+      # Builds without production secrets: this proves the app compiles and
+      # prerenders, not that a deployment with real Clerk/Stripe/Neon/Blob works.
+      - name: Production build (no secrets)
+        run: npx next build
