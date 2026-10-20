@@ -40,6 +40,8 @@ function restoreEnv(): void {
 }
 
 test("بلا مفاتيح Upstash: سقوط الذاكرة المحلية + بلا اتصال Redis", async () => {
+  // الحالة المحاكاة مشتركة بين الملفات (ترتيبها يتغير بين التشغيلات) — نبدأ نظيفين
+  resetUpstashMockState();
   ENV_KEYS.forEach((k) => delete process.env[k]);
   resetUpstashRedisForTests();
   try {
