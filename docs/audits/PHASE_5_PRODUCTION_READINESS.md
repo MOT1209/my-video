@@ -189,6 +189,14 @@ The migration was **not** run against Neon or any production database.
 
 In the CI job's `postgres:16` service log, the database rejects the concurrent duplicate requests with `duplicate key value violates unique constraint "renders_active_user_cache_uq"`. This confirms that the concurrency suite ran against real PostgreSQL in CI, and the explicit "not skipped" step also passed.
 
+**CI failure on `94a33f1` (a commit that changed only this file), then fixed in `a857d38`.**
+
+- **Failure:** the pre-existing test `rate-limit.test.ts` "بلا مفاتيح Upstash" failed in [run 39461255312](https://github.com/MOT1209/my-video/actions/runs/39461255312). It assumed the shared Upstash mock state was clean. Bun's file order varies between runs, and `render-lock.test` had run first.
+- **Reproduced locally** by pre-polluting that state with `--preload`: the test failed before the fix and passed after it.
+- **Fix:** reset the mock state at the start of the test.
+- **Re-run on `a857d38`:** all 7 checks passed: MY-VIDEO CI ([run 39461718660](https://github.com/MOT1209/my-video/actions/runs/39461718660)), both King_Browser jobs, CodeQL and Vercel.
+- **Correction to §10:** "3 identical local runs" did not prove the suite is order-independent. Order-dependent failures can still exist in other mock-based tests.
+
 A later commit that changes only this file re-runs the same workflow. Its result appears on the PR.
 
 ## 11. Tests not executed, and why
