@@ -177,7 +177,19 @@ The migration was **not** run against Neon or any production database.
 | `npm audit --omit=dev --audit-level=high` | 0 vulnerabilities |
 | `npx next build` (no secrets) | exit 0 |
 
-CI results on GitHub are recorded in the pull request. CI had not run when this file was written.
+**GitHub CI on commit `84950ae` (PR #8): all checks passed.**
+
+| Check | Result | Run |
+|---|---|---|
+| MY-VIDEO — lint, typecheck, migrations, tests, build | success | [run 39460512415](https://github.com/MOT1209/my-video/actions/runs/39460512415) (PR) · [run 39460469399](https://github.com/MOT1209/my-video/actions/runs/39460469399) (push) |
+| Test & Typecheck (King_Browser, unchanged) | success | [run 39460512410](https://github.com/MOT1209/my-video/actions/runs/39460512410) |
+| Website Build & Test (King_Browser, unchanged) | success | same run |
+| CodeQL Analysis (javascript-typescript) | success | [run 39460512333](https://github.com/MOT1209/my-video/actions/runs/39460512333) |
+| Vercel preview deployment | Ready | Vercel bot comment on PR #8 |
+
+In the CI job's `postgres:16` service log, the database rejects the concurrent duplicate requests with `duplicate key value violates unique constraint "renders_active_user_cache_uq"`. This confirms that the concurrency suite ran against real PostgreSQL in CI, and the explicit "not skipped" step also passed.
+
+A later commit that changes only this file re-runs the same workflow. Its result appears on the PR.
 
 ## 11. Tests not executed, and why
 
