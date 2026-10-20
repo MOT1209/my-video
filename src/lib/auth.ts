@@ -93,3 +93,42 @@ export function databaseNotConfiguredResponse(): NextResponse {
     { status: 503 },
   );
 }
+
+/**
+ * المسارات المكلفة (التصيير وتوليد السكربت والصور) في الإنتاج بلا Clerk:
+ * تُغلق افتراضياً بدل أن تبقى مفتوحة لأي زائر، لأن حد المعدل في الذاكرة
+ * لكل نسخة serverless على حدة ولا يحمي التكلفة. من يريد فتحها عمداً
+ * (أداة شخصية مثلاً) يضبط ALLOW_ANONYMOUS_PAID_ROUTES=true.
+ * في التطوير المحلي تبقى مفتوحة كما كانت.
+ */
+export function allowAnonymousPaidRoutes(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.ALLOW_ANONYMOUS_PAID_ROUTES === "true"
+  );
+}
+
+export function paidRoutesDisabledResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      type: "error",
+      message:
+        "هذه الميزة معطّلة حتى تُفعَّل المصادقة: أضف مفاتيح Clerk، أو اضبط ALLOW_ANONYMOUS_PAID_ROUTES=true لفتحها عمداً.",
+    },
+    { status: 503 },
+  );
+}
+
+/** بوابة موحّدة للمسارات المكلفة: مستخدم صالح أو ردّ جاهز للإرجاع. */
+export async function guardPaidRoute(): Promise<
+  { user: RequestUser } | { response: NextResponse }
+> {
+  const user = await getRequestUser();
+  if (!user) {
+    return { response: unauthorizedResponse() };
+  }
+  if (!user.authenticated && !allowAnonymousPaidRoutes()) {
+    return { response: paidRoutesDisabledResponse() };
+  }
+  return { user };
+}

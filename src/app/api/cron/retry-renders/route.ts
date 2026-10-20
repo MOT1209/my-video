@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { apiError } from "../../../../helpers/api-response";
 import { getDb } from "../../../../lib/db/client";
@@ -31,12 +32,23 @@ import { runRenderOnce } from "../../../../lib/render-runner";
  */
 export const maxDuration = 300;
 
+/** مقارنة بزمن ثابت كي لا يتسرّب السر عبر زمن الرد. */
+function secretMatches(received: string | null, expected: string): boolean {
+  if (received === null) {
+    return false;
+  }
+  const encoder = new TextEncoder();
+  const a = encoder.encode(received);
+  const b = encoder.encode(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
     return apiError("CRON_SECRET غير مهيأ — مسار الطابور معطّل.", 503);
   }
-  if (req.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+  if (!secretMatches(req.headers.get("authorization"), `Bearer ${cronSecret}`)) {
     return apiError("غير مصرّح.", 401);
   }
 

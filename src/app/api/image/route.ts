@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { executeApi } from "../../../helpers/api-response";
+import { guardPaidRoute } from "../../../lib/auth";
 import {
   checkRateLimit,
   clientIp,
@@ -28,6 +29,10 @@ const handleImage = executeApi(ImageRequest, async (req, body) => {
 
 /** 8 صور لكل IP كل 10 دقائق (توليد صور مكلف نسبياً). */
 export const POST = async (req: Request) => {
+  const guard = await guardPaidRoute();
+  if ("response" in guard) {
+    return guard.response;
+  }
   const verdict = await checkRateLimit(
     `image:${clientIp(req)}`,
     8,

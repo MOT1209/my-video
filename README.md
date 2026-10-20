@@ -101,7 +101,8 @@ npm run dev            # http://localhost:3000
 |---|---|---|
 | `BLOB_READ_WRITE_TOKEN` | **نعم** للتصيير | التصيير ورفع الصوت والخلفيات (الصوت المحلي يعمل) |
 | `GEMINI_API_KEY` (+ `GEMINI_MODEL`, `GEMINI_IMAGE_MODEL`) | اختياري | اقتراح السكربت والخلفيات وتفريغ الصوت |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | **موصى به بشدة** | تسجيل الدخول، ويبقى `/api/render` **مفتوحاً لأي زائر** (خطر تكلفة في الإنتاج) |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | **مطلوب لتفعيل التصيير في الإنتاج** | تسجيل الدخول. بدونهما **تُغلق في الإنتاج** مسارات التصيير وتوليد السكربت والصور (ردّ 503) حمايةً من التكلفة |
+| `ALLOW_ANONYMOUS_PAID_ROUTES` | اختياري، **بحذر** | `true` يفتح تلك المسارات لأي زائر بلا Clerk (أداة شخصية فقط). حد المعدل بلا Upstash يعمل في ذاكرة كل نسخة على حدة ولا يحمي التكلفة |
 | `DATABASE_URL` (Neon) | اختياري | المشاريع والكريدت وسجل التصييرات (تعطي 503 برسالة واضحة) |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | اختياري | شراء حزم الكريدت |
 | `CRON_SECRET` | اختياري | إعادة محاولة التصييرات الفاشلة (`/api/cron/retry-renders`) |

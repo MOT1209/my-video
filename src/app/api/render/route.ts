@@ -2,9 +2,9 @@ import { waitUntil } from "@vercel/functions";
 import { COMP_NAME, CompositionProps } from "../../../../types/constants";
 import { AnyRenderRequest } from "../../../../types/schema";
 import { SHORT_COMP_NAME, ShortProps } from "../../../../types/shorts";
+import { apiError } from "../../../helpers/api-response";
 import {
-  getRequestUser,
-  unauthorizedResponse,
+  guardPaidRoute,
   warnIfUnauthenticatedProduction,
 } from "../../../lib/auth";
 import { openBillingSession } from "../../../lib/billing-session";
@@ -45,10 +45,11 @@ import { formatSSE, type RenderProgress } from "./helpers";
  */
 export async function POST(req: Request) {
   // 1) الهوية أولاً — أرخص رفض، وقبل أي عمل مكلف
-  const requestUser = await getRequestUser();
-  if (!requestUser) {
-    return unauthorizedResponse();
+  const guard = await guardPaidRoute();
+  if ("response" in guard) {
+    return guard.response;
   }
+  const requestUser = guard.user;
   if (!requestUser.authenticated) {
     // وضع محلي/بلا مفاتيح: نبّه مرة واحدة في الإنتاج حتى لا يُنسى الفخ مفتوحاً
     warnIfUnauthenticatedProduction();
@@ -74,31 +75,44 @@ export async function POST(req: Request) {
     return rateLimitedResponse(verdict.retryAfterSec);
   }
 
-  const encoder = new TextEncoder();
-  const stream = new TransformStream();
-  const writer = stream.writable.getWriter();
-
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
   if (!blobToken) {
-    throw new Error(
-      'BLOB_READ_WRITE_TOKEN is not set. To fix this, go to vercel.com, log in, select Storage, click "Create Database", select "Blob", link it to your project, then add BLOB_READ_WRITE_TOKEN to your .env file.',
+    return apiError(
+      "التصيير غير مهيأ على الخادم: BLOB_READ_WRITE_TOKEN مطلوب (Vercel ← Storage ← Blob).",
+      503,
     );
   }
 
-  const payload = await req.json();
-  const body = AnyRenderRequest.parse(payload);
+  const payload = await req.json().catch(() => null);
+  const parsedBody = AnyRenderRequest.safeParse(payload);
+  if (!parsedBody.success) {
+    return apiError("طلب تصيير غير صالح.", 400);
+  }
+  const body = parsedBody.data;
+
+  const encoder = new TextEncoder();
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
 
   // تحقق من inputProps حسب التكوين المطلوب (MyComp القديم أو ShortsComp الجديد)
   let compositionId: string;
   let inputProps: unknown;
   if (body.id === SHORT_COMP_NAME) {
     compositionId = SHORT_COMP_NAME;
-    inputProps = ShortProps.parse(body.inputProps);
+    const shortProps = ShortProps.safeParse(body.inputProps);
+    if (!shortProps.success) {
+      return apiError("مدخلات الفيديو غير صالحة.", 400);
+    }
+    inputProps = shortProps.data;
   } else if (body.id === COMP_NAME) {
     compositionId = COMP_NAME;
-    inputProps = CompositionProps.parse(body.inputProps);
+    const compProps = CompositionProps.safeParse(body.inputProps);
+    if (!compProps.success) {
+      return apiError("مدخلات الفيديو غير صالحة.", 400);
+    }
+    inputProps = compProps.data;
   } else {
-    throw new Error(`Unknown composition id: ${body.id}`);
+    return apiError("معرّف التكوين غير معروف.", 400);
   }
 
   /** قفل موزّع: موضوع واحد = تصيير واحد نشط في كل نسخ الخادم. */

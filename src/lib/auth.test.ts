@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import {
+  allowAnonymousPaidRoutes,
   getRequestUser,
+  guardPaidRoute,
   isAuthConfigured,
   LOCAL_USER_ID,
   resetAuthModeWarningForTests,
@@ -113,5 +115,47 @@ test("التحذير يُطلق مرة واحدة في الإنتاج بلا م�
     console.warn = savedWarn;
     setNodeEnv(savedNodeEnv);
     resetAuthModeWarningForTests();
+  }
+});
+
+test("الإنتاج بلا Clerk: المسارات المكلفة تُغلق افتراضياً وتُفتح بالمتغير الصريح فقط", async () => {
+  const savedNodeEnv = process.env.NODE_ENV;
+  const savedAllow = process.env.ALLOW_ANONYMOUS_PAID_ROUTES;
+  const setNodeEnv = (value: string | undefined) => {
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value,
+      configurable: true,
+      writable: true,
+      enumerable: true,
+    });
+  };
+  try {
+    await withEnv({}, async () => {
+      setNodeEnv("production");
+      delete process.env.ALLOW_ANONYMOUS_PAID_ROUTES;
+      expect(allowAnonymousPaidRoutes()).toBe(false);
+      const closed = await guardPaidRoute();
+      expect("response" in closed).toBe(true);
+      if ("response" in closed) {
+        expect(closed.response.status).toBe(503);
+      }
+
+      process.env.ALLOW_ANONYMOUS_PAID_ROUTES = "true";
+      expect(allowAnonymousPaidRoutes()).toBe(true);
+      const open = await guardPaidRoute();
+      expect("user" in open && open.user.clerkId).toBe(LOCAL_USER_ID);
+
+      // التطوير المحلي يبقى مفتوحاً بلا متغير
+      delete process.env.ALLOW_ANONYMOUS_PAID_ROUTES;
+      setNodeEnv("development");
+      expect(allowAnonymousPaidRoutes()).toBe(true);
+    });
+  } finally {
+    setNodeEnv(savedNodeEnv);
+    if (savedAllow === undefined) {
+      delete process.env.ALLOW_ANONYMOUS_PAID_ROUTES;
+    } else {
+      process.env.ALLOW_ANONYMOUS_PAID_ROUTES = savedAllow;
+    }
   }
 });
