@@ -152,7 +152,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         } catch (_) {
           return;
         }
-        if (e.data && e.data.type === 'NOVA_THEME_CHANGE') {
+        if (e.data && e.data.type === 'KING_THEME_CHANGE') {
           const newTheme = e.data.theme === 'light' ? 'light' : 'dark';
           setSettings(s => ({ ...s, theme: newTheme }));
         }
@@ -168,14 +168,14 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
     if (demoParams.isDemo) {
       if (demoParams.feature === 'ai') {
         return [
-          { id: '1', url: 'https://github.com/MOT1209/my-video', title: 'King Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
+          { id: '1', url: 'https://github.com/MOT1209/King_Browser', title: 'King Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
           { id: '2', url: 'king://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false }
         ];
       }
       if (demoParams.feature === 'website') {
         return [
           { id: '1', url: 'king://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false },
-          { id: '2', url: 'https://github.com/MOT1209/my-video', title: 'King Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
+          { id: '2', url: 'https://github.com/MOT1209/King_Browser', title: 'King Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
           { id: '3', url: 'https://react.dev', title: 'React Documentation', isLoading: false, canGoBack: false, canGoForward: false }
         ];
       }
@@ -2140,7 +2140,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         )}
       </React.Suspense>
 
-      {/* NOVA ACCOUNT & CLOUD SYNC MODAL */}
+      {/* KING ACCOUNT & CLOUD SYNC MODAL */}
       <React.Suspense fallback={null}>
         {isAccountModalOpen && (
           <AccountModal
