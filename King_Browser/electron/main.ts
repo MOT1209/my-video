@@ -143,6 +143,7 @@ import {
 import { BrowserMCPServer } from './mcpServer.js';
 import { registerEngineIpc } from './main/engineIpc.js';
 import { initMcpBridge } from './main/mcpBridge.js';
+import { canOpenInSystemBrowser, isGoogleEmbeddedSigninRejection, pickSystemBrowserUrl } from './main/googleSigninFallback.js';
 import { initDownloads, markNextDownloadAsSaveAs, registerDownloadsManager, registerKnownDownloadPath, isSafeDownloadUrl, sanitizeDownloadFilename } from './main/downloads.js';
 import { initSuggestions } from './main/suggestions.js';
 import { installFromWebstore, parseExtensionPermissions, formatPermissionsForDisplay } from './main/crxInstaller.js';
@@ -840,7 +841,12 @@ function createWindow() {
     mainWindow.loadFile(distHtmlPath);
   } else {
     let attempts = 0;
-    const maxAttempts = fs.existsSync(distHtmlPath) ? 2 : 20;
+    // `npm run dev` starts Vite and Electron together and Vite can take well
+    // over 10s to be ready. Falling back to dist/ after two quick attempts
+    // loaded a stale build instead of the dev server, so under `npm run dev`
+    // wait up to ~60s (200 x 300ms). Plain `electron .` keeps the fast fallback.
+    const startedByNpmDev = process.env.npm_lifecycle_event === 'dev';
+    const maxAttempts = startedByNpmDev ? 200 : (fs.existsSync(distHtmlPath) ? 2 : 20);
     const loadDev = () => {
       attempts++;
       mainWindow?.loadURL(devUrl).catch(() => {
@@ -4095,8 +4101,42 @@ export async function openPageSourceViewer(currentUrl: string, wc?: any): Promis
   return sourceWin;
 }
 
+// Google rejects sign-in inside embedded browsers. Offer the user's default
+// browser instead of a dead end; never try to evade the check.
+function watchGoogleSigninRejection(wc: Electron.WebContents): void {
+  let lastNonGoogleUrl: string | null = null;
+  let prompting = false;
+  wc.on('did-navigate', (_e, url) => {
+    if (!isGoogleEmbeddedSigninRejection(url)) {
+      try {
+        if (new URL(url).hostname !== 'accounts.google.com') lastNonGoogleUrl = url;
+      } catch {}
+      return;
+    }
+    if (prompting) return;
+    prompting = true;
+    const target = pickSystemBrowserUrl(lastNonGoogleUrl);
+    const options: Electron.MessageBoxOptions = {
+      type: 'info',
+      message: 'Google blocked sign-in in this browser',
+      detail: `Google does not allow signing in from embedded browsers such as King Browser. You can continue in your default browser:\n${target}`,
+      buttons: ['Open in Default Browser', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1
+    };
+    const shown = mainWindow && !mainWindow.isDestroyed()
+      ? dialog.showMessageBox(mainWindow, options)
+      : dialog.showMessageBox(options);
+    shown.then(({ response }) => {
+      if (response === 0) return shell.openExternal(target);
+    }).catch((err) => console.error('[Google Sign-in] Fallback failed:', err))
+      .finally(() => { prompting = false; });
+  });
+}
+
 // Auto-capture thumbnails and Native Chrome-Parity Context Menu for WebViews
 app.on('web-contents-created', (_event, wc) => {
+  if (wc.getType() === 'webview') watchGoogleSigninRejection(wc);
   wc.removeAllListeners('context-menu');
   wc.on('context-menu', (e, params) => {
     // Only show for webviews
@@ -4151,6 +4191,7 @@ app.on('web-contents-created', (_event, wc) => {
         forward: 'Forward',
         reload: 'Reload',
         translatePage: 'Translate Page',
+        openInSystemBrowser: 'Open Page in Default Browser',
         savePageAs: 'Save As...',
         print: 'Print...',
         viewSource: 'View Page Source',
@@ -4473,6 +4514,17 @@ app.on('web-contents-created', (_event, wc) => {
               if (!wc.isDestroyed()) {
                 sendToMainWindow('trigger-page-translation', { targetLang: 'en', webContentsId: wc.id });
               }
+            }
+          }));
+        }
+
+        // Sites that refuse embedded browsers (Google sign-in) still work in
+        // the user's regular browser.
+        if (activePageUrl && canOpenInSystemBrowser(activePageUrl)) {
+          menu.append(new MenuItem({
+            label: labels.openInSystemBrowser,
+            click: () => {
+              shell.openExternal(activePageUrl).catch((err) => console.error('[Open Externally] Failed:', err));
             }
           }));
         }

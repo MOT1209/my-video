@@ -5,6 +5,7 @@ import ts from 'typescript';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
+import * as mcpActionTiming from '../src/utils/mcpActionTiming';
 
 function loadSource(file: string, globals: Record<string, unknown>, imports: Record<string, unknown>) {
   const exports: any = {};
@@ -22,7 +23,7 @@ async function run() {
   const events: any[][] = [];
   const mainBridge = loadSource('electron/main/mcpBridge.ts', {
     setTimeout: (fn: Function) => { timerCallbacks.push(fn); return timerCallbacks.length; }, clearTimeout: () => {}
-  }, { electron: { ipcMain: { on: () => {} } }, crypto });
+  }, { electron: { ipcMain: { on: () => {} } }, crypto, '../../src/utils/mcpActionTiming.js': mcpActionTiming });
   const win = { isDestroyed: () => false, webContents: { send: (...args: any[]) => events.push(args) } };
   const pending = mainBridge.requestRendererMcpAction(win, 'browser_click', {});
   const rejected = assert.rejects(pending, /timed out/);
@@ -57,6 +58,7 @@ async function run() {
       denyAction: () => { denied++; approve(false); }, updateActionState: () => {}
     } },
     '../utils/safeNavigation': { isSafeAgentNavigationUrl: (url: string) => url === 'king://newtab' || url.startsWith('https://') },
+    '../utils/mcpActionTiming': mcpActionTiming,
     '../utils/searchHistoryBookmarks': { searchHistoryAndBookmarks: () => [] }
   });
   hook.useBrowserAgentBridge({ activeTabId: 'tab', tabs: [], history: [], bookmarks: [], settingsRef,

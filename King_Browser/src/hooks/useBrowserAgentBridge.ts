@@ -6,6 +6,7 @@ import { orchestrator } from '../services/agentOrchestrator';
 // navigation one: agent-supplied URLs are untrusted, and the general predicate
 // deliberately permits loopback/private hosts for real user navigation.
 import { isSafeAgentNavigationUrl } from '../utils/safeNavigation';
+import { MCP_ACTION_TIMEOUT_MS, MCP_APPROVAL_WINDOW_MS } from '../utils/mcpActionTiming';
 
 /**
  * Full agent-boundary check: the synchronous renderer policy plus a
@@ -752,10 +753,19 @@ export function useBrowserAgentBridge({
         }
         const pending: { approvalId?: string; timer?: ReturnType<typeof setTimeout>; cancelled: boolean } = { cancelled: false };
         pendingActions.set(id, pending);
-        pending.timer = setTimeout(() => cancelAction(id), Math.max(0, deadline - Date.now()));
+        // The deadline moves with the phase: the approval window while the user
+        // decides, then a fresh execution window once approved. The main process
+        // re-arms its own timers from the phase we report (fixed constants).
+        let actionDeadline = deadline;
+        const armDeadline = (until: number) => {
+          actionDeadline = until;
+          if (pending.timer) clearTimeout(pending.timer);
+          pending.timer = setTimeout(() => cancelAction(id), Math.max(0, until - Date.now()));
+        };
+        armDeadline(deadline);
         const approvedTarget = captureTarget();
         const targetIndependent = new Set(['king_browser_info', 'browser_list_tabs', 'browser_get_url', 'browser_wait', 'browser_new_tab']);
-        const canExecute = () => !pending.cancelled && Date.now() < deadline && Boolean(settingsRef.current?.mcpServerEnabled) &&
+        const canExecute = () => !pending.cancelled && Date.now() < actionDeadline && Boolean(settingsRef.current?.mcpServerEnabled) &&
           (targetIndependent.has(toolName) || targetIsCurrent(approvedTarget));
         const finish = () => {
           if (pending.timer) clearTimeout(pending.timer);
@@ -792,10 +802,16 @@ export function useBrowserAgentBridge({
         if (safeMetadataTools.has(toolName)) {
           runAction();
         } else {
+          armDeadline(Date.now() + MCP_APPROVAL_WINDOW_MS);
+          electronAPI.reportMcpActionPhase?.(id, 'awaiting-approval');
           const { id: approvalId, done } = orchestrator.enqueueAction(toolName, args);
           pending.approvalId = approvalId;
           done.then(approved => {
             if (approved) {
+              if (!pending.cancelled && Date.now() < actionDeadline) {
+                armDeadline(Date.now() + MCP_ACTION_TIMEOUT_MS);
+                electronAPI.reportMcpActionPhase?.(id, 'executing');
+              }
               runAction();
             } else {
               if (!pending.cancelled) electronAPI.respondMcpAction?.(id, { error: 'MCP tool execution denied by user approval policy.' });
