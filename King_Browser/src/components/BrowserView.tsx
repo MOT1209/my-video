@@ -431,6 +431,16 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
     [isNewTab, isSettingsTab, isHistoryTab, isDownloadsTab, isChangelogTab]
   );
 
+  // The <webview> src is set once per mounted element. Electron reloads the
+  // guest (as a GET) whenever the src attribute changes, and the navigation
+  // handlers below rewrite tab.url before a navigation commits, so binding src
+  // to tab.url aborted login form POSTs, replayed OAuth redirects and reloaded
+  // SPA sign-in steps. Later navigations go through the loadURL effect.
+  const webviewSrc = React.useMemo(
+    () => getSafeUrl(tab?.url),
+    [tab?.id, rendersWebview, tab?.isSuspended]
+  );
+
   const latestTabRef = useRef(tab);
   // Latest-settings ref: the main webview effect intentionally does NOT depend
   // on `settings` (re-running would re-attach 18 listeners and reset webview
@@ -509,7 +519,9 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
             isPlayingAudio: false
           };
           setCrashInfo({ crashed: false });
-          if (targetUrl && targetUrl !== 'about:blank') {
+          // In-page (pushState/hash) navigations are reported by
+          // did-navigate-in-page; updating the URL here as well is redundant.
+          if (targetUrl && targetUrl !== 'about:blank' && !e?.isInPlace) {
             lastLoadedUrl.current = targetUrl;
             updates.url = targetUrl;
           }
@@ -844,7 +856,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
           setAutofillMenu(prev => (prev?.isOpen ? { ...prev, isOpen: false } : null));
           autofillBlurTimerRef.current = null;
         }, 300);
-      } else if (e.channel === 'nova-link-hover' && e.args?.[0]) {
+      } else if (e.channel === 'king-link-hover' && e.args?.[0]) {
         if (latestSettingsRef.current?.aiLinkPreviewEnabled === false || !latestIsActiveRef.current) return;
         const data = e.args[0];
         if (typeof data.url === 'string' && data.url.startsWith('https://')) {
@@ -864,7 +876,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
             y: Number(data.y) || 0
           });
         }
-      } else if (e.channel === 'nova-link-hover-out') {
+      } else if (e.channel === 'king-link-hover-out') {
         setAiPreview(prev => (prev.isOpen ? { ...prev, isOpen: false } : prev));
       }
     };
@@ -1354,11 +1366,14 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
             ref={webviewRef}
             data-tab-id={tab.id}
             partition={isIncognito && tab?.id ? `incognito-${tab.id}` : undefined}
-            src={getSafeUrl(tab.url)}
+            src={webviewSrc}
+            // Lets sign-in popups (window.open) reach setWindowOpenHandler in
+            // main. React drops a boolean `true` on this element, so pass a string.
+            allowpopups={'true' as any}
             className="w-full h-full flex-1 border-none bg-white absolute inset-0"
             webpreferences="contextIsolation=yes, nodeIntegration=no, webSecurity=yes, sandbox=yes"
           />
-        ) : isDemo && tab?.url === 'https://github.com/MOT1209/my-video' ? (
+        ) : isDemo && tab?.url === 'https://github.com/MOT1209/King_Browser' ? (
           <div className="w-full h-full bg-[#0d1117] text-[#c9d1d9] flex flex-col overflow-y-auto font-sans p-6 sm:p-8 select-none">
             <div className="max-w-3xl mx-auto w-full flex flex-col gap-6 my-auto">
               {/* GitHub Repo Header */}
@@ -1371,14 +1386,14 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
                     <div className="flex items-center gap-2">
                       <span className="text-[#58a6ff] hover:underline font-semibold text-base cursor-pointer">MOT1209</span>
                       <span className="text-[#8b949e]">/</span>
-                      <span className="text-[#58a6ff] font-bold text-base cursor-pointer">my-video</span>
+                      <span className="text-[#58a6ff] font-bold text-base cursor-pointer">King_Browser</span>
                       <span className="text-[11px] px-2 py-0.5 rounded-full border border-[#30363d] text-[#8b949e] font-medium">Public</span>
                     </div>
                     <p className="text-xs text-[#8b949e] mt-0.5">An open source sovereign browser built with React and Electron</p>
                   </div>
                 </div>
                 <a
-                  href="https://github.com/MOT1209/my-video"
+                  href="https://github.com/MOT1209/King_Browser"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3.5 py-1.5 bg-[#238636] hover:bg-[#2ea043] text-white rounded-md text-xs font-semibold flex items-center gap-2 transition-colors shadow-sm"

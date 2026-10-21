@@ -28,10 +28,11 @@ import { tts } from '../services/tts';
 import { getLocale } from '../services/i18n';
 import { isSafeNavigationUrl } from '../utils/safeNavigation';
 import { copyTextToClipboard } from '../utils/clipboard';
+import { AssistantApprovalCard } from './AssistantApprovalCard';
 import { useSafeTimeout } from '../hooks/useSafeTimeout';
 import type { ChatCompletionMessageParam } from '@mlc-ai/web-llm';
 import { PromptInput } from './ui/ai-chat-input';
-import { NovaAssistantIcon } from './ui/NovaAssistantIcon';
+import { KingAssistantIcon } from './ui/KingAssistantIcon';
 
 /**
  * Takes the next supersession token for a model load.
@@ -111,7 +112,7 @@ const MARKDOWN_COMPONENTS: Components = {
   },
   p: ({ children }) => <p className="my-1 leading-relaxed break-words">{children}</p>,
   pre: ({ children }) => (
-    <pre className="max-w-full overflow-x-auto rounded-xl p-3 my-2 bg-slate-950 text-slate-100 border border-slate-800 text-xs font-mono nova-chat-scroll">
+    <pre className="max-w-full overflow-x-auto rounded-xl p-3 my-2 bg-slate-950 text-slate-100 border border-slate-800 text-xs font-mono king-chat-scroll">
       {children}
     </pre>
   ),
@@ -194,7 +195,7 @@ const ChatMessageItem = React.memo(function ChatMessageItem({
             <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isReasoningOpen ? 'rotate-180' : ''}`} />
           </button>
           {isReasoningOpen && (
-            <div className="p-3 border-t border-slate-200/60 dark:border-white/5 text-[11.5px] leading-relaxed font-mono text-slate-600 dark:text-slate-400 whitespace-pre-wrap max-h-52 nova-chat-scroll">
+            <div className="p-3 border-t border-slate-200/60 dark:border-white/5 text-[11.5px] leading-relaxed font-mono text-slate-600 dark:text-slate-400 whitespace-pre-wrap max-h-52 king-chat-scroll">
               {msg.reasoning.text}
             </div>
           )}
@@ -306,8 +307,8 @@ export const SidePanel = React.memo(({
         {
           role: 'assistant',
           content: isTr
-            ? '### Açık Sekmeler\n1. [King Browser - Ana Sayfa](king://newtab)\n2. [Dokümantasyon](https://docs.king-browser.org)'
-            : '### Open Tabs\n1. [King Browser - Home](king://newtab)\n2. [Documentation](https://docs.king-browser.org)',
+            ? '### Açık Sekmeler\n1. [King Browser - Ana Sayfa](king://newtab)\n2. [GitHub](https://github.com/MOT1209/King_Browser)'
+            : '### Open Tabs\n1. [King Browser - Home](king://newtab)\n2. [GitHub](https://github.com/MOT1209/King_Browser)',
         },
       ];
     }
@@ -758,7 +759,7 @@ export const SidePanel = React.memo(({
     <AnimatePresence>
       {isOpen && (
         <motion.aside
-          key="nova-ai-sidepanel"
+          key="king-ai-sidepanel"
           initial={{ width: 0, opacity: 0 }}
           animate={{ width: 420, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
@@ -784,7 +785,7 @@ export const SidePanel = React.memo(({
                 {/* Left: Brand title & model indicator */}
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5 font-semibold text-xs text-slate-800 dark:text-slate-100">
-                    <NovaAssistantIcon size={15} active={isLoading || isInitializing} />
+                    <KingAssistantIcon size={15} active={isLoading || isInitializing} />
                     <span className="tracking-tight font-medium">King AI</span>
                   </div>
                   {isInitializing ? (
@@ -828,7 +829,7 @@ export const SidePanel = React.memo(({
       <div
         ref={scrollContainerRef}
         onScroll={handleChatScroll}
-        className="relative flex-1 p-4 nova-chat-scroll flex flex-col gap-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/25"
+        className="relative flex-1 p-4 king-chat-scroll flex flex-col gap-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-400 dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/25"
       >
         {/* Model Download Progress Card */}
         {isInitializing && (
@@ -862,7 +863,7 @@ export const SidePanel = React.memo(({
         {messages.length === 0 && !isLoading && (
           <div className="my-auto flex flex-col items-center justify-center text-center px-4 py-8">
             <div className="mb-3.5 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-white/10 text-cyan-500 shadow-2xs">
-              <NovaAssistantIcon size={20} active={false} />
+              <KingAssistantIcon size={20} active={false} />
             </div>
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
               {isTr ? 'King Asistan' : 'King Assistant'}
@@ -950,6 +951,7 @@ export const SidePanel = React.memo(({
           </div>
         )}
 
+        <AssistantApprovalCard />
         <div ref={messagesEndRef} />
         {showScrollButton && (
           <button
