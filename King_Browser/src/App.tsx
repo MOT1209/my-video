@@ -99,6 +99,7 @@ const AICursorOverlay = lazyWithRetry(() => import('./components/AICursorOverlay
 const FindInPage = lazyWithRetry(() => import('./components/FindInPage').then(m => ({ default: m.FindInPage })));
 const DownloadToast = lazyWithRetry(() => import('./components/DownloadToast').then(m => ({ default: m.DownloadToast })));
 const UpdateToast = lazyWithRetry(() => import('./components/UpdateToast').then(m => ({ default: m.UpdateToast })));
+const AgentApprovalPrompt = lazyWithRetry(() => import('./components/AgentApprovalPrompt').then(m => ({ default: m.AgentApprovalPrompt })));
 
 // VpnPopover requires an anchorRef prop, but no element ever attaches to it
 // (the VPN toggle lives inside TopBar's more-menu, which is unmounted while
@@ -2154,6 +2155,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
       <React.Suspense fallback={null}>
         <DownloadToast activeDownload={activeDownload} />
         <UpdateToast />
+        <AgentApprovalPrompt />
         {blockedSiteAlert && (
           <BlockedSiteModal alert={blockedSiteAlert} onClose={handleCloseBlockedSiteAlert} />
         )}

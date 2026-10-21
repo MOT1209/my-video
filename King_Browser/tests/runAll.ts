@@ -96,5 +96,6 @@ import './policy_engine.test';
 import './mcp_engine_wiring.test';
 import './engine_ipc.test';
 import './runtime_error_fixes.test';
+import './agent_approval_prompt.test';
 // Renders the §10 control panel in jsdom with its own window/document globals.
 import './agent_control_panel.test';
