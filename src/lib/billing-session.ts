@@ -116,12 +116,8 @@ export async function openBillingSession(
       if (!charged || refunded) {
         return;
       }
+      await addCredits(db, row.id, RENDER_CREDIT_COST);
       refunded = true;
-      try {
-        await addCredits(db, row.id, RENDER_CREDIT_COST);
-      } catch (err) {
-        console.error("billing: فشل إرجاع الكريدت بعد فشل التصيير", err);
-      }
     },
 
     async startRender(args) {

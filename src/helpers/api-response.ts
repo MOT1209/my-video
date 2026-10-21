@@ -31,20 +31,28 @@ export const executeApi =
     handler: (req: Request, body: z.infer<Req>) => Promise<Res>,
   ) =>
   async (req: Request) => {
+    if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+      return apiError("أرسل الطلب بصيغة application/json.", 415);
+    }
+
+    let payload: unknown;
     try {
-      const payload = await req.json();
-      const parsed = schema.parse(payload);
-      const data = await handler(req, parsed);
-      return NextResponse.json({
-        type: "success",
-        data: data,
-      });
+      payload = await req.json();
+    } catch {
+      return apiError("تعذّر قراءة JSON صالح.", 400);
+    }
+
+    const parsed = schema.safeParse(payload);
+    if (!parsed.success) {
+      return apiError("بيانات الطلب غير صالحة.", 400);
+    }
+
+    try {
+      const data = await handler(req, parsed.data);
+      return apiSuccess(data);
     } catch (err) {
-      return NextResponse.json(
-        { type: "error", message: (err as Error).message },
-        {
-          status: 500,
-        },
-      );
+      const errorName = err instanceof Error ? err.name : "unknown";
+      console.error(`api: تعذّر تنفيذ الطلب (${errorName})`);
+      return apiError("تعذّر تنفيذ الطلب حالياً.", 502);
     }
   };

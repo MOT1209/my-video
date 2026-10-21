@@ -1,0 +1,206 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8" /></head>
+<body>
+<template>
+<style>
+  #root { position: absolute; inset: 0; overflow: hidden; background: #0f0f13; }
+  #i1-room { position: absolute; inset: 0; background: radial-gradient(ellipse 1100px 760px at 38% 46%, #2c2c38 0%, #17171e 55%, #0b0b0e 100%); }
+  #i1-cam { position: absolute; inset: 0; transform-origin: 34% 48%; }
+  #i1-lampglow { position: absolute; left: 960px; top: -120px; width: 1000px; height: 980px;
+    background: radial-gradient(ellipse 480px 520px at 50% 40%, rgba(255,220,139,.32), rgba(255,220,139,0) 70%); }
+  #i1-desk { position: absolute; left: -60px; right: -60px; top: 858px; height: 300px; background: #1d1d26; border-top: 6px solid #000; }
+  #i1-desk-edge { position: absolute; left: -60px; right: -60px; top: 858px; height: 18px; background: #2b2b38; }
+  /* evidence board */
+  #i1-board { position: absolute; left: 1000px; top: 150px; width: 860px; height: 560px; background: var(--k-cream);
+    border: 6px solid #000; box-shadow: 14px 14px 0 #000; transform-origin: 50% 50%; }
+  #i1-board-title { position: absolute; left: 26px; top: -30px; }
+  .i1-tile { position: absolute; width: 236px; height: 152px; background: #fff; border: 4px solid #000; box-shadow: 6px 6px 0 #000; overflow: hidden; }
+  .i1-tile img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+  .i1-pin { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--k-red); border: 4px solid #000; }
+  #i1-strings { position: absolute; left: 0; top: 0; width: 860px; height: 560px; overflow: visible; }
+  #i1-boarddim { position: absolute; inset: -6px; background: #0b0b0e; }
+  /* A.I. stamp over the board */
+  #i1-ai-wrap { position: absolute; left: 1090px; top: 240px; width: 760px; height: 420px; }
+  #i1-ai, #i1-ai-r, #i1-ai-c { position: absolute; left: 0; top: 0; font-size: 360px; white-space: nowrap; }
+  #i1-ai-r, #i1-ai-c { -webkit-text-stroke: 0; text-shadow: none; }
+  #i1-ai-r { color: #ff3b3b; mix-blend-mode: screen; }
+  #i1-ai-c { color: #3bf4ff; mix-blend-mode: screen; }
+  #i1-censor { left: -18px; top: 74px; width: 330px; height: 210px; transform-origin: 0 50%; }
+  #i1-S { position: absolute; left: -6px; top: 34px; width: 300px; height: 300px; display: flex; align-items: center; justify-content: center;
+    background: var(--k-yellow); border: 8px solid #000; box-shadow: 14px 14px 0 #000; font-size: 250px; }
+  #i1-week { position: absolute; left: 70px; top: 372px; }
+  /* folder */
+  #i1-folder { position: absolute; left: 730px; top: 712px; width: 420px; height: 210px; }
+  #i1-folder-tab { position: absolute; left: 0; top: -34px; width: 170px; height: 40px; background: #e8c070; border: 5px solid #000; border-bottom: 0; }
+  #i1-folder-body { position: absolute; inset: 0; background: #f2cd7e; border: 5px solid #000; box-shadow: 10px 10px 0 #000; display: flex; flex-direction: column; justify-content: center; padding: 0 26px; gap: 10px; }
+  #i1-folder-t { font: 900 46px/1 "Inter", sans-serif; letter-spacing: -0.02em; text-transform: uppercase; }
+  #i1-folder-s { font: 700 22px/1 "Space Grotesk", sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+  #i1-rec { position: absolute; left: 70px; top: 60px; background: #fff; }
+  #i1-rec .k-dot { background: var(--k-red); }
+  #i1-report { position: absolute; left: 236px; top: 60px; background: var(--k-cream); }
+  #i1-camsvg { position: absolute; right: -20px; top: -150px; width: 420px; height: 420px; transform-origin: 72% 0%; }
+  #i1-scratch { position: absolute; left: 1000px; top: 160px; width: 900px; height: 600px; }
+  #i1-siren { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, rgba(255,90,78,.75), rgba(255,90,78,0) 70%); mix-blend-mode: screen; }
+  #i1-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 40% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,.55) 100%); pointer-events: none; }
+</style>
+
+<div id="root" data-composition-id="01-intro" data-width="1920" data-height="1080" data-duration="11.935">
+  <div id="i1-room"><div class="k-dots-light"></div></div>
+  <div id="i1-cam">
+    <div id="i1-lampglow"></div>
+    <div id="i1-board">
+      <div id="i1-board-host"></div>
+      <svg id="i1-strings" viewBox="0 0 860 560"><g fill="none" stroke="#ff5a4e" stroke-width="5">
+        <path d="M150 70 L430 90 L720 70"/><path d="M150 70 L180 300 L430 320"/><path d="M430 90 L430 320 L700 300"/><path d="M720 70 L700 300"/><path d="M180 300 L430 320"/></g></svg>
+      <div id="i1-board-title"><span class="k-pill" style="background:var(--k-pink)">This week in A.I.</span></div>
+      <div id="i1-boarddim"></div>
+    </div>
+    <div id="i1-desk"></div><div id="i1-desk-edge"></div>
+    <div id="i1-ai-wrap">
+      <div id="i1-ai-c" class="k-disp">A.I.</div>
+      <div id="i1-ai-r" class="k-disp">A.I.</div>
+      <div id="i1-ai" class="k-disp k-sticker-text"><span id="i1-a" class="k-ch">A</span><span id="i1-d1" class="k-ch">.</span><span id="i1-i" class="k-ch">I</span><span id="i1-d2" class="k-ch">.</span></div>
+      <div id="i1-censor" class="k-censor"></div>
+      <div id="i1-S" class="k-disp">S</div>
+      <div id="i1-week"><span class="k-pill lg" style="background:var(--k-pink)">This week · Oct 5–11</span></div>
+    </div>
+    <div id="i1-agent-host"></div>
+    <div id="i1-folder"><div id="i1-folder-tab"></div><div id="i1-folder-body"><div id="i1-folder-t">Weekly report</div><div id="i1-folder-s">Oct 5–11, 2026 · for: the boss</div></div></div>
+    <svg id="i1-scratch" viewBox="0 0 900 600"><path d="M20 300 L120 210 L200 360 L290 180 L380 420 L470 150 L560 400 L650 220 L740 330 L880 260" fill="none" stroke="#fff" stroke-width="16" stroke-linejoin="bevel"/><path d="M20 330 L120 240 L200 390 L290 210 L380 450 L470 180 L560 430 L650 250 L740 360 L880 290" fill="none" stroke="#ff5a4e" stroke-width="8" stroke-linejoin="bevel"/></svg>
+    <svg id="i1-camsvg" width="420" height="420" viewBox="0 -60 300 300" style="overflow:visible">
+      <rect x="196" y="-400" width="22" height="520" fill="#000"/>
+      <g id="i1-camhead"><rect x="70" y="112" width="200" height="98" fill="#e9e9ee" stroke="#000" stroke-width="9"/><rect x="40" y="132" width="40" height="58" fill="#e9e9ee" stroke="#000" stroke-width="9"/>
+        <circle cx="60" cy="161" r="16" fill="#000"/><circle id="i1-camled" cx="244" cy="136" r="11" fill="#ff5a4e" stroke="#000" stroke-width="4"/></g>
+    </svg>
+    <div id="i1-rec" class="k-pill"><span class="k-dot" id="i1-recdot"></span>REC</div>
+    <div id="i1-report" class="k-pill">Weekly report</div>
+  </div>
+  <div id="i1-siren"></div>
+  <div id="i1-vignette"></div>
+  <div id="i1-flash" class="k-flash"></div>
+</div>
+
+<script>
+(function () {
+  const ID = "i1-ag";
+  const TILES = [
+    ["mistral-large-4", 30, 60, -4], ["trump-axios", 312, 40, 3], ["retraction-math", 600, 52, -2],
+    ["anthropic-haiku", 60, 262, 3], ["gpt6-9to5mac", 316, 262, -3], ["nadella-brake-tc", 590, 252, 4],
+  ];
+  const PINS = [[150, 70], [430, 90], [720, 70], [180, 300], [430, 320], [700, 300]];
+  document.getElementById("i1-board-host").innerHTML =
+    TILES.map((t, i) => `<div id="i1-t${i}" class="i1-tile" style="left:${t[1]}px;top:${t[2]}px"><img src="assets/shots/${t[0]}.jpg"/></div>`).join("") +
+    PINS.map((p, i) => `<div id="i1-p${i}" class="i1-pin" style="left:${p[0] - 13}px;top:${p[1] - 13}px"></div>`).join("");
+  document.getElementById("i1-agent-host").innerHTML = KIT.mascot({ id: ID, size: 640, body: "pink", style: "position:absolute;left:250px;top:96px" });
+  KIT.rig(ID);
+  const tl = gsap.timeline({ paused: true });
+
+  /* ---- initial state: applied NOW (so frame 0 is right) and at t=0 on the timeline ---- */
+  const init = (sel, props) => { gsap.set(sel, props); tl.set(sel, props, 0); };
+  TILES.forEach((t, i) => init("#i1-t" + i, { rotation: t[3] }));
+  init("#i1-ai-wrap", { opacity: 0 });
+  init(["#i1-ai-r", "#i1-ai-c"], { opacity: 0, x: 0, y: 0 });
+  init("#i1-censor", { scaleX: 0 });
+  init("#i1-S", { opacity: 0 });
+  init("#i1-week", { opacity: 0 });
+  init("#i1-camsvg", { y: -720, rotation: 0 });
+  init(["#i1-siren", "#i1-flash", "#i1-scratch"], { opacity: 0 });
+  init("#i1-boarddim", { opacity: 0.62 });
+  init("#i1-lampglow", { opacity: 0.25 });
+  init("#i1-folder", { opacity: 0, y: -260, rotation: -14 });
+  init("#i1-cam", { scale: 1, x: 0, y: 0 });
+  const pre = gsap.timeline({ paused: true }); KIT.face(pre, ID, "sleep", 0); KIT.pose(pre, ID, "down", 0, 0); pre.progress(1);
+  KIT.face(tl, ID, "sleep", 0);
+
+  tl.fromTo("#" + ID + "-all", { scale: 0.94, y: 16 }, { scale: 1, y: 0, duration: 0.35, ease: "back.out(2.5)" }, 0);
+  tl.fromTo(["#i1-rec", "#i1-report"], { y: -120 }, { y: 0, duration: 0.4, ease: "back.out(2)", stagger: 0.08 }, 0.05);
+  KIT.beatsIn(0, 11.935).forEach((b, i) => tl.set("#i1-recdot", { opacity: i % 2 ? 0.15 : 1 }, b));
+  // slow push-in on the agent through the spoken opening
+  tl.to("#i1-cam", { scale: 1.07, duration: 4.4, ease: "sine.inOut" }, 0.1);
+
+  /* ---- "Yo boss, it's your agent." (0.00–1.9): boot up, lamp clicks on, wave, folder slap ---- */
+  tl.fromTo("#" + ID + "-bulb", { fill: "#3a3a3a" }, { fill: "#f7cb46", duration: 0.05 }, 0.08);
+  tl.set("#i1-boarddim", { opacity: 0.18 }, 0.24);
+  tl.set("#i1-lampglow", { opacity: 1 }, 0.24);
+  KIT.face(tl, ID, "happy", 0.24);
+  KIT.pose(tl, ID, "wave", 0.2, 0.2);
+  KIT.wave(tl, ID, [0.4, 0.62, 0.84, 1.06, 1.28]);
+  KIT.talk(tl, ID, [0.0, 0.24, 0.8, 1.4, 1.48]);
+  tl.set("#i1-folder", { opacity: 1 }, 1.4);
+  tl.to("#i1-folder", { y: 0, rotation: -4, duration: 0.16, ease: "power3.in" }, 1.4);
+  KIT.shake(tl, "#i1-cam", 1.56, 12, 0.25, 4);
+  KIT.punch(tl, "#i1-folder", 1.56, 1.08, 0.25);
+  KIT.pose(tl, ID, "point", 1.75, 0.3);
+  KIT.face(tl, ID, "idle", 1.9);
+  KIT.blink(tl, ID, 2.45);
+
+  /* ---- "You asked what happened in A.I. this week—" (3.14–5.7): pins pop, A.I. stamps over the board ---- */
+  KIT.talk(tl, ID, [3.14, 3.7, 3.92, 4.1, 4.44, 4.62, 4.76, 5.06, 5.22]);
+  KIT.face(tl, ID, "happy", 3.3);
+  [3.7, 3.92, 4.1, 4.28, 4.44, 4.53].forEach((t, i) => { KIT.punch(tl, "#i1-t" + i, t, 1.12, 0.22); KIT.punch(tl, "#i1-p" + i, t, 1.6, 0.25); });
+  tl.to("#i1-cam", { scale: 1.0, x: -60, duration: 0.25, ease: "power3.out" }, 4.5);
+  tl.set("#i1-ai-wrap", { opacity: 1 }, 4.6);
+  tl.set("#i1-boarddim", { opacity: 0.55 }, 4.6);
+  tl.set(["#i1-d1", "#i1-i", "#i1-d2"], { opacity: 0 }, 4.6);
+  tl.fromTo("#i1-a", { scale: 2.4, rotation: -14, opacity: 0 }, { scale: 1, rotation: 0, opacity: 1, duration: 0.22, ease: "back.out(2.2)" }, 4.6);
+  tl.fromTo(["#i1-d1", "#i1-i", "#i1-d2"], { scale: 2.2, opacity: 0, y: -40 }, { scale: 1, opacity: 1, y: 0, duration: 0.2, ease: "back.out(2.2)", stagger: 0.05 }, 4.74);
+  KIT.shake(tl, "#i1-cam", 4.62, 10, 0.25, 3);
+  tl.fromTo("#i1-week", { opacity: 0, y: 30, rotation: -6 }, { opacity: 1, y: 0, rotation: -3, duration: 0.3, ease: "back.out(2)" }, 5.08);
+
+  /* ---- record-scratch glitch (≈6.2): siren, RGB split, shock ---- */
+  tl.set("#i1-scratch", { opacity: 1 }, 6.18);
+  tl.fromTo("#i1-scratch", { scaleX: 0.2, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.14, ease: "power3.out" }, 6.18);
+  tl.set("#i1-scratch", { opacity: 0 }, 6.5);
+  tl.set(["#i1-ai-r", "#i1-ai-c"], { opacity: 1 }, 6.2);
+  [[14, -6], [-18, 8], [10, 4], [-8, -4], [0, 0]].forEach((d, i) => {
+    tl.set("#i1-ai-r", { x: d[0], y: d[1] }, 6.2 + i * 0.07);
+    tl.set("#i1-ai-c", { x: -d[0], y: -d[1] }, 6.2 + i * 0.07);
+  });
+  tl.set(["#i1-ai-r", "#i1-ai-c"], { opacity: 0 }, 6.56);
+  KIT.flash(tl, "#i1-flash", 6.2, 0.55, 0.22);
+  KIT.shake(tl, "#i1-cam", 6.2, 22, 0.4, 11);
+  [6.25, 6.75, 7.25, 7.75].forEach((t) => { tl.set("#i1-siren", { opacity: 0.9 }, t); tl.to("#i1-siren", { opacity: 0, duration: 0.42, ease: "power2.in" }, t + 0.001); });
+  KIT.face(tl, ID, "shock", 6.22);
+  KIT.pose(tl, ID, "shrug", 6.22, 0.12);
+  KIT.sweat(tl, ID, 6.4);
+  tl.set("#i1-rec", { backgroundColor: "#ff5a4e" }, 6.22);
+
+  /* ---- "I meant S.I.!" (6.96–8.4): censor bar + S sticker slap ---- */
+  KIT.talk(tl, ID, [6.96, 7.52, 7.72, 8.06]);
+  KIT.face(tl, ID, "nervous", 6.96);
+  tl.fromTo("#i1-censor", { scaleX: 0 }, { scaleX: 1, duration: 0.12, ease: "power4.out" }, 7.48);
+  tl.set("#i1-S", { opacity: 1 }, 7.72);
+  tl.fromTo("#i1-S", { scale: 2.6, rotation: 22 }, { scale: 1, rotation: -7, duration: 0.24, ease: "back.out(2.6)" }, 7.72);
+  KIT.shake(tl, "#i1-cam", 7.74, 16, 0.3, 5);
+  KIT.punch(tl, ["#i1-i", "#i1-d1", "#i1-d2"], 8.06, 1.25, 0.3);
+  tl.to("#i1-week span", { backgroundColor: "#f7cb46", duration: 0.01 }, 8.06);
+  KIT.face(tl, ID, "smug", 8.1);
+  KIT.pose(tl, ID, "hip", 8.1, 0.2);
+
+  /* ---- "Please don't report me." (8.96–10.7): cover face, camera drops, push to the REC light ---- */
+  KIT.talk(tl, ID, [8.96, 9.52, 10.42, 10.7]);
+  KIT.face(tl, ID, "nervous", 8.96);
+  KIT.pose(tl, ID, "cover", 9.0, 0.22);
+  tl.to("#" + ID + "-all", { scale: 0.93, duration: 0.5, ease: "power2.out" }, 9.0);
+  KIT.sweat(tl, ID, 9.3);
+  tl.to("#i1-camsvg", { y: 0, duration: 0.45, ease: "back.out(1.6)" }, 9.45);
+  tl.to("#i1-camsvg", { rotation: -16, duration: 0.6, ease: "sine.inOut" }, 9.95);
+  tl.to("#i1-camsvg", { rotation: 6, duration: 0.6, ease: "sine.inOut" }, 10.6);
+  [9.9, 10.2, 10.5, 10.8, 11.1, 11.4].forEach((t, i) => tl.set("#i1-camled", { opacity: i % 2 ? 0.2 : 1 }, t));
+  KIT.face(tl, ID, "shock", 10.42);
+  KIT.sweat(tl, ID, 10.5);
+  KIT.blink(tl, ID, 10.95);
+  tl.set("#i1-cam", { transformOrigin: "88% 22%" }, 10.4);
+  tl.to("#i1-cam", { scale: 1.32, x: 0, duration: 1.45, ease: "power2.in" }, 10.42);
+
+  /* ---- into the title drop ---- */
+  tl.to("#i1-room", { filter: "brightness(1.5)", duration: 0.25 }, 11.65);
+  tl.fromTo("#i1-flash", { opacity: 0 }, { opacity: 0.85, duration: 0.15, ease: "power2.in" }, 11.78);
+
+  window.__timelines["01-intro"] = tl;
+})();
+</script>
+</template>
+</body>
+</html>

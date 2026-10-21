@@ -6,6 +6,7 @@ import { orchestrator } from '../services/agentOrchestrator';
 // navigation one: agent-supplied URLs are untrusted, and the general predicate
 // deliberately permits loopback/private hosts for real user navigation.
 import { isSafeAgentNavigationUrl } from '../utils/safeNavigation';
+import { MCP_ACTION_TIMEOUT_MS, MCP_APPROVAL_WINDOW_MS, MCP_POLICY_CONTEXT_ACTION } from '../utils/mcpActionTiming';
 
 /**
  * Full agent-boundary check: the synchronous renderer policy plus a
@@ -173,7 +174,7 @@ export function useBrowserAgentBridge({
       const activeWebview = guardedGuest(canExecute);
 
       switch (toolName) {
-        case 'browser_navigate':
+        case 'browser_navigate': {
           if (!safeArgs.url || typeof safeArgs.url !== 'string') return "Error: Missing or invalid 'url' parameter";
           // Agent boundary: the URL here comes from an MCP client or LLM, and
           // page content the agent reads can author it. So the stricter
@@ -190,6 +191,7 @@ export function useBrowserAgentBridge({
           }
           mcpHandlersRef.current.handleNavigate(safeArgs.url, activeTabId || undefined);
           return `Navigated to ${safeArgs.url}`;
+        }
 
         case 'browser_read_page':
           if (activeWebview && activeWebview.executeJavaScript) {
@@ -232,7 +234,7 @@ export function useBrowserAgentBridge({
           }
           return "Error: No active webview.";
 
-        case 'browser_type':
+        case 'browser_type': {
           if (typeof safeArgs.selector !== 'string' || !safeArgs.selector) return "Error: Missing or invalid 'selector' parameter";
           const textToType = typeof safeArgs.text === 'string' ? safeArgs.text : String(safeArgs.text ?? '');
           if (activeWebview && activeWebview.executeJavaScript) {
@@ -267,6 +269,7 @@ export function useBrowserAgentBridge({
             return result.error || "Error";
           }
           return "Error: No active webview.";
+        }
 
         case 'browser_run_js':
           return "Error: browser_run_js has been removed for security reasons (VULN-01).";
@@ -352,6 +355,33 @@ export function useBrowserAgentBridge({
         case 'browser_get_url': {
           const activeTab = tabs.find(t => t.id === activeTabId);
           return activeTab?.url || "Error: Could not get URL";
+        }
+
+        case MCP_POLICY_CONTEXT_ACTION: {
+          // Page context for the main-process approval policy. Throwing makes
+          // the main process treat the action as sensitive (fail closed).
+          const url = tabs.find(t => t.id === activeTabId)?.url;
+          if (!url) throw new Error('No active tab');
+          if (typeof safeArgs.selector !== 'string' || !safeArgs.selector) return { url };
+          if (!activeWebview || !activeWebview.executeJavaScript) throw new Error('No active webview');
+          // Text plus the attributes that name a control. The value attribute
+          // is read only for buttons, never for fields that can hold user input.
+          const elementText = await activeWebview.executeJavaScript(`
+            (() => {
+              const el = document.querySelector(${JSON.stringify(safeArgs.selector)});
+              if (!el) return '';
+              const type = (el.getAttribute('type') || '').toLowerCase();
+              const isButton = el.tagName === 'BUTTON' || ['submit', 'button', 'reset'].includes(type);
+              const labels = el.labels ? Array.from(el.labels).map(label => label.innerText) : [];
+              const parts = [el.innerText || el.textContent || '', ...labels,
+                el.getAttribute('aria-label'), el.getAttribute('title'), el.getAttribute('alt'),
+                el.getAttribute('placeholder'), el.getAttribute('name'), el.getAttribute('autocomplete'),
+                type, isButton ? el.getAttribute('value') : ''];
+              return parts.filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim().slice(0, 300);
+            })()
+          `);
+          if (typeof elementText !== 'string') throw new Error('Element could not be described');
+          return { url, elementText };
         }
 
         case 'browser_hover':
@@ -650,6 +680,7 @@ export function useBrowserAgentBridge({
       onWait: (ms: number) => {
         const clampedMs = Math.min(30000, Math.max(0, Number.isFinite(Number(ms)) ? Math.floor(Number(ms)) : 0));
         return new Promise<void>(resolve => {
+          // eslint-disable-next-line prefer-const -- يُشار إليه داخل cleanup قبل الإسناد
           let timer: ReturnType<typeof setTimeout>;
           const cleanup = () => {
             activeWaitTimersRef.current.delete(timer);
@@ -749,22 +780,33 @@ export function useBrowserAgentBridge({
         }
         const pending: { approvalId?: string; timer?: ReturnType<typeof setTimeout>; cancelled: boolean } = { cancelled: false };
         pendingActions.set(id, pending);
-        pending.timer = setTimeout(() => cancelAction(id), Math.max(0, deadline - Date.now()));
+        // The deadline moves with the phase: the approval window while the user
+        // decides, then a fresh execution window once approved. The main process
+        // re-arms its own timers from the phase we report (fixed constants).
+        let actionDeadline = deadline;
+        const armDeadline = (until: number) => {
+          actionDeadline = until;
+          if (pending.timer) clearTimeout(pending.timer);
+          pending.timer = setTimeout(() => cancelAction(id), Math.max(0, until - Date.now()));
+        };
+        armDeadline(deadline);
         const approvedTarget = captureTarget();
         const targetIndependent = new Set(['king_browser_info', 'browser_list_tabs', 'browser_get_url', 'browser_wait', 'browser_new_tab']);
-        const canExecute = () => !pending.cancelled && Date.now() < deadline && Boolean(settingsRef.current?.mcpServerEnabled) &&
+        const canExecute = () => !pending.cancelled && Date.now() < actionDeadline && Boolean(settingsRef.current?.mcpServerEnabled) &&
           (targetIndependent.has(toolName) || targetIsCurrent(approvedTarget));
         const finish = () => {
           if (pending.timer) clearTimeout(pending.timer);
           pendingActions.delete(id);
         };
-        // Security (G-2): Harmless metadata tools execute directly.
-        // Sensitive content inspection tools require user approval.
+        // Security (G-2): Harmless metadata tools execute directly. Everything
+        // else is recorded in the orchestrator queue and still goes through the
+        // cancellation, deadline, settings and target re-checks below.
         const safeMetadataTools = new Set([
           'king_browser_info',
           'browser_list_tabs',
           'browser_get_url',
-          'browser_wait'
+          'browser_wait',
+          MCP_POLICY_CONTEXT_ACTION
         ]);
 
         const runAction = () => {
@@ -789,10 +831,21 @@ export function useBrowserAgentBridge({
         if (safeMetadataTools.has(toolName)) {
           runAction();
         } else {
-          const { id: approvalId, done } = orchestrator.enqueueAction(toolName, args);
+          armDeadline(Date.now() + MCP_APPROVAL_WINDOW_MS);
+          electronAPI.reportMcpActionPhase?.(id, 'awaiting-approval');
+          // The main-process execution engine is the single approval authority
+          // for MCP actions: it classifies each call and shows the approval
+          // dialog for sensitive ones before the request is sent here. No UI
+          // renders the renderer queue, so asking it to approve again left
+          // every non-metadata tool pending until the approval window expired.
+          const { id: approvalId, done } = orchestrator.enqueueAction(toolName, args, true);
           pending.approvalId = approvalId;
           done.then(approved => {
             if (approved) {
+              if (!pending.cancelled && Date.now() < actionDeadline) {
+                armDeadline(Date.now() + MCP_ACTION_TIMEOUT_MS);
+                electronAPI.reportMcpActionPhase?.(id, 'executing');
+              }
               runAction();
             } else {
               if (!pending.cancelled) electronAPI.respondMcpAction?.(id, { error: 'MCP tool execution denied by user approval policy.' });

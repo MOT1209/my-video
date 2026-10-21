@@ -40,7 +40,16 @@ export async function POST(req: Request) {
   }
   const { db, user } = guard.session;
 
-  const parsed = ProjectSaveRequest.safeParse(await req.json().catch(() => null));
+  if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    return apiError("أرسل الطلب بصيغة application/json.", 415);
+  }
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  } catch {
+    return apiError("تعذّر قراءة JSON صالح.", 400);
+  }
+  const parsed = ProjectSaveRequest.safeParse(payload);
   if (!parsed.success) {
     return apiError("بيانات المشروع غير صالحة: تحقّق من العنوان والمشاهد.", 400);
   }

@@ -9,7 +9,7 @@ export function friendlyRenderError(err: unknown): string {
   ) {
     return "مخزن Blob خاص (private) والتطبيق يحتاج رفعاً عاماً. من Vercel Dashboard افتح Storage ثم إعدادات الـ Blob store واسمح بالوصول العام ثم أعد النشر.";
   }
-  return message;
+  return "تعذّر تصيير الفيديو بسبب خطأ داخلي. حاول لاحقاً.";
 }
 
 /** هل الخطأ يشير إلى sandbox توقف/انتهى (فقط حينها تستفيد إعادة المحاولة)؟ */

@@ -1,0 +1,124 @@
+/* ==========================================================================
+   agent-music-video kit — shared design atoms (default look: BlockFrame neobrutalism).
+   Re-theme a project by overriding the :root variables in a later stylesheet.
+   Loaded once by the root index.html; every frame sub-composition can use
+   these classes. Frames still own their own layout + timeline.
+   ========================================================================== */
+
+@font-face { font-family: "Inter"; src: url("../fonts/Inter-latin.woff2") format("woff2"); font-weight: 100 900; font-style: normal; }
+@font-face { font-family: "Space Grotesk"; src: url("../fonts/SpaceGrotesk-latin.woff2") format("woff2"); font-weight: 300 700; font-style: normal; }
+@font-face { font-family: "JetBrains Mono"; src: url("../fonts/JetBrainsMono-latin.woff2") format("woff2"); font-weight: 100 800; font-style: normal; }
+
+:root {
+  --k-black: #000000;
+  --k-white: #ffffff;
+  --k-off: #fffdf5;
+  --k-pink: #fe90e8;
+  --k-blue: #c0f7fe;
+  --k-green: #99e885;
+  --k-yellow: #f7cb46;
+  --k-cream: #ffdc8b;
+  --k-red: #ff5a4e;      /* story accent: alarms / censor / crash only */
+  --k-screen: #15151a;   /* mascot screen + terminals */
+  --k-ink: #000000;      /* borders, shadows, outlines, structural text */
+  --k-paper: #ffffff;    /* card fills */
+  --k-font-display: "Inter", sans-serif;          /* override per project (theme) */
+  --k-font-label: "Space Grotesk", sans-serif;
+  --k-font-mono: "JetBrains Mono", monospace;
+  --k-b: 4px;            /* primary border */
+  --k-s: 8px;            /* primary hard shadow */
+}
+
+/* ---------- grounds ---------- */
+.k-ground { position: absolute; inset: 0; overflow: hidden; }
+.bg-black { background: var(--k-black); } .bg-white { background: var(--k-white); } .bg-off { background: var(--k-off); }
+.bg-pink { background: var(--k-pink); } .bg-blue { background: var(--k-blue); } .bg-green { background: var(--k-green); }
+.bg-yellow { background: var(--k-yellow); } .bg-cream { background: var(--k-cream); } .bg-red { background: var(--k-red); }
+
+.k-dots { position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(circle, rgba(0,0,0,.22) 2px, transparent 2.6px); background-size: 28px 28px; }
+.k-dots-light { position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(circle, rgba(255,255,255,.18) 2px, transparent 2.6px); background-size: 28px 28px; }
+.k-halftone { position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(circle, rgba(0,0,0,.9) 32%, transparent 34%); background-size: 22px 22px; }
+.k-stripes { background: repeating-linear-gradient(45deg, var(--k-black) 0 14px, var(--k-yellow) 14px 28px); border: 3px solid var(--k-ink); }
+.k-stripes-pink { background: repeating-linear-gradient(45deg, var(--k-black) 0 14px, var(--k-pink) 14px 28px); border: 3px solid var(--k-ink); }
+.k-hazard { background: repeating-linear-gradient(-45deg, var(--k-black) 0 26px, var(--k-yellow) 26px 52px); border: 4px solid var(--k-ink); }
+.k-sunburst { position: absolute; left: 50%; top: 50%; width: 3000px; height: 3000px; margin: -1500px 0 0 -1500px; border-radius: 50%;
+  background: repeating-conic-gradient(rgba(0,0,0,.09) 0deg 7.5deg, transparent 7.5deg 15deg); pointer-events: none; }
+.k-grain { position: absolute; inset: 0; pointer-events: none; opacity: .07; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+/* ---------- cards / atoms ---------- */
+.k-card { background: var(--k-white); border: 4px solid var(--k-ink); box-shadow: 8px 8px 0 var(--k-ink); }
+.k-card-sm { background: var(--k-white); border: 3px solid var(--k-ink); box-shadow: 4px 4px 0 var(--k-ink); }
+.k-card-xl { background: var(--k-white); border: 6px solid var(--k-ink); box-shadow: 14px 14px 0 var(--k-ink); }
+.k-pill { display: inline-flex; align-items: center; gap: 10px; padding: 8px 20px; border: 3px solid var(--k-ink); border-radius: 9999px;
+  box-shadow: 4px 4px 0 var(--k-ink); background: var(--k-white); font: 700 22px/1 var(--k-font-label); letter-spacing: .08em;
+  text-transform: uppercase; color: var(--k-ink); white-space: nowrap; }
+.k-pill.lg { font-size: 30px; padding: 12px 28px; }
+.k-dot { width: 16px; height: 16px; border-radius: 50%; border: 3px solid var(--k-ink); display: inline-block; }
+
+/* ---------- type ---------- */
+.k-disp { font-family: var(--k-font-display); font-weight: 900; text-transform: uppercase; letter-spacing: -0.035em; line-height: .92; color: var(--k-ink); }
+.k-h-xxl { font-size: 300px; } .k-h-xl { font-size: 200px; } .k-h-lg { font-size: 128px; } .k-h-md { font-size: 84px; } .k-h-sm { font-size: 56px; }
+.k-label { font: 700 24px/1.1 var(--k-font-label); letter-spacing: .08em; text-transform: uppercase; }
+.k-body { font: 500 30px/1.35 var(--k-font-display); }
+.k-mono { font-family: var(--k-font-mono); }
+/* sticker text: white fill + black stroke + hard shadow */
+.k-sticker-text { color: var(--k-white); -webkit-text-stroke: 10px var(--k-ink); paint-order: stroke fill; text-shadow: 10px 10px 0 var(--k-ink); }
+.k-sticker-text.thin { -webkit-text-stroke: 6px var(--k-ink); text-shadow: 6px 6px 0 var(--k-ink); }
+.k-shadow-text { text-shadow: 8px 8px 0 var(--k-ink); }
+/* per-letter spans from KIT.split() */
+.k-ch { display: inline-block; will-change: transform; }
+.k-word { display: inline-block; white-space: nowrap; }
+
+/* ---------- receipt (real screenshot in a browser window) ---------- */
+.k-receipt { position: absolute; background: var(--k-white); border: 5px solid var(--k-ink); box-shadow: 12px 12px 0 var(--k-ink); }
+.k-receipt-bar { height: 50px; border-bottom: 5px solid var(--k-ink); background: var(--k-off); display: flex; align-items: center; gap: 10px; padding: 0 16px; }
+.k-receipt-bar i { width: 16px; height: 16px; border: 3px solid var(--k-ink); display: block; }
+.k-receipt-bar i:nth-child(1) { background: var(--k-red); } .k-receipt-bar i:nth-child(2) { background: var(--k-yellow); } .k-receipt-bar i:nth-child(3) { background: var(--k-green); }
+.k-receipt-url { margin-left: 14px; flex: 1; height: 32px; border: 3px solid var(--k-ink); background: var(--k-white); border-radius: 999px;
+  font: 600 17px/26px var(--k-font-mono); padding: 0 16px; color: var(--k-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k-receipt-view { position: relative; overflow: hidden; background: var(--k-paper); }
+.k-receipt-view > img { position: absolute; left: 0; top: 0; display: block; max-width: none; }
+.k-mark { position: absolute; background: var(--k-yellow); mix-blend-mode: multiply; transform-origin: 0 50%; }
+.k-mark.pink { background: var(--k-pink); } .k-mark.green { background: var(--k-green); }
+.k-ring { position: absolute; border: 7px solid var(--k-red); border-radius: 50%; }
+.k-receipt-tag { position: absolute; left: -14px; bottom: -26px; }
+
+/* ---------- calendar tear-off card ---------- */
+.k-cal { position: absolute; width: 360px; height: 410px; background: var(--k-white); border: 6px solid var(--k-ink); box-shadow: 14px 14px 0 var(--k-ink); }
+.k-cal-top { height: 104px; border-bottom: 6px solid var(--k-ink); display: flex; align-items: center; justify-content: space-between; padding: 0 26px;
+  font: 900 52px/1 var(--k-font-display); letter-spacing: -0.02em; text-transform: uppercase; }
+.k-cal-rings { position: absolute; top: -26px; left: 0; right: 0; display: flex; justify-content: space-around; }
+.k-cal-rings i { width: 22px; height: 52px; background: var(--k-white); border: 5px solid var(--k-ink); border-radius: 999px; display: block; }
+.k-cal-num { font: 900 210px/1 var(--k-font-display); letter-spacing: -0.05em; text-align: center; margin-top: 18px; }
+.k-cal-dow { font: 700 34px/1 var(--k-font-label); letter-spacing: .14em; text-align: center; text-transform: uppercase; margin-top: 8px; }
+
+/* ---------- speech bubble ---------- */
+.k-bubble { position: absolute; background: var(--k-white); border: 5px solid var(--k-ink); box-shadow: 10px 10px 0 var(--k-ink); padding: 26px 34px;
+  font: 900 52px/1.02 var(--k-font-display); text-transform: uppercase; letter-spacing: -0.02em; color: var(--k-ink); }
+.k-bubble-tail { position: absolute; width: 60px; height: 60px; overflow: visible; }
+
+/* ---------- window chrome for fake UIs (editor, mail, chat, form) ---------- */
+.k-win { position: absolute; background: var(--k-white); border: 5px solid var(--k-ink); box-shadow: 12px 12px 0 var(--k-ink); overflow: hidden; }
+.k-win-bar { height: 46px; border-bottom: 5px solid var(--k-ink); background: var(--k-cream); display: flex; align-items: center; gap: 10px; padding: 0 14px;
+  font: 700 20px/1 var(--k-font-label); letter-spacing: .06em; text-transform: uppercase; }
+.k-win-bar i { width: 14px; height: 14px; border: 3px solid var(--k-ink); display: block; background: var(--k-white); }
+.k-term { background: var(--k-screen); color: var(--k-green); font: 600 26px/1.45 var(--k-font-mono); padding: 22px 26px; }
+
+/* ---------- stamps ---------- */
+.k-stamp { position: absolute; border: 8px solid var(--k-red); color: var(--k-red); padding: 10px 26px; font: 900 96px/1 var(--k-font-display);
+  text-transform: uppercase; letter-spacing: -0.02em; background: rgba(255,255,255,.0); }
+.k-censor { position: absolute; background: var(--k-ink); }
+
+/* ---------- logo chip ---------- */
+.k-logo { position: absolute; display: flex; align-items: center; justify-content: center; background: var(--k-white); border: 4px solid var(--k-ink); box-shadow: 8px 8px 0 var(--k-ink); }
+.k-logo img { display: block; width: 62%; height: 62%; object-fit: contain; }
+
+/* ---------- flash overlay (put one per frame, top-most) ---------- */
+.k-flash { position: absolute; inset: 0; background: var(--k-paper); opacity: 0; pointer-events: none; }
+/* highlighter variants for dark screenshots */
+.k-mark.outline { background: transparent; mix-blend-mode: normal; border: 6px solid var(--k-yellow); box-shadow: 4px 4px 0 var(--k-ink); }
+.k-mark.under { background: var(--k-yellow); mix-blend-mode: normal; top: auto !important; height: 12px !important; transform-origin: 0 50%; }

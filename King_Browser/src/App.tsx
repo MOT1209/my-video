@@ -33,6 +33,7 @@ import { generateId } from './utils/idGenerator';
 import { safeParseArrayWithBackup, safeParseObjectWithBackup } from './utils/safeStorage';
 import { showConfirm, showAlert } from './utils/confirmDialog';
 import { isSafeNavigationUrl } from './utils/safeNavigation';
+import { syncMcpServerWithSetting } from './utils/mcpServerSync';
 import { matchesShortcut } from './utils/keyboardShortcuts';
 import { useBookmarks } from './hooks/useBookmarks';
 import { useVpn } from './hooks/useVpn';
@@ -151,7 +152,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         } catch (_) {
           return;
         }
-        if (e.data && e.data.type === 'NOVA_THEME_CHANGE') {
+        if (e.data && e.data.type === 'KING_THEME_CHANGE') {
           const newTheme = e.data.theme === 'light' ? 'light' : 'dark';
           setSettings(s => ({ ...s, theme: newTheme }));
         }
@@ -167,14 +168,14 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
     if (demoParams.isDemo) {
       if (demoParams.feature === 'ai') {
         return [
-          { id: '1', url: 'https://github.com/MOT1209/my-video', title: 'King Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
+          { id: '1', url: 'https://github.com/MOT1209/King_Browser', title: 'King Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
           { id: '2', url: 'king://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false }
         ];
       }
       if (demoParams.feature === 'website') {
         return [
           { id: '1', url: 'king://newtab', title: 'New Tab', isLoading: false, canGoBack: false, canGoForward: false },
-          { id: '2', url: 'https://github.com/MOT1209/my-video', title: 'King Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
+          { id: '2', url: 'https://github.com/MOT1209/King_Browser', title: 'King Browser - GitHub', isLoading: false, canGoBack: false, canGoForward: false },
           { id: '3', url: 'https://react.dev', title: 'React Documentation', isLoading: false, canGoBack: false, canGoForward: false }
         ];
       }
@@ -471,7 +472,12 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
     isMac,
   });
 
-
+  // The MCP setting is the source of truth for the server: main auto-starts it
+  // from a disk mirror that can disagree with these settings (see mcpServerSync).
+  useEffect(() => {
+    if (demoParams.isDemo) return;
+    void syncMcpServerWithSetting(Boolean(settings.mcpServerEnabled), window.electronAPI);
+  }, [settings.mcpServerEnabled, demoParams.isDemo]);
 
   // Permission requests state (Chrome-style top bar prompts) + onPermissionRequest
   // IPC listener + respond/dismiss handlers (extracted to usePermissionRequests)
@@ -591,7 +597,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
     reopenLastClosed,
   } = useClosedTabs({
     onReopen: (lastTab) => {
-      let tabToRestore: Tab = {
+      const tabToRestore: Tab = {
         ...lastTab,
         isLoading: false,
         webContentsId: undefined,
@@ -961,7 +967,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
       const droppedT = prev.find(t => t.id === targetTabId);
       if (!activeT || !droppedT) return prev;
 
-      let updated = prev.map(t => {
+      const updated = prev.map(t => {
         if (t.id === partnerTabId) return { ...t, splitWith: targetTabId };
         if (t.id === targetTabId) return { ...t, splitWith: partnerTabId };
         if (t.splitWith === partnerTabId || t.splitWith === targetTabId) return { ...t, splitWith: undefined };
@@ -2134,7 +2140,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         )}
       </React.Suspense>
 
-      {/* NOVA ACCOUNT & CLOUD SYNC MODAL */}
+      {/* KING ACCOUNT & CLOUD SYNC MODAL */}
       <React.Suspense fallback={null}>
         {isAccountModalOpen && (
           <AccountModal

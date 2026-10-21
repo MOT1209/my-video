@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<template>
+<!-- Karaoke caption bar (agent-music-video). Shows SONG.lines with cap:true; highlights each word on its onset.
+     Style it via kit CSS vars (theme.css). Captions clear 0.1 s before the next sung line (captioned or not). -->
+<style>
+  #root { position: absolute; inset: 0; pointer-events: none; }
+  .cap-line { position: absolute; left: 50%; bottom: 40px; width: 1560px; margin-left: -780px; display: flex; justify-content: center; opacity: 0; transform-origin: 50% 100%; }
+  .cap-card { display: inline-block; max-width: 1560px; padding: 14px 26px 16px; background: var(--k-off); border: 4px solid var(--k-ink); box-shadow: 8px 8px 0 var(--k-ink);
+    font-family: var(--k-font-display); font-weight: 800; font-size: 40px; line-height: 1.22; letter-spacing: -0.01em; text-transform: uppercase;
+    color: var(--k-ink); text-align: center; text-wrap: balance; }
+  .cap-w { display: inline-block; padding: 0 6px; margin: 0 -1px; background: transparent; }
+  .cap-w.on { background: var(--k-yellow); }
+</style>
+<div id="root" data-composition-id="captions" data-width="1920" data-height="1080" data-duration="__DURATION__">
+  <div id="cap-host"></div>
+</div>
+<script>
+(function () {
+  const tl = gsap.timeline({ paused: true });
+  const host = document.getElementById("cap-host");
+  const lines = (window.SONG && window.SONG.lines || []).filter((l) => l.cap);
+  const HL = { m: "#f7cb46", f: "#7fdde8", duet: "#fe90e8", gang: "#f7cb46" };
+  lines.forEach((L, i) => {
+    const line = document.createElement("div");
+    line.className = "cap-line";
+    line.id = "cap-l" + i;
+    const card = document.createElement("div");
+    card.className = "cap-card";
+    if (L.voice === "f" || L.voice === "duet") card.style.borderLeft = "16px solid " + (L.voice === "f" ? "#3ec1d3" : "#fe90e8");
+    const toks = L.t.split(" ");
+    toks.forEach((tok, j) => {
+      const w = document.createElement("span");
+      w.className = "cap-w";
+      w.id = "cap-l" + i + "-w" + j;
+      w.textContent = tok;
+      card.appendChild(w);
+      if (j < toks.length - 1) card.appendChild(document.createTextNode(" "));
+    });
+    line.appendChild(card);
+    host.appendChild(line);
+    // in: pop just before the first word at FULL opacity (an opacity fade-in reads as the bar dimming at every line start);
+    // out: at line end, or 0.1 s before the next sung line. Back-to-back captions swap in the same frame, never overlap.
+    // set + to only (seek-safe forward and backward).
+    const all = window.SONG.lines;
+    const nextAny = all.find((m) => m.s > L.s + 0.01);
+    const nextCap = lines[i + 1];
+    const tIn = Math.max(0, L.s - 0.1);
+    let tOut = Math.min(L.e + 0.25, nextAny ? nextAny.s - 0.1 : L.e + 0.6);
+    tOut = Math.max(tIn + 0.2, tOut);
+    if (nextCap) tOut = Math.min(tOut, Math.max(0, nextCap.s - 0.1));
+    tl.set(line, { opacity: 1, y: 22, scale: 0.96 }, tIn);
+    tl.to(line, { y: 0, scale: 1, duration: 0.16, ease: "back.out(2.2)" }, tIn + 0.001);
+    tl.set(line, { opacity: 0 }, tOut);
+    L.w.forEach((wt, j) => {
+      // highlight colour follows the singer (voice_cast.py): AGENT yellow, the female AGENT teal, duets pink
+      tl.set("#cap-l" + i + "-w" + j, { backgroundColor: HL[L.voice] || HL.m }, wt);
+    });
+  });
+  window.__timelines["captions"] = tl;
+})();
+</script>
+</template>
+</body>
+</html>

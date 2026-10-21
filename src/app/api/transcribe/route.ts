@@ -5,6 +5,7 @@ import { ensureUser, recordUsage } from "../../../lib/db/repository";
 import {
   checkRateLimit,
   clientIp,
+  rateLimitUnavailableResponse,
   rateLimitedResponse,
 } from "../../../lib/rate-limit";
 import { transcribeAudio } from "../../../lib/transcribe";
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
     : `ip:${clientIp(req)}`;
   // النسخ مكلف نسبياً (صوت طويل = توكنات): 5 عمليات لكل موضوع كل 10 دقائق
   const verdict = await checkRateLimit(`transcribe:${subject}`, 5, 10 * 60 * 1000);
+  if (verdict.unavailable) return rateLimitUnavailableResponse();
   if (!verdict.allowed) {
     return rateLimitedResponse(verdict.retryAfterSec);
   }
@@ -35,6 +37,9 @@ export async function POST(req: Request) {
   const file = form.get("audio");
   if (!(file instanceof File)) {
     return apiError("حقل audio مفقود أو ليس ملفاً.", 400);
+  }
+  if (file.size === 0 || file.size > 15 * 1024 * 1024) {
+    return apiError("حجم الملف الصوتي فارغ أو يتجاوز 15 ميجابايت.", 413);
   }
 
   const lang = form.get("lang") === "en" ? "en" : "ar";
@@ -74,7 +79,7 @@ export async function POST(req: Request) {
       captions: result.captions,
       model: result.model,
     });
-  } catch (err) {
-    return apiError((err as Error).message || "تعذّر نسخ الملف الصوتي.", 502);
+  } catch {
+    return apiError("تعذّر نسخ الملف الصوتي.", 502);
   }
 }

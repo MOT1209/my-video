@@ -478,7 +478,7 @@ export async function installFromWebstore(deps: CrxInstallerDeps, event: Electro
     return { error: 'Unauthorized: install-from-webstore can only be called from Chrome Web Store or King main window.' };
   }
 
-  let crxFilePath = '';
+  const crxFilePath = '';
   let stagingPath = '';
 
   try {
@@ -506,7 +506,7 @@ export async function installFromWebstore(deps: CrxInstallerDeps, event: Electro
         }
       } catch (_) {}
       if (!extensionId) {
-        const match = trimmed.match(/(?:^|[\/=])([a-p]{32})(?:[\/?#]|$)/i);
+        const match = trimmed.match(/(?:^|[/=])([a-p]{32})(?:[/?#]|$)/i);
         if (match && match[1]) {
           extensionId = match[1].toLowerCase();
         }
@@ -682,6 +682,7 @@ export async function installFromWebstore(deps: CrxInstallerDeps, event: Electro
         // characters, either of which makes the permission list unreadable or
         // wedges the modal. Native dialogs render plain text, so there is no
         // markup injection here - this is about keeping the review legible.
+        // eslint-disable-next-line no-control-regex -- يُزيل أحرف التحكم عمداً
         extensionName = manifest.name.replace(/[\x00-\x1f\x7f]/g, ' ').trim().slice(0, 64) || extensionId;
       }
     } catch (_) {}

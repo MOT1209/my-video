@@ -3,11 +3,10 @@ import { NextResponse } from "next/server";
 /**
  * طبقة الهوية فوق Clerk:
  * - مفاتيح Clerk موجودة → المصادقة فعّالة: كل مسار محمي يرفض غير المسجّل.
- * - لا مفاتيح (تطوير محلي) → وضع محلي بمعرّف ثابت: يبقى التطبيق قابلاً
- *   للاستعمال بلا حساب، ويظل الكريدت غير مفروض (نفس سلوك ما قبل المرحلة 4).
+ * - لا مفاتيح خارج الإنتاج → وضع محلي بمعرّف ثابت للحفاظ على التطوير.
+ * - الإنتاج بلا المفتاحين → لا مستخدم؛ كل عملية محمية أو مكلفة تُرفض.
  *
- * قرار مقصود: غياب المفاتيح لا يُعطّل التطبيق ولا يُسقطه بـ 500 — فقط
- * يرفع ميزات الحساب عن الطريق.
+ * غياب الإعدادات في الإنتاج إعداد غير آمن، وليس سبباً للتحول إلى مستخدم محلي.
  */
 
 export interface RequestUser {
@@ -42,10 +41,14 @@ async function readClerkUser(): Promise<RequestUser | null> {
 /**
  * المستخدم الحالي للطلب.
  * - مفاتيح موجودة وغير مسجّل → null (المسار يرد 401).
- * - بلا مفاتيح → مستخدم محلي (المسار يعمل كالسابق).
+ * - الإنتاج بلا مفاتيح → null (يفشل مغلقاً).
+ * - خارج الإنتاج بلا مفاتيح → مستخدم محلي للتطوير.
  */
 export async function getRequestUser(): Promise<RequestUser | null> {
   if (!isAuthConfigured()) {
+    if (process.env.NODE_ENV === "production") {
+      return null;
+    }
     return { clerkId: LOCAL_USER_ID, email: null, authenticated: false };
   }
   return readClerkUser();
@@ -56,30 +59,6 @@ export function unauthorizedResponse(): NextResponse {
     { type: "error", message: "سجّل الدخول للمتابعة." },
     { status: 401 },
   );
-}
-
-let authModeWarned = false;
-
-/**
- * تحذير مرة واحدة عندما يستقبل مسار مكلف طلباً غير مصادَق في الإنتاج:
- * يعني ذلك أن مفاتيح Clerk غائبة وأن التصيير مفتوح لأي زائر (خطر تكلفة).
- * في التطوير المحلي لا تحذير — الوضع المفتوح مقصود هناك.
- */
-export function warnIfUnauthenticatedProduction(): void {
-  if (authModeWarned) {
-    return;
-  }
-  if (process.env.NODE_ENV === "production" && !isAuthConfigured()) {
-    authModeWarned = true;
-    console.warn(
-      "auth: يعمل /api/render بلا مصادقة (مفاتيح Clerk غائبة) — التصيير مفتوح لأي زائر. أضف مفاتيح Clerk لحماية التكلفة.",
-    );
-  }
-}
-
-/** للاختبار فقط — يُصفّر علم التحذير لمرة واحدة. */
-export function resetAuthModeWarningForTests(): void {
-  authModeWarned = false;
 }
 
 /** رد واضح عند طلب ميزة تحتاج قاعدة بيانات غير مهيأة. */

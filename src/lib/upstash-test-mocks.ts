@@ -11,11 +11,13 @@ export interface UpstashMockState {
   setResult: "OK" | null;
   /** نتيجة `limit` التالية للمحدّد. */
   limitResponse: { success: boolean; reset: number };
-  /** إن ضُبط: الخطأ التالي يُرفض من set/del/limit معاً (اختبار سقوط). */
+  /** إن ضُبط: الخطأ التالي يُرفض من set/eval/limit معاً (اختبار سقوط). */
   throwError: Error | null;
   constructorCalls: Array<{ url: string; token: string }>;
   setCalls: Array<{ key: string; opts: unknown }>;
   delCalls: string[];
+  evalCalls: Array<{ script: string; keys: string[]; args: string[] }>;
+  evalResult: number;
   fixedWindowCalls: Array<{ limit: number; window: string }>;
 }
 
@@ -26,6 +28,8 @@ export const upstashMockState: UpstashMockState = {
   constructorCalls: [],
   setCalls: [],
   delCalls: [],
+  evalCalls: [],
+  evalResult: 1,
   fixedWindowCalls: [],
 };
 
@@ -37,6 +41,8 @@ export function resetUpstashMockState(): void {
   upstashMockState.constructorCalls = [];
   upstashMockState.setCalls = [];
   upstashMockState.delCalls = [];
+  upstashMockState.evalCalls = [];
+  upstashMockState.evalResult = 1;
   upstashMockState.fixedWindowCalls = [];
 }
 
@@ -56,12 +62,10 @@ class FakeRedis {
     return Promise.resolve(upstashMockState.setResult);
   }
 
-  del(key: string) {
-    upstashMockState.delCalls.push(key);
-    if (upstashMockState.throwError) {
-      return Promise.reject(upstashMockState.throwError);
-    }
-    return Promise.resolve(1);
+  eval(_script: string, _keys: string[], _args: string[]) {
+    upstashMockState.evalCalls.push({ script: _script, keys: _keys, args: _args });
+    if (upstashMockState.throwError) return Promise.reject(upstashMockState.throwError);
+    return Promise.resolve(upstashMockState.evalResult);
   }
 }
 

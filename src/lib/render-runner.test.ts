@@ -1,5 +1,10 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import type { VercelSandbox } from "@remotion/vercel";
+
+mock.module("@vercel/blob", () => ({
+  BlobAccessError: class BlobAccessError extends Error {},
+  get: async () => null,
+}));
 import { SandboxSnapshotUnavailableError } from "./snapshot-errors";
 import { dropSessionSandbox } from "./sandbox-session";
 

@@ -10,9 +10,9 @@ import { getUpstashRedis } from "./upstash-redis";
  *
  * السلوك:
  * - وجدت UPSTASH_REDIS_REST_URL/TOKEN → مسار Upstash.
- * - لا مفتاحَين (تطوير محلي غالباً) → نفس منطق النوافذ في الذاكرة المحلية
- *   (سلوك 1:1 مع القديم) كي لا يتوقف التطوير — لكنه يظل لكل نسخة على حدة.
- * - خطأ Upstash (شبكة مثلاً) → نجنّب للذاكرة المحلية ولا نُعطّل التصيير.
+ * - لا مفاتيحَين خارج الإنتاج → نافذة محلية للتطوير فقط.
+ * - إنتاج بلا إعداد أو مع خطأ Upstash → رفض fail-closed بدلاً من تجاوز الحد.
+ * - أخطاء Upstash خارج الإنتاج → ذاكرة محلية لتيسير التطوير فقط.
  *
  * فرض مرئي: نافذة Upstash الثابتة تُحاذي حدود الزمن المطلق (أضعاف windowMs)
  * بينما النوافذ المحلية تبدأ من أول طلب — فروق دقيقة فقط في حواف النافذة.
@@ -82,11 +82,17 @@ function getUpstashRatelimit(limit: number, windowMs: number): Ratelimit | null 
   return instance;
 }
 
+export interface RateLimitResult {
+  allowed: boolean;
+  retryAfterSec: number;
+  unavailable?: boolean;
+}
+
 export async function checkRateLimit(
   key: string,
   limit: number,
   windowMs: number,
-): Promise<{ allowed: boolean; retryAfterSec: number }> {
+): Promise<RateLimitResult> {
   const ratelimit = getUpstashRatelimit(limit, windowMs);
   if (ratelimit) {
     try {
@@ -98,10 +104,22 @@ export async function checkRateLimit(
           : Math.max(1, Math.ceil((res.reset - Date.now()) / 1000)),
       };
     } catch (err) {
-      console.warn("rate-limit: فشل Upstash — سقوط محلي (ذاكرة)", err);
+      console.warn("rate-limit: فشل Upstash", err);
+      if (process.env.NODE_ENV === "production") {
+        return { allowed: false, retryAfterSec: 0, unavailable: true };
+      }
     }
+  } else if (process.env.NODE_ENV === "production") {
+    return { allowed: false, retryAfterSec: 0, unavailable: true };
   }
   return inMemoryCheckRateLimit(key, limit, windowMs);
+}
+
+export function rateLimitUnavailableResponse(): NextResponse {
+  return NextResponse.json(
+    { type: "error", message: "الخدمة غير متاحة مؤقتاً: تعذّر التحقق من حدود الاستخدام." },
+    { status: 503 },
+  );
 }
 
 export function rateLimitedResponse(

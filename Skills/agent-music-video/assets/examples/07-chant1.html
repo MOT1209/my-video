@@ -1,0 +1,365 @@
+<!doctype html>
+<html><head><meta charset="UTF-8" /></head>
+<body><template>
+<style>
+  #root { position: absolute; inset: 0; overflow: hidden; background: #f7cb46; }
+  #f07-cam { position: absolute; inset: 0; transform-origin: 50% 62%; }
+  .f07-layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+  .f07-bleed { position: absolute; left: -100px; top: -100px; right: -100px; bottom: -100px; }
+  #f07-gl { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+
+  /* ---------- part A: front stage, pastel ---------- */
+  #f07-gA { background: var(--k-yellow); }
+  #f07-pill { position: absolute; left: 0; right: 0; top: 34px; text-align: center; }
+  #f07-pill .k-pill { font-size: 34px; padding: 12px 30px; }
+  .f07-spk { position: absolute; width: 330px; }
+  .f07-box { position: relative; width: 330px; background: #1d1d26; border: 6px solid #000; box-shadow: 10px 10px 0 #000; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; }
+  .f07-woof { border-radius: 50%; border: 8px solid #000; display: flex; align-items: center; justify-content: center; }
+  .f07-woof i { display: block; border-radius: 50%; background: #000; border: 6px solid #2e2e3c; }
+  #f07-spkA { left: 1500px; top: 522px; }
+
+  /* ---------- part B: the disco ---------- */
+  #f07-gB { background: radial-gradient(ellipse 1300px 900px at 50% 30%, #2a2140 0%, #15121f 55%, #0a0910 100%); }
+  #f07-spots { position: absolute; left: -340px; top: -1210px; width: 2600px; height: 2600px; }
+  #f07-spots i { position: absolute; display: block; width: 16px; height: 16px; background: #fff; opacity: .7; transform: rotate(45deg); }
+  .f07-beam { position: absolute; top: -60px; width: 300px; height: 1500px; transform-origin: 50% 0; opacity: .32; mix-blend-mode: screen;
+    background: linear-gradient(180deg, currentColor 0%, rgba(0,0,0,0) 82%); clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%); }
+  #f07-floor { position: absolute; left: -260px; top: 740px; width: 2440px; height: 560px; transform-origin: 50% 0; transform: perspective(900px) rotateX(60deg); }
+  .f07-grid { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(5, 1fr); gap: 0; border: 6px solid #000; }
+  .f07-grid b { display: block; border: 4px solid #000; }
+  .f07-fa b:nth-child(odd) { background: var(--k-pink); } .f07-fa b:nth-child(even) { background: #262033; }
+  .f07-fb b:nth-child(odd) { background: #262033; } .f07-fb b:nth-child(even) { background: var(--k-blue); }
+  .f07-fc b:nth-child(odd) { background: var(--k-green); } .f07-fc b:nth-child(even) { background: #262033; }
+  .f07-fd b:nth-child(odd) { background: #262033; } .f07-fd b:nth-child(even) { background: var(--k-yellow); }
+  #f07-riser { position: absolute; left: 360px; top: 690px; width: 1200px; height: 64px; background: #1d1d26; border: 6px solid #000; border-top: 12px solid var(--k-pink); box-shadow: 10px 10px 0 #000; }
+  #f07-ball { position: absolute; left: 860px; top: -40px; width: 200px; height: 260px; }
+  #f07-spkB { left: 1600px; top: 560px; }
+  #f07-spkB .f07-box, #f07-spkB { width: 300px; }
+  #f07-pillB { position: absolute; left: 70px; top: 46px; }
+  #f07-pillB .k-pill { font-size: 30px; background: var(--k-pink); }
+
+  /* t=0 hidden states mirrored in CSS */
+  #f07-B { opacity: 0; }
+</style>
+
+<div id="root" data-composition-id="07-chant1" data-width="1920" data-height="1080" data-duration="8.568">
+  <div id="f07-cam">
+    <!-- PART A -->
+    <div id="f07-A" class="f07-layer">
+      <div id="f07-gA" class="f07-bleed"></div>
+      <div class="f07-bleed" style="overflow:hidden"><div id="f07-sunA" class="k-sunburst"></div></div>
+      <div class="k-dots f07-bleed"></div>
+      <div id="f07-spkzoom" class="f07-layer"><div id="f07-spkA" class="f07-spk"></div></div>
+      <div id="f07-pill"><span class="k-pill lg" style="background:#fff">Everybody!</span></div>
+    </div>
+    <!-- PART B -->
+    <div id="f07-B" class="f07-layer">
+      <div id="f07-gB" class="f07-bleed"></div>
+      <div id="f07-spots"></div>
+      <div class="f07-beam" id="f07-bm0" style="left:-20px;color:#fe90e8"></div>
+      <div class="f07-beam" id="f07-bm1" style="left:520px;color:#c0f7fe"></div>
+      <div class="f07-beam" id="f07-bm2" style="left:1100px;color:#99e885"></div>
+      <div class="f07-beam" id="f07-bm3" style="left:1640px;color:#f7cb46"></div>
+      <div id="f07-floor"><div id="f07-fgrid" class="f07-grid f07-fa"></div></div>
+      <div id="f07-back" class="f07-layer">
+        <div id="f07-riser"></div>
+        <div id="f07-hk-host"></div>
+        <div id="f07-ch-host"></div>
+        <div id="f07-cz-host"></div>
+      </div>
+      <svg id="f07-ball" viewBox="0 0 200 260">
+        <line x1="100" y1="0" x2="100" y2="80" stroke="#000" stroke-width="8"/>
+        <defs><clipPath id="f07-bclip"><circle cx="100" cy="160" r="84"/></clipPath></defs>
+        <circle cx="100" cy="160" r="90" fill="#000"/>
+        <g clip-path="url(#f07-bclip)"><g id="f07-facets"></g></g>
+        <circle cx="100" cy="160" r="84" fill="none" stroke="#000" stroke-width="7"/>
+        <g id="f07-glint"><path d="M64 118 L70 132 L84 138 L70 144 L64 158 L58 144 L44 138 L58 132 Z" fill="#fff" stroke="#000" stroke-width="3"/></g>
+      </svg>
+      <div id="f07-spkB" class="f07-spk"></div>
+    </div>
+
+    <canvas id="f07-gl" width="1920" height="1080"></canvas>
+
+    <!-- front: AGENT dances alongside Clawd -->
+    <div id="f07-front" class="f07-layer"><div id="f07-agzoom" class="f07-layer"><div id="f07-ag-host"></div></div></div>
+  </div>
+  <div id="f07-flash" class="k-flash"></div>
+</div>
+
+<script>
+(function () {
+  const T0 = 77.09, T1 = 85.658, D = 8.568, CUT = 4.33;
+  const $ = (id) => document.getElementById(id);
+  const BEATS = KIT.beatsIn(T0, T1);
+  // gang shouts (frame-local, analysis/words.mjs) and the kicks
+  const SHOUTS = [["S", 0.09], ["I", 0.33], ["S", 0.87], ["I", 1.41], ["S", 2.53], ["I", 3.29], ["S", 4.37], ["I", 4.71], ["S", 5.53], ["I", 5.99], ["S", 6.63], ["I", 6.97], ["S", 7.31], ["I", 7.89]];
+  const KICKS = [1.09, 4.53, 5.67, 6.8, 7.97];
+  window.__f07 = { SHOUTS, BEATS, KICKS, CUT };
+
+  /* ---------------- markup ---------------- */
+  const speaker = (n, big) => {
+    let h = "";
+    for (let i = 0; i < n; i++) {
+      const w = big && i === n - 1 ? 220 : 150;
+      h += `<div class="f07-box" style="height:${w + 50}px"><div class="f07-woof f07-w${i}" style="width:${w}px;height:${w}px;background:${["#fe90e8", "#f7cb46", "#c0f7fe"][i % 3]}"><i style="width:${w * 0.42}px;height:${w * 0.42}px"></i></div></div>`;
+    }
+    return h;
+  };
+  $("f07-spkA").innerHTML = speaker(2, true);
+  $("f07-spkB").innerHTML = speaker(2, true);
+  $("f07-ag-host").innerHTML = KIT.mascot({ id: "f07-ag", size: 420, style: "position:absolute;left:120px;top:511px" });
+  $("f07-hk-host").innerHTML = KIT.mascot({ id: "f07-hk", size: 290, body: "green", badge: "5.5", accessory: "shades", style: "position:absolute;left:470px;top:356px" });
+  $("f07-ch-host").innerHTML = KIT.chonk({ id: "f07-ch", size: 330, horn: true, style: "position:absolute;left:800px;top:364px" });
+  $("f07-cz-host").innerHTML = KIT.mascot({ id: "f07-cz", size: 290, body: "blue", badge: "4.5", accessory: "headset", style: "position:absolute;left:1180px;top:356px" });
+  // floor tiles, mirror-ball facets and light spots (deterministic)
+  $("f07-fgrid").innerHTML = "<b></b>".repeat(60);
+  (function () {
+    let f = "";
+    for (let y = 70; y < 260; y += 18) for (let x = 10; x < 200; x += 18) {
+      const k = (x / 18 + y / 18) % 3;
+      f += `<rect x="${x}" y="${y}" width="16" height="16" fill="${k < 1 ? "#ffffff" : k < 2 ? "#c9c9d6" : "#8e8ea0"}"/>`;
+    }
+    $("f07-facets").innerHTML = f;
+    const r = KIT.rng(707);
+    let s = "";
+    for (let i = 0; i < 90; i++) {
+      const a = r() * Math.PI * 2, d = 260 + r() * 1020, sz = 10 + Math.round(r() * 12);
+      s += `<i style="left:${Math.round(1300 + Math.cos(a) * d)}px;top:${Math.round(1300 + Math.sin(a) * d)}px;width:${sz}px;height:${sz}px"></i>`;
+    }
+    $("f07-spots").innerHTML = s;
+  })();
+  ["f07-ag", "f07-hk", "f07-cz"].forEach((id) => KIT.rig(id));
+  KIT.chonkRig("f07-ch");
+
+  const tl = gsap.timeline({ paused: true });
+  window.__timelines["07-chant1"] = tl; // registered first; the module below hooks the 3D render
+  const inR = (a, b) => (t) => t >= a && t < b;
+
+  /* ---------------- continuity: AGENT's badge stays S.I. after chorus 1 ---------------- */
+  const siBadge = (id) => {
+    KIT.badge(tl, id, "si", 0);
+    tl.set("#" + id + "-badge-si", { scale: 1 }, 0.0005); // no pop on the cut
+    gsap.set("#" + id + "-badge-ai", { opacity: 0 }); gsap.set("#" + id + "-badge-si", { opacity: 1 });
+  };
+  siBadge("f07-ag");
+
+  /* ---------------- t = 0 ---------------- */
+  tl.set("#f07-B", { opacity: 0 }, 0);
+  tl.set("#f07-gA", { backgroundColor: "#f7cb46" }, 0);
+  tl.set("#f07-sunA", { rotation: 0 }, 0);
+  tl.to("#f07-sunA", { rotation: 70, duration: CUT, ease: "none" }, 0);
+  KIT.face(tl, "f07-ag", "happy", 0);
+  KIT.pose(tl, "f07-ag", "hype", 0, 0.01);
+
+  /* ======== the shouts: ground flips (A), beams + floor flips (B); the 3D letters slam in the module ======== */
+  const groundA = ["#f7cb46", "#c0f7fe", "#99e885", "#fe90e8", "#ffdc8b", "#c0f7fe"];
+  const beamCols = [["#fe90e8", "#c0f7fe", "#99e885", "#f7cb46"], ["#c0f7fe", "#f7cb46", "#fe90e8", "#99e885"]];
+  SHOUTS.forEach(([L, t], i) => {
+    if (t < CUT) {
+      tl.set("#f07-gA", { backgroundColor: groundA[i % groundA.length] }, Math.max(0, t - 0.03));
+      if (i > 0) KIT.punch(tl, "#f07-pill .k-pill", t, 1.12, 0.25);
+    } else {
+      beamCols[i % 2].forEach((c, k) => tl.set("#f07-bm" + k, { color: c }, t - 0.03));
+      tl.set("#f07-fgrid", { attr: { class: "f07-grid " + ["f07-fa", "f07-fb", "f07-fc", "f07-fd"][i % 4] } }, t - 0.03);
+    }
+  });
+  // speakers pump on every beat
+  BEATS.forEach((b) => {
+    ["#f07-spkA .f07-woof", "#f07-spkB .f07-woof"].forEach((sel) => { tl.set(sel, { scale: 1.12 }, b); tl.to(sel, { scale: 1, duration: 0.28, ease: "power2.out" }, b + 0.001); });
+  });
+  // kicks: camera jolts
+  KICKS.forEach((k, i) => KIT.shake(tl, "#f07-cam", k, i === 4 ? 26 : 16, 0.26, 11 + i));
+
+  /* ======== AGENT: big, front-left, dancing with Clawd ======== */
+  KIT.groove(tl, "f07-ag", BEATS, 1.5);
+  const agPoses = ["hype", "cheer", "flex", "wave", "hype", "point", "cheer"];
+  SHOUTS.forEach(([L, t], i) => { if (i > 0) KIT.pose(tl, "f07-ag", agPoses[i % agPoses.length], t - 0.03, 0.12); });
+  KIT.talk(tl, "f07-ag", SHOUTS.map((s) => s[1]));
+  [["happy", 0], ["wink", 1.4], ["happy", 2.0], ["smug", 3.29], ["happy", 4.37], ["love", 5.53], ["happy", 6.63], ["wink", 7.89]].forEach((f) => KIT.face(tl, "f07-ag", f[0], f[1]));
+  KIT.blink(tl, "f07-ag", 2.2); KIT.blink(tl, "f07-ag", 6.2);
+  KICKS.forEach((k, i) => {
+    tl.to("#f07-ag", { y: i === 4 ? -130 : -80, duration: 0.16, ease: "power2.out" }, k - 0.02);
+    tl.to("#f07-ag", { y: 0, duration: 0.2, ease: "power2.in" }, k + 0.15);
+  });
+
+  /* ======== PART B — the escalation: disco, backup dancers, orbiting camera ======== */
+  tl.set("#f07-A", { opacity: 0 }, CUT);
+  tl.set("#f07-B", { opacity: 1 }, CUT);
+  KIT.flash(tl, "#f07-flash", CUT, 0.75, 0.22);
+  // camera change at 79.6 (the "S" at 2.53): hard push-in to a medium two-shot of AGENT + Clawd; reset for the disco
+  tl.set(["#f07-agzoom", "#f07-spkzoom"], { scale: 1, transformOrigin: "575px 1000px" }, 0);
+  tl.set(["#f07-agzoom", "#f07-spkzoom"], { scale: 1.22 }, 2.49);
+  tl.to(["#f07-agzoom", "#f07-spkzoom"], { scale: 1.27, duration: CUT - 2.5, ease: "none" }, 2.5);
+  tl.set("#f07-agzoom", { scale: 1 }, CUT);
+  KIT.flash(tl, "#f07-flash", 2.49, 0.3, 0.12);
+  tl.set("#f07-spots", { rotation: 0, transformOrigin: "50% 50%" }, 0);
+  tl.to("#f07-spots", { rotation: 46, duration: D - CUT, ease: "none" }, CUT);
+  [0, 1, 2, 3].forEach((k) => {
+    const base = [18, 6, -6, -18][k];
+    tl.set("#f07-bm" + k, { rotation: base - 14 }, 0);
+    for (let t = CUT, j = 0; t < D; t += 1.14, j++) tl.to("#f07-bm" + k, { rotation: base + (j % 2 ? -14 : 14) * (k % 2 ? -1 : 1), duration: Math.min(1.14, D - t), ease: "sine.inOut" }, t);
+  });
+  BEATS.filter(inR(CUT, D)).forEach((b, i) => {
+    tl.set("#f07-glint", { opacity: i % 2 ? 0.3 : 1 }, b);
+    tl.set("#f07-facets", { x: (i % 3) * 6 - 6 }, b);
+  });
+  function pop(sel, t) { tl.set(sel, { scale: 0.3, rotation: -12 }, t); tl.to(sel, { scale: 1, rotation: -4, duration: 0.24, ease: "back.out(2.6)" }, t + 0.001); }
+  // backup dancers groove; LE CHONK bobs
+  ["f07-hk", "f07-cz"].forEach((id, n) => {
+    KIT.face(tl, id, n ? "happy" : "smug", 0);
+    KIT.groove(tl, id, BEATS.filter(inR(CUT, D)), 1.4);
+    SHOUTS.filter((s) => s[1] >= CUT).forEach(([L, t], i) => KIT.pose(tl, id, (i + n) % 2 ? "cheer" : "hype", t - 0.03, 0.12));
+    KIT.talk(tl, id, SHOUTS.filter((s) => s[1] >= CUT).map((s) => s[1]));
+    KICKS.filter((k) => k >= CUT).forEach((k) => { tl.to("#" + id, { y: -60, duration: 0.15, ease: "power2.out" }, k - 0.02); tl.to("#" + id, { y: 0, duration: 0.2, ease: "power2.in" }, k + 0.14); });
+  });
+  KIT.face(tl, "f07-cz", "wink", 6.63);
+  BEATS.filter(inR(CUT, D)).forEach((b, i) => tl.to("#f07-ch-all", { rotation: i % 2 ? -6 : 6, duration: 0.26, ease: "power2.out" }, b));
+  KIT.bounce(tl, "#f07-ch-all", BEATS.filter(inR(CUT, D)), 0.06);
+  tl.set("#f07-ch-beret", { rotation: 0 }, 0);
+  KICKS.filter((k) => k >= CUT).forEach((k) => { tl.set("#f07-ch-beret", { rotation: -14, y: -16 }, k); tl.to("#f07-ch-beret", { rotation: 0, y: 0, duration: 0.3, ease: "back.out(2)" }, k + 0.001); });
+
+  /* ======== the final kick: everybody up, flash, push into verse 2 ======== */
+  KIT.flash(tl, "#f07-flash", 7.97, 0.5, 0.2);
+  tl.set("#f07-cam", { scale: 1 }, 0);
+  tl.to("#f07-cam", { scale: 1.08, duration: 0.5, ease: "power2.in" }, 8.06);
+  tl.to("#f07-flash", { opacity: 0.8, duration: 0.1, ease: "power2.in" }, 8.46);
+})();
+</script>
+
+<script type="module">
+  import * as K3 from "./assets/kit/kit3d.js";
+  const { THREE } = K3;
+  const tl = window.__timelines["07-chant1"];
+  const { SHOUTS, BEATS, KICKS, CUT } = window.__f07;
+  const W = K3.setup(document.getElementById("f07-gl"), { w: 1920, h: 1080, fov: 30, cam: [0, 0.4, 30] });
+  const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+  const backOut = (p, s = 2.0) => 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2);
+  const cubicOut = (p) => 1 - Math.pow(1 - p, 3);
+  const easeIO = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+  const back = document.getElementById("f07-back"), front = document.getElementById("f07-front"), spkB = document.getElementById("f07-spkB");
+
+  /* ---------- 3D S! / I! letters ---------- */
+  function letter(str, colors) {
+    const txt = K3.text3d(str, { size: 5.4, depth: 2.2, colors, outline: 0.17, tracking: -0.01 });
+    const holder = new THREE.Group(); holder.add(txt.group);
+    const pivot = new THREE.Group(); pivot.add(holder); W.scene.add(pivot);
+    return { pivot, holder, txt };
+  }
+  const LS = letter("S!", ["pink", "white"]);
+  const LI = letter("I!", ["yellow", "white"]);
+  const recolor = (Lo, cols) => Lo.txt.letters.forEach((l, i) => l.mesh.material.color.set(K3.COLORS[cols[i % cols.length]]));
+  const sS = SHOUTS.filter((s) => s[0] === "S").map((s) => s[1]), sI = SHOUTS.filter((s) => s[0] === "I").map((s) => s[1]);
+  sS[0] = 0.0; // the first S is already mid-slam on the cut
+  const HOME = { A: { S: [-6.2, 3.8, 0], I: [6.4, 3.8, 0] }, B: { S: [-7.3, 4.95, -1.2], I: [7.5, 4.95, -1.2] }, A2: { S: [-6.4, 3.75, 0], I: [6.8, 3.75, 0] } };
+  function poseLetter(Lo, mine, theirs, t, side, key) {
+    let last = -1e9, idx = -1, lastO = -1e9;
+    mine.forEach((s, i) => { if (s - 0.05 <= t) { last = s - 0.05; idx = i; } });
+    theirs.forEach((s) => { if (s - 0.05 <= t) lastO = s - 0.05; });
+    if (idx < 0) { Lo.pivot.visible = false; return; }
+    Lo.pivot.visible = true;
+    const part = t < CUT ? (t < 2.49 ? "A" : "A2") : "B", h = HOME[part][key];
+    // on the cut, re-slam whichever letter isn't the one being shouted
+    const a = t - last, k = clamp(a / 0.22), active = last >= lastO;
+    const dimK = active ? 0 : clamp((t - lastO) / 0.16);
+    const amp = key === "S" && idx === 0 ? 0.35 : part === "B" ? 0.5 : 0.9;
+    const s = (1 + amp * (1 - backOut(k, 2.0))) * (1 - 0.18 * dimK) * (part === "B" ? 0.74 : part === "A2" ? 0.74 : 1);
+    const sq = a > 0.2 && a < 0.44 ? Math.sin(((a - 0.2) / 0.24) * Math.PI) * 0.12 : 0;
+    Lo.holder.scale.set(s * (1 + sq * 0.6), s * (1 - sq), s);
+    Lo.pivot.position.set(h[0], h[1] - 0.6 * dimK, h[2] + (part === "B" ? 4 : 9) * (1 - cubicOut(k)));
+    Lo.holder.rotation.set(0, side * 0.5 * (1 - k) + Math.sin(t * 2.3 + side) * 0.14, side * 0.22 * (1 - k) + Math.sin(t * 3.4 + side * 2) * 0.04);
+  }
+
+  /* ---------- confetti cannons on the kicks ---------- */
+  const r = K3.rng(4077), cols = ["pink", "blue", "green", "yellow", "white", "cream", "orange"];
+  const geo = new THREE.BoxGeometry(0.42, 0.42, 0.08);
+  const bursts = KICKS.map((t, i) => {
+    const pcs = [], n = i === 4 ? 34 : 16;
+    for (let j = 0; j < n; j++) {
+      const m = K3.solid(geo, cols[(i + j) % cols.length], { outline: 0.035 }); m.visible = false; W.scene.add(m);
+      const side = j % 2 ? 1 : -1, ang = (0.25 + r() * 0.5) * Math.PI;
+      pcs.push({ m, o: new THREE.Vector3(side * (3 + r() * 6), -1 + r() * 2, 1 + r() * 2), v: new THREE.Vector3(-side * Math.cos(ang) * (2 + r() * 7), 8 + r() * 10, (r() - 0.3) * 6), w: new THREE.Vector3(r() * 9, r() * 9, r() * 9) });
+    }
+    return { t, pcs };
+  });
+
+  /* ---------- CLAWD: big, centre-bottom, the lead dancer ---------- */
+  const cl = K3.clawd({ scale: 1.25 });
+  W.scene.add(cl.group);
+  const HOPS = [[1.09, 0.46, 1.8], [2.276, 0.42, 1.4], [3.414, 0.42, 1.3], [4.53, 0.46, 1.9], [5.67, 0.44, 1.6], [6.8, 0.42, 1.5], [7.97, 0.5, 2.7]];
+  const SPINS = [[2.833, 0.42], [5.132, 0.42], [6.27, 0.42]];
+  const v = new THREE.Vector3();
+  const screenY = (y) => { v.set(0, y, 0).project(W.camera); return (1 - v.y) * 540; };
+  function floorAt(target) { let a = -9, b = -3, fa = screenY(a) - target, fb = screenY(b) - target; for (let i = 0; i < 8 && Math.abs(fb) > 0.05 && Math.abs(fb - fa) > 1e-9; i++) { const c = b - (fb * (b - a)) / (fb - fa); a = b; fa = fb; b = c; fb = screenY(b) - target; } return b; }
+
+  function dance(t) {
+    let bi = -1; for (let k = 0; k < BEATS.length; k++) if (BEATS[k] <= t) bi = k;
+    const db = bi >= 0 ? t - BEATS[bi] : 9;
+    cl.animate(t, { beat: BEATS, bounce: 1.2, look: Math.sin(t * 3.1) * 0.7, blink: [2.0, 5.2], squint: t > 4.4 && t < 4.9 || t > 7.95 });
+    // hops + squash on the kicks (anticipation crouch, stretch on take-off, squash on landing)
+    let hy = 0, sx = 1, sy = 1;
+    for (const h of HOPS) {
+      const u = (t - h[0]) / h[1];
+      if (u >= 0 && u < 1) { hy = 4 * h[2] * u * (1 - u); if (u < 0.3) { sy = 1 + 0.16 * (1 - u / 0.3); sx = 1 - 0.08 * (1 - u / 0.3); } }
+      const pre = (h[0] - t) / 0.1; if (pre > 0 && pre < 1) { sy = 1 - 0.2 * (1 - pre); sx = 1 + 0.12 * (1 - pre); }
+      const post = (t - h[0] - h[1]) / 0.22; if (post >= 0 && post < 1) { sy = 1 - 0.2 * (1 - post); sx = 1 + 0.13 * (1 - post); }
+    }
+    cl.rig.position.y += hy;
+    cl.rig.scale.set(sx, sy, 1);
+    // arms: alternate on each beat, both up on the shouts
+    let shoutK = 0; for (const s of SHOUTS) { const d = t - s[1]; if (d >= -0.02 && d < 0.3) shoutK = Math.max(shoutK, 1 - Math.max(0, d) / 0.3); }
+    const up = bi % 2 === 0, k = Math.min(1, db / 0.12), hi = 1.4, lo = 0.2;
+    const ar = up ? hi * k + lo * (1 - k) : lo * k + hi * (1 - k), al = up ? lo * k + hi * (1 - k) : hi * k + lo * (1 - k);
+    cl.armR.rotation.z = Math.max(ar, 1.6 * shoutK) + Math.sin(t * 14) * 0.15 * shoutK;
+    cl.armL.rotation.z = -Math.max(al, 1.6 * shoutK) - Math.sin(t * 14 + 1) * 0.15 * shoutK;
+    // twirls on the beat
+    let spin = 0; for (const sp of SPINS) { const u = (t - sp[0]) / sp[1]; if (u >= 0 && u < 1) spin = Math.PI * 2 * (sp[0] > 7.9 ? u : easeIO(u)); }
+    cl.group.rotation.y = -0.18 + Math.sin(t * 5.4) * 0.16 + spin;
+    cl.rig.rotation.z = Math.sin((t * Math.PI) / 0.572) * 0.06;
+    // side-steps: a quick step left / right on alternate shouts
+    let si = -1; for (let k = 0; k < SHOUTS.length; k++) if (SHOUTS[k][1] - 0.04 <= t) si = k;
+    const posOf = (k) => (k < 0 ? 0 : k % 2 ? 1.3 : -1.3);
+    const ds = si >= 0 ? clamp((t - (SHOUTS[si][1] - 0.04)) / 0.18) : 1;
+    return posOf(si - 1) + (posOf(si) - posOf(si - 1)) * cubicOut(ds);
+  }
+
+  KIT.onFrame(tl, (t) => {
+    /* camera: A = front, slight sway + push; B = a new angle that orbits and pushes */
+    let jx = 0, jy = 0;
+    KICKS.forEach((k, i) => { const d = t - k; if (d >= 0 && d < 0.3) { const e = 1 - d / 0.3; jx += Math.sin(d * 90 + i) * 0.3 * e; jy += Math.cos(d * 70 + i) * 0.22 * e; } });
+    let phi, R, camY, lookY, feetPx, sc;
+    let shiftX = 0;
+    if (t < 2.49) { phi = 0.05 * Math.sin(t * 1.7); R = 30 - 0.8 * (t / 2.49); camY = 0.4; lookY = 0.4; feetPx = 1000; sc = 1.25; }
+    else if (t < CUT) { const u = (t - 2.49) / (CUT - 2.49); phi = -0.06 + 0.1 * u; R = 24.3 - 0.9 * u; camY = 0.4; lookY = 0.4; feetPx = 1000; sc = 1.25; shiftX = 1.05; }
+    else { const u = (t - CUT) / (8.568 - CUT); phi = 0.3 * Math.cos(Math.PI * u); R = 27 - 2.6 * u; camY = -1.6; lookY = 1.0; feetPx = 1004; sc = 0.95; }
+    W.camera.position.set(Math.sin(phi) * R + jx, camY + jy, Math.cos(phi) * R);
+    W.camera.lookAt(0, lookY, 0);
+    W.camera.updateMatrixWorld();
+    // 2D parallax so the flat layers agree with the orbit (back row drifts with the camera, front row against it)
+    if (back) back.style.transform = `translateX(${Math.round(Math.sin(phi) * 210)}px)`;
+    if (front) front.style.transform = `translateX(${Math.round(-Math.sin(phi) * 90)}px)`;
+    if (spkB) spkB.style.transform = `translateX(${Math.round(-Math.sin(phi) * 120)}px)`;
+
+    /* letters */
+    if (t >= CUT) { recolor(LS, ["blue", "white"]); recolor(LI, ["pink", "white"]); } else { recolor(LS, ["pink", "white"]); recolor(LI, ["yellow", "white"]); }
+    poseLetter(LS, sS, sI, t, -1, "S");
+    poseLetter(LI, sI, sS, t, 1, "I");
+
+    /* clawd */
+    cl.group.scale.setScalar(sc);
+    const step = dance(t);
+    cl.group.position.set(step + (typeof shiftX === "number" ? shiftX : 0), floorAt(feetPx), 0);
+
+    /* confetti */
+    bursts.forEach((b) => {
+      const d = t - b.t;
+      b.pcs.forEach((p) => {
+        if (d < 0 || d > 1.6) { p.m.visible = false; return; }
+        p.m.visible = true;
+        p.m.position.set(p.o.x + p.v.x * d, p.o.y + p.v.y * d - 13 * d * d, p.o.z + p.v.z * d);
+        p.m.rotation.set(p.w.x * d, p.w.y * d, p.w.z * d);
+      });
+    });
+    W.render();
+  });
+</script>
+</template></body></html>

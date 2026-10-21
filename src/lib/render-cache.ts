@@ -35,12 +35,19 @@ export function stableStringify(value: unknown): string {
  * مسار Blob الحتمي لنتيجة تصيير:‏ 설정 التكوين + inputProps.
  * نقتطع 48 محرفاً من الهاش (كافٍ تفادياً للاصطدام وواقعي كطول مسار).
  */
-export function renderCachePath(compositionId: string, inputProps: unknown): string {
+export function renderCachePath(
+  compositionId: string,
+  inputProps: unknown,
+  ownerId?: string,
+): string {
   const digest = createHash("sha256")
     .update(stableStringify({ compositionId, inputProps }))
     .digest("hex")
     .slice(0, 48);
-  return `${RENDER_CACHE_PREFIX}/${compositionId}/${digest}.mp4`;
+  const ownerPath = ownerId
+    ? `users/${createHash("sha256").update(ownerId).digest("hex").slice(0, 24)}/`
+    : "";
+  return `${RENDER_CACHE_PREFIX}/${ownerPath}${compositionId}/${digest}.mp4`;
 }
 
 /**

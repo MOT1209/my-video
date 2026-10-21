@@ -39,6 +39,33 @@ function restoreEnv(): void {
   resetUpstashRedisForTests();
 }
 
+test("الإنتاج بلا إعداد Upstash يرفض العملية بدل تجاوز حد التكلفة", async () => {
+  const savedNodeEnv = process.env.NODE_ENV;
+  Object.defineProperty(process.env, "NODE_ENV", {
+    value: "production",
+    configurable: true,
+    writable: true,
+    enumerable: true,
+  });
+  ENV_KEYS.forEach((key) => delete process.env[key]);
+  resetUpstashRedisForTests();
+  try {
+    expect(await checkRateLimit("production:missing", 2, 60_000)).toEqual({
+      allowed: false,
+      retryAfterSec: 0,
+      unavailable: true,
+    });
+  } finally {
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: savedNodeEnv,
+      configurable: true,
+      writable: true,
+      enumerable: true,
+    });
+    restoreEnv();
+  }
+});
+
 test("بلا مفاتيح Upstash: سقوط الذاكرة المحلية + بلا اتصال Redis", async () => {
   ENV_KEYS.forEach((k) => delete process.env[k]);
   resetUpstashRedisForTests();
@@ -89,6 +116,33 @@ test("مفاتيح Upstash: المسار الموزّع يمر فعلاً عبر
     expect(blocked.retryAfterSec).toBeGreaterThan(1_700);
     expect(blocked.retryAfterSec).toBeLessThanOrEqual(1_800);
   } finally {
+    restoreEnv();
+  }
+});
+
+test("خطأ Upstash في الإنتاج يرفض بدلاً من السماح غير المحدود", async () => {
+  const savedNodeEnv = process.env.NODE_ENV;
+  Object.defineProperty(process.env, "NODE_ENV", {
+    value: "production",
+    configurable: true,
+    writable: true,
+    enumerable: true,
+  });
+  setUpstashEnv();
+  upstashMockState.throwError = new Error("network down");
+  try {
+    expect(await checkRateLimit("production:failed", 2, 60_000)).toMatchObject({
+      allowed: false,
+      unavailable: true,
+    });
+  } finally {
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: savedNodeEnv,
+      configurable: true,
+      writable: true,
+      enumerable: true,
+    });
+    upstashMockState.throwError = null;
     restoreEnv();
   }
 });

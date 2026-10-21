@@ -3,10 +3,12 @@ import { COMP_NAME, CompositionProps } from "../../../../types/constants";
 import { AnyRenderRequest } from "../../../../types/schema";
 import { SHORT_COMP_NAME, ShortProps } from "../../../../types/shorts";
 import {
+  databaseNotConfiguredResponse,
   getRequestUser,
   unauthorizedResponse,
-  warnIfUnauthenticatedProduction,
 } from "../../../lib/auth";
+import { isDatabaseConfigured } from "../../../lib/db/client";
+import { apiError } from "../../../helpers/api-response";
 import { openBillingSession } from "../../../lib/billing-session";
 import { RENDER_CREDIT_COST } from "../../../lib/credits";
 import { findCachedRender, renderCachePath } from "../../../lib/render-cache";
@@ -28,6 +30,7 @@ import {
 import {
   checkRateLimit,
   clientIp,
+  rateLimitUnavailableResponse,
   rateLimitedResponse,
 } from "../../../lib/rate-limit";
 import { formatSSE, type RenderProgress } from "./helpers";
@@ -49,17 +52,12 @@ export async function POST(req: Request) {
   if (!requestUser) {
     return unauthorizedResponse();
   }
-  if (!requestUser.authenticated) {
-    // وضع محلي/بلا مفاتيح: نبّه مرة واحدة في الإنتاج حتى لا يُنسى الفخ مفتوحاً
-    warnIfUnauthenticatedProduction();
+  if (process.env.NODE_ENV === "production" && !isDatabaseConfigured()) {
+    return databaseNotConfiguredResponse();
   }
 
   const ip = clientIp(req);
-  /**
-   * موضوع التصيير: معرّف المستخدم إن كان الطلب مصادَقاً، وإلا الـ IP.
-   * فيالوضع المحلي (بلا Clerk) يبقى السلوك السابق حرفياً، ومع Clerk يصبح
-   * العزل بالمستخدم (أدق من IP مشترك بين شبكة كاملة).
-   */
+  /** التصيير يُعزل بالمستخدم المصادَق؛ التطوير المحلي يبقى معزولاً حسب IP. */
   const subject = requestUser.authenticated
     ? `user:${requestUser.clerkId}`
     : `ip:${ip}`;
@@ -70,40 +68,70 @@ export async function POST(req: Request) {
     5,
     60 * 60 * 1000,
   );
+  if (verdict.unavailable) {
+    return rateLimitUnavailableResponse();
+  }
   if (!verdict.allowed) {
     return rateLimitedResponse(verdict.retryAfterSec);
+  }
+
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!blobToken) {
+    return apiError("التصيير غير متاح: مخزن الفيديو غير مهيأ على الخادم.", 503);
+  }
+
+  if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    return apiError("أرسل الطلب بصيغة application/json.", 415);
+  }
+
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  } catch {
+    return apiError("تعذّر قراءة JSON صالح.", 400);
+  }
+
+  const parsedBody = AnyRenderRequest.safeParse(payload);
+  if (!parsedBody.success) {
+    return apiError("بيانات التصيير غير صالحة.", 400);
+  }
+  const body = parsedBody.data;
+
+  // تحقق من inputProps حسب التكوين المطلوب (MyComp القديم أو ShortsComp الجديد)
+  let compositionId: string;
+  let inputProps: unknown;
+  if (body.id === SHORT_COMP_NAME) {
+    const parsedProps = ShortProps.safeParse(body.inputProps);
+    if (!parsedProps.success) {
+      return apiError("بيانات الفيديو غير صالحة.", 400);
+    }
+    compositionId = SHORT_COMP_NAME;
+    inputProps = parsedProps.data;
+  } else if (body.id === COMP_NAME) {
+    const parsedProps = CompositionProps.safeParse(body.inputProps);
+    if (!parsedProps.success) {
+      return apiError("بيانات الفيديو غير صالحة.", 400);
+    }
+    compositionId = COMP_NAME;
+    inputProps = parsedProps.data;
+  } else {
+    return apiError("نوع الفيديو غير معروف.", 400);
   }
 
   const encoder = new TextEncoder();
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
-  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!blobToken) {
-    throw new Error(
-      'BLOB_READ_WRITE_TOKEN is not set. To fix this, go to vercel.com, log in, select Storage, click "Create Database", select "Blob", link it to your project, then add BLOB_READ_WRITE_TOKEN to your .env file.',
-    );
-  }
-
-  const payload = await req.json();
-  const body = AnyRenderRequest.parse(payload);
-
-  // تحقق من inputProps حسب التكوين المطلوب (MyComp القديم أو ShortsComp الجديد)
-  let compositionId: string;
-  let inputProps: unknown;
-  if (body.id === SHORT_COMP_NAME) {
-    compositionId = SHORT_COMP_NAME;
-    inputProps = ShortProps.parse(body.inputProps);
-  } else if (body.id === COMP_NAME) {
-    compositionId = COMP_NAME;
-    inputProps = CompositionProps.parse(body.inputProps);
-  } else {
-    throw new Error(`Unknown composition id: ${body.id}`);
-  }
-
   /** قفل موزّع: موضوع واحد = تصيير واحد نشط في كل نسخ الخادم. */
   const lockKey = `render-lock:${subject}`;
-  if (!(await acquireRenderLock(lockKey))) {
+  let lockOwner: string | null;
+  try {
+    lockOwner = await acquireRenderLock(lockKey);
+  } catch (err) {
+    console.error("render: تعذّر التحقق من قفل التصيير", err instanceof Error ? err.name : "unknown");
+    return apiError("التصيير غير متاح مؤقتاً: تعذّر التحقق من القفل.", 503);
+  }
+  if (!lockOwner) {
     return rateLimitedResponse(
       RENDER_LOCK_RETRY_SEC,
       "لديك عملية تصيير جارية حالياً — انتظر انتهاءها أولاً.",
@@ -111,7 +139,11 @@ export async function POST(req: Request) {
   }
 
   /** مفتاح حتمي لناتج التصيير: نفس التكوين = نفس الفيديو = رابط جاهز. */
-  const cachePath = renderCachePath(compositionId, inputProps);
+  const cachePath = renderCachePath(
+    compositionId,
+    inputProps,
+    requestUser.authenticated ? requestUser.clerkId : undefined,
+  );
   const isProd = isProductionRuntime();
   const vcpus = runtimeVcpus(isProd);
   /** جلسة sandbox واحدة لكل موضوع — تُعاد بين طلباته المتتالية. */
@@ -120,9 +152,15 @@ export async function POST(req: Request) {
 
   /** جلسة الفوترة: null يعني «الكريدت غير مفروض» (لا DATABASE_URL). */
   const billing = await openBillingSession(requestUser);
+  if (process.env.NODE_ENV === "production" && !billing) {
+    await releaseRenderLock(lockKey, lockOwner).catch((err: unknown) => {
+      console.error("render: تعذّر تحرير القفل بعد فشل قاعدة البيانات", err instanceof Error ? err.name : "unknown");
+    });
+    return databaseNotConfiguredResponse();
+  }
 
-  const send = async (message: RenderProgress) => {
-    await writer.write(encoder.encode(formatSSE(message)));
+  const send = async (message: RenderProgress): Promise<void> => {
+    await writer.write(encoder.encode(formatSSE(message))).catch(() => {});
   };
 
   const currentCredits = async (): Promise<number | null> =>
@@ -212,6 +250,10 @@ export async function POST(req: Request) {
           inputProps: inputPropsRecord,
           cacheKey: cachePath,
         });
+        if (!renderId) {
+          await billing.refund();
+          throw new Error("render_record_unavailable");
+        }
       }
 
       const outcome = await runRenderOnce({
@@ -220,6 +262,7 @@ export async function POST(req: Request) {
         blobPath: cachePath,
         blobToken,
         sessionKey,
+        ownerId: requestUser.authenticated ? requestUser.clerkId : undefined,
         onProgress: (event) =>
           send({
             type: "phase",
@@ -252,20 +295,26 @@ export async function POST(req: Request) {
         credits: await currentCredits(),
       });
     } catch (err) {
-      console.error(err);
+      console.error("render: فشل تنفيذ التصيير", err instanceof Error ? err.name : "unknown");
       reportFailure(Math.round((Date.now() - startMs) / 1000));
-      // الكريدت يُرجَع والصف يُغلق فاشلاً — لا استهلاك مقابل نتيجة غير موجودة
-      if (billing) {
-        await billing.refund();
-        await billing.finishRender(renderId, {
-          status: "error",
-          error: friendlyRenderError(err),
-        });
+      // Refund only a charged render; an SSE disconnect is swallowed by send().
+      if (billing && renderId) {
+        try {
+          await billing.refund();
+          await billing.finishRender(renderId, {
+            status: "error",
+            error: friendlyRenderError(err),
+          });
+        } catch (billingError) {
+          console.error("render: تعذّر إكمال استرداد الرصيد", billingError instanceof Error ? billingError.name : "unknown");
+        }
       }
       await send({ type: "error", message: friendlyRenderError(err) });
     } finally {
       // القفل يُستهلك فقط أثناء التصيير الفعلي — يُحرَّر دائماً هنا
-      await releaseRenderLock(lockKey);
+      await releaseRenderLock(lockKey, lockOwner).catch((err: unknown) => {
+        console.error("render: تعذّر تحرير قفل التصيير", err);
+      });
       // إغلاق واحد آمن حتى مع عبارات return الداخلية أعلاه
       await writer.close().catch(() => {});
     }

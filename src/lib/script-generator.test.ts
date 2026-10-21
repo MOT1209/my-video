@@ -3,7 +3,9 @@ import {
   extractArticleText,
   generateScript,
   ScriptResponse,
+  validatePublicHttpUrl,
   type FetchLike,
+  type ResolveHost,
 } from "./script-generator";
 
 /** يبني fetch وهمياً يرد رداً Gemini صحيحاً من نص معطى. */
@@ -24,6 +26,8 @@ function fakeLLMFetch(
   };
   return { fetch: fetchImpl, calls };
 }
+
+const publicResolver: ResolveHost = async () => [{ address: "93.184.216.34", family: 4 }];
 
 const ENV_KEYS = ["GEMINI_API_KEY", "GEMINI_MODEL"] as const;
 const savedEnv = ENV_KEYS.map((k) => process.env[k]);
@@ -59,6 +63,58 @@ test("extractArticleText يقطع سكريبتات/أنماط ويقرأ article
 
 test("extractArticleText يرمي عند صفحة خالية من النص", () => {
   expect(() => extractArticleText("<html><head><title>x</title></head></html>")).toThrow();
+});
+
+test("التحقق من الروابط يرفض المضيفين الداخليين والعناوين المختلطة", async () => {
+  await expect(
+    validatePublicHttpUrl("http://127.0.0.1/admin", publicResolver),
+  ).rejects.toThrow("مضيف عام");
+  await expect(
+    validatePublicHttpUrl("http://metadata.google.internal/", async () => [
+      { address: "169.254.169.254", family: 4 },
+    ]),
+  ).rejects.toThrow("مضيف عام");
+  await expect(
+    validatePublicHttpUrl("http://example.com/", async () => [{ address: "192.0.2.5", family: 4 }]),
+  ).rejects.toThrow("مضيف عام");
+  await expect(
+    validatePublicHttpUrl("http://example.com/", async () => [{ address: "2002::1", family: 6 }]),
+  ).rejects.toThrow("مضيف عام");
+  await expect(
+    validatePublicHttpUrl("http://example.com/", async () => [{ address: "::ffff:127.0.0.1", family: 6 }]),
+  ).rejects.toThrow("مضيف عام");
+  await expect(
+    validatePublicHttpUrl("https://public.example/", async () => [
+      { address: "93.184.216.34", family: 4 },
+      { address: "10.0.0.8", family: 4 },
+    ]),
+  ).rejects.toThrow("مضيف عام");
+});
+
+test("التحقق من الرابط يرفض البروتوكولات وبيانات الاعتماد والمضيف المحلي", async () => {
+  await expect(validatePublicHttpUrl("file:///etc/passwd", publicResolver)).rejects.toThrow();
+  await expect(validatePublicHttpUrl("https://user:pass@example.com/", publicResolver)).rejects.toThrow();
+  await expect(validatePublicHttpUrl("https://service.local/", publicResolver)).rejects.toThrow();
+  await expect(validatePublicHttpUrl("http://[::1]/", publicResolver)).rejects.toThrow("مضيف عام");
+  await expect(validatePublicHttpUrl("http://[fc00::1]/", publicResolver)).rejects.toThrow("مضيف عام");
+  await expect(validatePublicHttpUrl("http://[2001:db8::1]/", publicResolver)).rejects.toThrow("مضيف عام");
+});
+
+test("يفرض جلب المقال سقف حجم الرد", async () => {
+  const oversized = new Uint8Array(2 * 1024 * 1024 + 1);
+  const fetchImpl: FetchLike = async () => new Response(oversized);
+  await expect(
+    generateScript({ url: "https://example.com/large", lang: "ar" }, fetchImpl, publicResolver),
+  ).rejects.toThrow("يتجاوز الحد المسموح");
+});
+
+test("نقطة المضيف النهائية تُزال قبل حل DNS", async () => {
+  let resolvedHostname = "";
+  await validatePublicHttpUrl("https://example.com./", async (hostname) => {
+    resolvedHostname = hostname;
+    return [{ address: "93.184.216.34", family: 4 }];
+  });
+  expect(resolvedHostname).toBe("example.com");
 });
 
 test("ScriptResponse يقبل رداً صالحاً ويرفض تجاوز الحدود", () => {
@@ -115,6 +171,7 @@ describe("مسار كامل: رابط → استخراج → LLM → سينار�
     const result = await generateScript(
       { url: "https://example.com/article", lang: "ar" },
       fetchImpl,
+      publicResolver,
     );
     expect(calls).toHaveLength(2);
     expect(result.hook).toBe("هل تعلم؟");
@@ -130,8 +187,22 @@ describe("مسار كامل: رابط → استخراج → LLM → سينار�
       generateScript(
         { url: "https://example.com/missing", lang: "ar" },
         fetchImpl,
+        publicResolver,
       ),
     ).rejects.toThrow("فشل جلب المقال");
+  });
+
+  test("لا يتبع تحويل المقال إلى عنوان آخر", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchImpl: FetchLike = async (url, init) => {
+      requests.push({ url, init });
+      return new Response(null, { status: 302, headers: { location: "http://127.0.0.1/admin" } });
+    };
+    await expect(
+      generateScript({ url: "https://example.com/article", lang: "ar" }, fetchImpl, publicResolver),
+    ).rejects.toThrow("إعادة توجيه");
+    expect(requests).toHaveLength(1);
+    expect(requests[0].init?.redirect).toBe("manual");
   });
 
   test("رد LLM بلا JSON يفشل برسالة مفهومة", async () => {

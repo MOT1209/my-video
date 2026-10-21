@@ -283,6 +283,7 @@ export async function claimRetry(
   db: Db,
   renderId: string,
   from: RenderStatus = "error",
+  now = Date.now(),
 ): Promise<RenderRow | null> {
   const rows = await db
     .update(renders)
@@ -296,6 +297,9 @@ export async function claimRetry(
         eq(renders.id, renderId),
         eq(renders.status, from),
         lt(renders.attempts, MAX_RENDER_ATTEMPTS),
+        ...(from === "queued"
+          ? [lt(renders.updatedAt, new Date(now - STALE_RENDER_MS))]
+          : []),
       ),
     )
     .returning();

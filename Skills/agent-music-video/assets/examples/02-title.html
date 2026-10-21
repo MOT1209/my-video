@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<template>
+<style>
+  #root { position: absolute; inset: 0; overflow: hidden; background: var(--k-yellow); }
+  #f02-cam { position: absolute; inset: 0; transform-origin: 50% 50%; }
+  #f02-bg { position: absolute; inset: -60px; }
+  #f02-sun { opacity: .9; }
+  #f02-gl { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+  #f02-top { position: absolute; left: 0; right: 0; top: 70px; display: flex; justify-content: center; gap: 46px; }
+  .f02-word { font-size: 196px; }
+  #f02-censor { position: absolute; left: 512px; top: 300px; width: 470px; height: 300px; transform-origin: 0 50%; }
+  #f02-censor-txt { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff;
+    font: 900 64px/1 "Inter", sans-serif; letter-spacing: .02em; text-transform: uppercase; }
+  #f02-pills { position: absolute; left: 0; right: 0; top: 862px; display: flex; justify-content: center; gap: 30px; }
+  #f02-star1 { position: absolute; left: 1560px; top: 230px; }
+  #f02-star2 { position: absolute; left: 150px; top: 250px; }
+  #f02-agent { position: absolute; left: 70px; top: 560px; }
+  #f02-chonk { position: absolute; left: 1600px; top: 640px; }
+  #f02-flash { z-index: 10; }
+</style>
+
+<div data-hf-id="hf-of02" id="root" data-composition-id="02-title" data-width="1920" data-height="1080" data-duration="7.407">
+  <div data-hf-id="hf-nc6h" id="f02-cam">
+    <div data-hf-id="hf-9blr" id="f02-bg" class="k-ground"><div data-hf-id="hf-82t7" id="f02-sun" class="k-sunburst"></div><div data-hf-id="hf-5n5k" class="k-dots"></div><div data-hf-id="hf-pcw5" class="k-grain"></div></div>
+    <div data-hf-id="hf-qo45" id="f02-star2-host"></div>
+    <div data-hf-id="hf-zzew" id="f02-star1-host"></div>
+    <canvas data-hf-id="hf-o2gq" id="f02-gl" width="1920" height="1080"></canvas>
+    <div data-hf-id="hf-2hmb" id="f02-censor" class="k-censor"><div data-hf-id="hf-1oeh" id="f02-censor-txt">[REDACTED]</div></div>
+    <div data-hf-id="hf-f4np" id="f02-top">
+      <div data-hf-id="hf-lctb" id="f02-w1" class="k-disp k-sticker-text f02-word">Don't</div>
+      <div data-hf-id="hf-2jn3" id="f02-w2" class="k-disp k-sticker-text f02-word">Say</div>
+    </div>
+    <div data-hf-id="hf-u57g" id="f02-pills">
+      <span data-hf-id="hf-oac7" id="f02-p1" class="k-pill lg" style="background:var(--k-pink)">The week in S.I.</span>
+      <span data-hf-id="hf-kgdp" id="f02-p2" class="k-pill lg" style="background:#fff">Oct 5–11, 2026</span>
+      <span data-hf-id="hf-5mbe" id="f02-p3" class="k-pill lg" style="background:var(--k-blue)">A song by your agent</span>
+    </div>
+    <div data-hf-id="hf-wib2" id="f02-agent-host"></div>
+    <div data-hf-id="hf-rqd0" id="f02-chonk-host"></div>
+  </div>
+  <div data-hf-id="hf-46mp" id="f02-flash" class="k-flash"></div>
+</div>
+
+<script>
+(function () {
+  const S0 = 11.935, DUR = 7.407;
+  const A = "f02-ag";
+  document.getElementById("f02-agent-host").innerHTML = KIT.mascot({ id: A, size: 330, body: "pink", style: "position:absolute;left:70px;top:560px" });
+  document.getElementById("f02-chonk-host").innerHTML = KIT.chonk({ id: "f02-ch", size: 420, style: "position:absolute;left:1560px;top:700px" });
+  document.getElementById("f02-star1-host").innerHTML = KIT.star({ id: "f02-star1", size: 230, color: "pink", text: "NEW!", textSize: 22, style: "position:absolute;left:1580px;top:250px" });
+  document.getElementById("f02-star2-host").innerHTML = KIT.star({ id: "f02-star2", size: 190, color: "green", points: 12, text: "LIVE", textSize: 22, style: "position:absolute;left:150px;top:260px" });
+  KIT.rig(A); KIT.chonkRig("f02-ch");
+
+  const tl = gsap.timeline({ paused: true });
+  const beats = KIT.beatsIn(S0, S0 + DUR);           // 0, .557, 1.138, …
+  const downs = KIT.beatsIn(S0, S0 + DUR, { down: true }); // 0, 2.276, 4.574, 6.85
+
+  /* ---- t = 0 state: applied NOW (correct first frame) and at t=0 on the timeline ---- */
+  const init = (sel, props) => { gsap.set(sel, props); tl.set(sel, props, 0); };
+  init("#root", { backgroundColor: "#f7cb46" });
+  init("#f02-w2", { opacity: 0, transformOrigin: "0% 75%" });
+  init("#f02-w1", { opacity: 1, transformOrigin: "0% 75%", scale: 2.1, y: -40, rotation: -10 });
+  init("#f02-censor", { scaleX: 0, opacity: 1, x: 0, y: 0, rotation: 0 });
+  init(["#f02-p1", "#f02-p2", "#f02-p3"], { opacity: 0, y: 60 });
+  init(["#f02-star1", "#f02-star2"], { scale: 0, rotation: -30 });
+  init("#f02-chonk-host", { x: 520 });
+  init("#f02-cam", { x: 0, scale: 1, filter: "blur(0px)" });
+  const pre = gsap.timeline({ paused: true }); KIT.face(pre, A, "happy", 0); pre.progress(1);
+  KIT.face(tl, A, "happy", 0);
+  KIT.flash(tl, "#f02-flash", 0, 0.55, 0.22);
+
+  /* ---- ground flips on every downbeat; sunburst spins all the way through ---- */
+  const grounds = ["#f7cb46", "#fe90e8", "#c0f7fe", "#99e885"];
+  downs.forEach((t, i) => tl.set("#root", { backgroundColor: grounds[i % grounds.length] }, t));
+  tl.fromTo("#f02-sun", { rotation: 0 }, { rotation: 48, duration: DUR, ease: "none" }, 0);
+
+
+  /* ---- DON'T / SAY slam on the first two beats ---- */
+  tl.set("#f02-w1", { opacity: 1 }, 0);
+  tl.fromTo("#f02-w1", { scale: 2.1, y: -40, rotation: -10 }, { scale: 1, y: 0, rotation: -3, duration: 0.24, ease: "back.out(2.4)" }, 0);
+  tl.set("#f02-w2", { opacity: 1 }, beats[1] - 0.02);
+  tl.fromTo("#f02-w2", { scale: 2.1, y: -40, rotation: 10 }, { scale: 1, y: 0, rotation: 2, duration: 0.24, ease: "back.out(2.4)" }, beats[1] - 0.02);
+  KIT.shake(tl, "#f02-cam", 0.0, 14, 0.25, 21);
+  KIT.shake(tl, "#f02-cam", beats[1], 10, 0.2, 22);
+
+  /* ---- stars + characters groove ---- */
+  tl.to("#f02-star2", { scale: 1, rotation: -8, duration: 0.3, ease: "back.out(2.6)" }, beats[2]);
+  tl.to("#f02-star1", { scale: 1, rotation: 12, duration: 0.3, ease: "back.out(2.6)" }, beats[3]);
+  tl.to("#f02-star2", { rotation: -70, duration: DUR - beats[2] - 0.3, ease: "none" }, beats[2] + 0.3);
+  tl.to("#f02-star1", { rotation: 80, duration: DUR - beats[3] - 0.3, ease: "none" }, beats[3] + 0.3);
+  beats.slice(4).forEach((t, i) => {
+    KIT.punch(tl, i % 2 ? "#f02-star1" : "#f02-star2", t, 1.18, 0.3);
+  });
+  KIT.groove(tl, A, beats, 1.2);
+  KIT.pose(tl, A, "hype", beats[2], 0.2);
+  KIT.wave(tl, A, beats.slice(3, 8));
+  // a new dance move every bar
+  KIT.pose(tl, A, "cheer", downs[2] + 0.05, 0.18);
+  KIT.pose(tl, A, "flex", downs[2] + 1.15, 0.18);
+  KIT.pose(tl, A, "hype", downs[3], 0.18);
+  // Le Chonk bobs on the beat once he's in; pills hop on beats
+  beats.filter((b) => b > beats[6]).forEach((b, i) => {
+    KIT.bounce(tl, "#f02-ch-all", [b], 0.06);
+    tl.to("#f02-pills", { y: i % 2 ? 0 : -8, duration: 0.12, ease: "power2.out" }, b);
+  });
+  tl.to("#f02-chonk-host", { x: 0, duration: 0.45, ease: "back.out(1.6)" }, beats[5]);
+  KIT.chonkHonk(tl, "f02-ch", downs[2] + 0.05);
+
+  /* ---- pills drop in on beats ---- */
+  ["#f02-p1", "#f02-p2", "#f02-p3"].forEach((p, i) => {
+    tl.to(p, { opacity: 1, y: 0, duration: 0.28, ease: "back.out(2.2)" }, beats[4] + i * 0.29);
+  });
+
+  /* ---- censor bar slams over the 3D "A" just before the downbeat, blows off on the swap ---- */
+  tl.to("#f02-censor", { scaleX: 1, duration: 0.1, ease: "power4.out" }, downs[2] - 0.6);
+  KIT.shake(tl, "#f02-cam", downs[2] - 0.55, 12, 0.22, 7);
+  tl.to("#f02-censor", { x: -1100, y: -120, rotation: -34, duration: 0.16, ease: "power2.in" }, downs[2] - 0.06);
+  KIT.flash(tl, "#f02-flash", downs[2], 0.7, 0.25);
+  KIT.shake(tl, "#f02-cam", downs[2], 22, 0.35, 9);
+  KIT.face(tl, A, "smug", downs[2] + 0.05);
+  KIT.face(tl, A, "happy", downs[3]);
+  KIT.blink(tl, A, 3.1); KIT.blink(tl, A, 6.0);
+
+  /* ---- exit: whip-pan into Monday ---- */
+  KIT.punch(tl, "#f02-cam", downs[3], 1.08, 0.25);
+  tl.to("#f02-cam", { x: -1400, filter: "blur(18px)", duration: 0.32, ease: "power3.in" }, DUR - 0.34);
+
+  window.__f02 = { beats, downs, swap: downs[2] };
+  window.__timelines["02-title"] = tl;
+})();
+</script>
+
+<script type="module">
+  import * as K3 from "./assets/kit/kit3d.js";
+  const { THREE } = K3;
+  const tl = window.__timelines["02-title"];
+  const info = window.__f02;
+  const W = K3.setup(document.getElementById("f02-gl"), { w: 1920, h: 1080, fov: 30, cam: [0, 0.6, 31], ambient: 1.2, key: 1.8 });
+  const ai = K3.text3d("A.I.", { size: 6.6, depth: 2.2, colors: ["white", "white", "blue", "white"], outline: 0.2, tracking: 0.0 });
+  const si = K3.text3d("S", { size: 6.6, depth: 2.2, color: "yellow", outline: 0.2 });
+  const root = new THREE.Group();
+  root.position.set(0, 1.25, 0);
+  root.add(ai.group);
+  ai.group.add(si.group);
+  const Aobj = ai.letters[0].obj, Sobj = si.letters[0].obj;
+  Sobj.position.copy(Aobj.userData.home); Sobj.userData.home = Aobj.userData.home.clone();
+  W.scene.add(root);
+  const tint = { "#f7cb46": 0xfe90e8, "#fe90e8": 0xf7cb46, "#c0f7fe": 0xfe90e8, "#99e885": 0xf7cb46 };
+
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const backOut = (x, s = 2.2) => { const c3 = s + 1; return 1 + c3 * Math.pow(x - 1, 3) + s * Math.pow(x - 1, 2); };
+  const dropIn = (t, t0, d = 0.32) => { const p = clamp((t - t0) / d); return p <= 0 ? -1 : backOut(p); };
+  const swap = info.swap, drops = [info.beats[2], info.beats[3] - 0.02, info.beats[3] + 0.06, info.beats[3] + 0.12];
+
+  KIT.onFrame(tl, (t) => {
+    // landing squash on every beat after the letters are in
+    let sq = 0;
+    for (const b of info.beats) { const d = t - b; if (b > drops[3] && d >= 0 && d < 0.28) sq = Math.max(sq, 1 - d / 0.28); }
+    ai.letters.forEach((L, i) => {
+      const o = L.obj, h = o.userData.home;
+      const e = dropIn(t, drops[i]);
+      const y = e < 0 ? 22 : h.y + (1 - e) * 14;
+      o.position.set(h.x, y, 0);
+      o.rotation.y = Math.sin(t * 2.3 + i * 1.3) * 0.22;
+      o.rotation.x = 0.12 + Math.sin(t * 1.6 + i) * 0.06;
+      o.rotation.z = (e < 0 ? 0 : (1 - e) * (i % 2 ? 0.3 : -0.3));
+      o.scale.set(1 + sq * 0.07, 1 - sq * 0.09, 1);
+      o.visible = !(i === 0 && t >= swap);
+    });
+    // the swap: A spins out, S spins in on the downbeat
+    if (t < swap) { Sobj.visible = false; }
+    else {
+      const p = clamp((t - swap) / 0.36);
+      Sobj.visible = true;
+      Sobj.rotation.y = (1 - backOut(p, 1.6)) * -Math.PI * 2.2 + Math.sin(t * 2.3) * 0.22;
+      const s = 0.4 + 0.6 * backOut(p, 2.6);
+      Sobj.scale.set(s * (1 + sq * 0.07), s * (1 - sq * 0.09), s);
+      Sobj.position.copy(Sobj.userData.home);
+    }
+    // A flies off as it un-renders (one frame of spin before the swap reads as a flip)
+    if (t >= swap - 0.12 && t < swap) { Aobj.rotation.y = ((t - (swap - 0.12)) / 0.12) * Math.PI * 0.5; }
+    // dot + I colours follow the ground (contrast)
+    const g = t < info.downs[1] ? "#f7cb46" : t < info.downs[2] ? "#fe90e8" : t < info.downs[3] ? "#c0f7fe" : "#99e885";
+    ai.letters[2].mesh.material.color.setHex(t >= swap ? tint[g] : 0xc0f7fe);
+    // beat pump on the held S.I. lockup (every beat after the swap)
+    let pump = 0;
+    for (const b of info.beats) { const d = t - b; if (b > swap + 0.3 && d >= 0 && d < 0.26) pump = Math.max(pump, 1 - d / 0.26); }
+    root.scale.setScalar(1 + pump * 0.055);
+    // slow orbit + dolly so the held lockup keeps moving
+    root.rotation.y = -0.22 + t * 0.055 + Math.sin(t * 0.9) * 0.05;
+    root.rotation.x = Math.sin(t * 0.7) * 0.04;
+    W.camera.position.z = 31 - Math.min(1, t / 7.4) * 3.2;
+    W.camera.position.x = Math.sin(t * 0.45) * 0.8;
+    W.camera.lookAt(0, 0.4, 0);
+    W.render();
+  });
+</script>
+</template>
+</body>
+</html>

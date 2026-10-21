@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body>
+<template>
+<style>
+  #root { position: absolute; inset: 0; overflow: hidden; background: var(--k-yellow); }
+  #f14-cam { position: absolute; inset: 0; transform-origin: 50% 50%; }
+  .f14-layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+  .f14-bleed { position: absolute; left: -90px; top: -90px; right: -90px; bottom: -90px; }
+  #f14-gl { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+
+  /* ---------- SATURDAY ---------- */
+  #f14-floor { position: absolute; left: -40px; right: -40px; top: 880px; height: 240px; border-top: 6px solid #000; }
+  #f14-plate { position: absolute; left: 1440px; top: 396px; width: 400px; height: 400px; box-shadow: 12px 12px 0 #000; border-width: 6px; }
+  #f14-bang { position: absolute; left: 1390px; top: 250px; width: 520px; height: 520px; }
+  #f14-ebrake { position: absolute; left: 1388px; top: 792px; padding: 12px 22px 14px; background: var(--k-red); border: 6px solid #000; box-shadow: 10px 10px 0 #000; }
+  #f14-ebrake .k-disp { font-size: 44px; white-space: nowrap; }
+  #f14-calS { position: absolute; left: 44px; top: 70px; width: 360px; height: 410px; }
+  #f14-calS .k-cal-top { background: #000; color: var(--k-yellow); }
+  #f14-ms { left: 628px; top: 34px; width: 132px; height: 132px; }
+  #f14-rn-host .k-receipt { transform-origin: 100% 0%; }
+  #f14-xpost { position: absolute; left: 1090px; top: 480px; background: var(--k-blue); }
+  #f14-qbox { position: absolute; left: 470px; top: 222px; width: 640px; height: 650px; }
+  .f14-glass { position: absolute; left: 0; top: 30px; width: 640px; height: 620px; background: rgba(192,247,254,.42); border: 7px solid #000; box-shadow: 14px 14px 0 #000; }
+  .f14-glare { position: absolute; top: -20px; width: 46px; height: 700px; background: rgba(255,255,255,.55); transform: rotate(24deg); }
+  .f14-lid { position: absolute; left: -20px; top: 0; width: 680px; height: 46px; background: #30303f; border: 7px solid #000; }
+  #f14-qlabel { position: absolute; left: 186px; top: 68px; background: var(--k-off); }
+  #f14-tape1, #f14-tape2 { position: absolute; height: 82px; width: 980px; background: var(--k-red); border: 6px solid #000; box-shadow: 8px 8px 0 #000;
+    display: flex; align-items: center; overflow: hidden; white-space: nowrap; font: 900 46px/1 "Inter", sans-serif; letter-spacing: .02em; text-transform: uppercase; color: #000; }
+  #f14-tape1 { left: 300px; top: 712px; }
+  #f14-tape2 { left: 330px; top: 296px; }
+  #f14-huh { position: absolute; left: 1100px; top: 150px; font-size: 230px; }
+  #f14-siren { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% -10%, rgba(255,90,78,.85), rgba(255,90,78,0) 62%); pointer-events: none; }
+  .f14-dz { position: absolute; left: 0; top: 0; width: 70px; height: 70px; }
+
+  /* ---------- SUNDAY: fine print ---------- */
+  #f14-sU > .f14-ugr { position: absolute; left: -90px; top: -90px; right: -90px; bottom: -90px; background: var(--k-green); }
+  #f14-calU { position: absolute; left: 40px; top: 66px; width: 360px; height: 410px; }
+  #f14-ru-host .k-receipt { transform-origin: 50% 0%; }
+  #f14-lens { position: absolute; left: -170px; top: -170px; width: 340px; height: 340px; }
+  .f14-handle { position: absolute; left: 266px; top: 266px; width: 56px; height: 230px; background: var(--k-yellow); border: 7px solid #000; transform-origin: 28px 0; transform: rotate(-45deg); box-shadow: 8px 8px 0 #000; }
+  .f14-glassL { position: absolute; inset: 0; border-radius: 50%; overflow: hidden; border: 12px solid #000; background: #fff; box-shadow: 10px 10px 0 #000; }
+  #f14-lens-in { position: absolute; left: 0; top: 0; width: 2922px; height: 2030px; }
+  #f14-lens-in img { position: absolute; left: 0; top: 0; width: 2922px; display: block; max-width: none; }
+  .f14-lglare { position: absolute; left: 40px; top: 30px; width: 120px; height: 60px; border-top: 10px solid rgba(255,255,255,.9); border-radius: 50%; transform: rotate(-30deg); }
+  #f14-quote { position: absolute; left: 1130px; top: 92px; width: 750px; padding: 34px 40px 38px; background: #fff; border: 6px solid #000; box-shadow: 14px 14px 0 #000; }
+  #f14-quote .k-pill { position: absolute; left: 30px; top: -24px; background: var(--k-cream); }
+  #f14-quote .k-disp { font-size: 58px; line-height: 1.0; }
+  #f14-stamp { left: 1180px; top: 520px; padding: 14px 34px 18px; border-width: 12px; background: rgba(255,255,255,.6); text-align: center; }
+  #f14-stamp .s1 { display: block; font-size: 84px; }
+  #f14-stamp .s2 { display: block; font-size: 150px; letter-spacing: -0.04em; }
+  #f14-nice { position: absolute; left: 36px; top: 520px; width: 330px; height: 330px; }
+
+  /* ---------- SUNDAY: Clawd ---------- */
+  #f14-bgK > .f14-kgr { position: absolute; left: -90px; top: -90px; right: -90px; bottom: -90px; background: var(--k-green); }
+  #f14-sun { animation: none; }
+  #f14-cru { position: absolute; left: 0; right: 0; top: 260px; text-align: center; transform-origin: 50% 0%; }
+  #f14-cru .k-disp { display: block; font-size: 176px; line-height: .92; color: var(--k-white); }
+  #f14-cru span { display: inline-block; }
+  #f14-halo { position: absolute; left: 600px; top: 196px; width: 720px; height: 720px; opacity: 0; }
+  #f14-beam { position: absolute; left: 560px; top: -40px; width: 800px; height: 860px; opacity: 0; background: linear-gradient(180deg, rgba(255,253,245,.75), rgba(255,253,245,.12)); clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%); }
+  .f14-gh { position: absolute; left: 0; top: 0; width: 70px; height: 64px; opacity: 0; }
+  #f14-spot { position: absolute; left: 650px; top: 792px; width: 620px; height: 84px; border-radius: 50%; background: rgba(255,255,255,.45); border: 5px solid #000; }
+  .f14-bub { font-size: 116px; padding: 26px 40px; }
+  #f14-b1 { left: 96px; top: 300px; }
+  #f14-b2 { left: 1236px; top: 268px; }
+  #f14-x2 { position: absolute; left: 1700px; top: 170px; }
+  #f14-clname { position: absolute; left: 864px; top: 806px; background: var(--k-cream); font-size: 30px; padding: 10px 26px; gap: 12px; }
+  #f14-clname img { width: 34px; height: 34px; display: block; }
+  .f14-heart { position: absolute; left: 0; top: 0; width: 84px; height: 76px; }
+  #f14-sunpill { position: absolute; left: 60px; top: 60px; background: var(--k-off); }
+
+  /* t=0 hidden states mirrored in CSS */
+  #f14-sU, #f14-bgK, #f14-fgK, #f14-bang, #f14-xpost, #f14-qbox, #f14-tape1, #f14-tape2, #f14-huh, #f14-siren, .f14-dz, #f14-ms, #f14-rn,
+  #f14-quote, #f14-stamp, #f14-nice, #f14-lens, #f14-b1, #f14-b2, #f14-x2, #f14-clname, .f14-heart, #f14-cw1, #f14-cw2, #f14-cw3, #f14-spot { opacity: 0; }
+</style>
+
+<div data-hf-id="hf-cp7h" id="root" data-composition-id="14-sat-sun" data-width="1920" data-height="1080" data-duration="13.7">
+  <div data-hf-id="hf-8ork" id="f14-cam">
+    <!-- background layers -->
+    <div data-hf-id="hf-6fa3" id="f14-bgS" class="f14-layer">
+      <div data-hf-id="hf-w4uf" class="f14-bleed bg-yellow"></div><div data-hf-id="hf-5n5k" class="k-dots f14-bleed"></div>
+      <div data-hf-id="hf-aa92" id="f14-siren"></div>
+      <div data-hf-id="hf-lxy2" id="f14-floor" class="k-hazard"></div>
+      <div data-hf-id="hf-hbcd" id="f14-bang"></div>
+      <div data-hf-id="hf-8k04" id="f14-plate" class="k-hazard"></div>
+    </div>
+    <div data-hf-id="hf-ixoj" id="f14-bgK" class="f14-layer"><div class="f14-kgr"></div>
+      <div data-hf-id="hf-vyam" class="k-sunburst" id="f14-sun"></div><div data-hf-id="hf-gwnk" class="k-dots"></div>
+      <div id="f14-beam"></div>
+      <div id="f14-halo"></div>
+      <div data-hf-id="hf-rczn" id="f14-spot"></div>
+    </div>
+
+    <canvas data-hf-id="hf-51cn" id="f14-gl" width="1920" height="1080"></canvas>
+
+    <!-- SATURDAY foreground -->
+    <div data-hf-id="hf-qakv" id="f14-fgS" class="f14-layer">
+      <div data-hf-id="hf-p965" id="f14-ebrake"><span data-hf-id="hf-ts9t" class="k-disp">Emergency brake</span></div>
+      <div data-hf-id="hf-jl08" id="f14-calS"></div>
+      <div data-hf-id="hf-y0em" id="f14-rn-host"></div>
+      <div data-hf-id="hf-zsrx" id="f14-ms" class="k-logo"><img data-hf-id="hf-lt11" src="assets/logos/microsoft.svg" alt=""></div>
+      <div data-hf-id="hf-9jtq" id="f14-xpost" class="k-pill lg">Saturday post on X</div>
+      <div id="f14-qag-host"></div>
+      <div data-hf-id="hf-7gor" id="f14-qbox">
+        <div data-hf-id="hf-di9q" class="f14-glass"><div data-hf-id="hf-4oma" class="f14-glare" style="left:60px"></div><div data-hf-id="hf-cd15" class="f14-glare" style="left:150px;width:20px"></div><div data-hf-id="hf-oldq" class="f14-glare" style="left:470px;width:26px"></div></div>
+        <div data-hf-id="hf-h1ox" class="f14-lid"></div>
+        <div data-hf-id="hf-ysy4" id="f14-qlabel" class="k-pill">Quarantine</div>
+      </div>
+      <div data-hf-id="hf-ppre" class="f14-dz" id="f14-dz0"></div><div data-hf-id="hf-tnvf" class="f14-dz" id="f14-dz1"></div><div data-hf-id="hf-isds" class="f14-dz" id="f14-dz2"></div>
+      <div data-hf-id="hf-i14d" id="f14-tape1">&#160;Compromised · Compromised · Compromised · Compromised</div>
+      <div data-hf-id="hf-goos" id="f14-tape2">&#160;Compromised · Compromised · Compromised · Compromised</div>
+      <div data-hf-id="hf-eolu" id="f14-huh" class="k-disp k-sticker-text">?!</div>
+    </div>
+
+    <!-- SUNDAY 1: the fine print -->
+    <div data-hf-id="hf-ij9t" id="f14-sU" class="f14-layer"><div class="f14-ugr"></div>
+      <div data-hf-id="hf-fpqh" class="k-dots"></div>
+      <div data-hf-id="hf-bos6" id="f14-calU"></div>
+      <div data-hf-id="hf-3lrr" id="f14-ru-host"></div>
+      <div data-hf-id="hf-1g40" id="f14-nice"></div>
+      <div data-hf-id="hf-bthd" id="f14-quote"><span data-hf-id="hf-cdki" class="k-pill">The fine print</span><div data-hf-id="hf-9n99" class="k-disp">“…address abusive behavior toward our models.”</div></div>
+      <div data-hf-id="hf-ltsa" id="f14-stamp" class="k-stamp"><span data-hf-id="hf-keaa" class="s1">Effective</span><span data-hf-id="hf-b5v8" class="s2">Nov 12</span></div>
+    </div>
+
+    <!-- SUNDAY 2: Clawd foreground -->
+    <div data-hf-id="hf-yuzb" id="f14-fgK" class="f14-layer">
+      <div data-hf-id="hf-4p1y" id="f14-sunpill" class="k-pill lg">Sun 11 · Oct 2026</div>
+      <div data-hf-id="hf-03u1" id="f14-cru" class="k-sticker-text"><span data-hf-id="hf-db2g" class="k-disp" id="f14-cru1"><span data-hf-id="hf-ilmk" id="f14-cw1">No</span> <span data-hf-id="hf-mbzt" id="f14-cw2">needless</span></span><span data-hf-id="hf-owv9" class="k-disp"><span data-hf-id="hf-8ol9" id="f14-cw3">cruelty</span></span></div>
+      <div data-hf-id="hf-kiaf" id="f14-clname" class="k-pill"><img data-hf-id="hf-yhmw" src="assets/logos/lobe-claude-color.svg" alt="">Claude</div>
+      <div data-hf-id="hf-hxeu" id="f14-b1" class="k-bubble f14-bub">Please<span data-hf-id="hf-vq2p" id="f14-t1"></span></div>
+      <div data-hf-id="hf-c68k" id="f14-b2" class="k-bubble f14-bub">Please!<span data-hf-id="hf-zo6q" id="f14-t2"></span></div>
+      <div data-hf-id="hf-ha61" id="f14-x2"></div>
+      <div id="f14-ghosts"></div>
+      <div data-hf-id="hf-kz6c" id="f14-hearts"></div>
+    </div>
+  </div>
+  <div data-hf-id="hf-4w90" id="f14-flash" class="k-flash"></div>
+</div>
+
+<script>
+(function () {
+  const T0 = 159.939, T1 = 173.639;
+  const $ = (id) => document.getElementById(id);
+  const tl = gsap.timeline({ paused: true });
+  window.__timelines["14-sat-sun"] = tl;   // registered first; the module script below hooks 3D rendering onto it
+
+  /* ---------------- markup ---------------- */
+  $("f14-calS").innerHTML = KIT.calendar({ id: "f14-calSc", dow: "Saturday", day: "10", month: "OCT", color: "black", style: "left:0;top:0" });
+  $("f14-calU").innerHTML = KIT.calendar({ id: "f14-calUc", dow: "Sunday", day: "11", month: "OCT", color: "green", style: "left:0;top:0" });
+  $("f14-bang").innerHTML = KIT.star({ id: "f14-bangstar", size: 520, color: "red", points: 14, inner: 0.6 });
+  $("f14-rn-host").innerHTML = KIT.receipt({
+    id: "f14-rn", shot: "nadella-brake-tc", url: "techcrunch.com/2026/10/10/microsofts-satya-nadella-says-ai-models-need-an-emergency-brake",
+    tag: "TechCrunch · Oct 10, 2026", tagColor: "blue", width: 980, crop: [288, 642, 840, 205],
+    marks: [[842, 708, 187, 29]], style: "left:700px;top:96px",
+  });
+  $("f14-qag-host").innerHTML = KIT.mascot({ id: "f14-qag", size: 420, style: "position:absolute;left:580px;top:372px" });
+  ["f14-dz0", "f14-dz1", "f14-dz2"].forEach((id, i) => { $(id).innerHTML = KIT.star({ size: 70, color: i === 1 ? "pink" : "yellow", points: 5, inner: 0.46 }); });
+  // Sunday receipt: usage policy page (title + the paragraph with the fine print)
+  const RS = 700 / 920; // receipt scale (screen px per shot px)
+  $("f14-ru-host").innerHTML = KIT.receipt({
+    id: "f14-ru", shot: "anthropic-usage-policy", url: "anthropic.com/news/2026-usage-policy-update",
+    tag: "Anthropic · Oct 8, 2026", tagColor: "cream", width: 700, crop: [500, 270, 920, 850],
+    marks: [[869, 1010, 382, 28], [900, 1066, 140, 28]], style: "left:380px;top:26px",
+  });
+  // magnifier lives INSIDE the receipt so it shares its tilt; its glass shows the same page at 2x
+  const MAG = 2, M = RS * MAG, RIN = 158;
+  const lensMarks = [[869, 1010, 382, 28], [900, 1066, 140, 28]].map((m, i) =>
+    `<div id="f14-lm${i}" class="k-mark" style="left:${Math.round(m[0] * M - 8)}px;top:${Math.round(m[1] * M - 3)}px;width:${Math.round(m[2] * M + 16)}px;height:${Math.round(m[3] * M + 6)}px"></div>`).join("");
+  const lens = document.createElement("div");
+  lens.id = "f14-lens";
+  lens.innerHTML = `<div class="f14-handle"></div><div class="f14-glassL"><div id="f14-lens-in"><img src="assets/shots/anthropic-usage-policy.jpg" alt=""/>${lensMarks}</div><div class="f14-lglare"></div></div>`;
+  $("f14-ru").appendChild(lens);
+  $("f14-nice").innerHTML = KIT.star({ id: "f14-nicestar", size: 330, color: "pink", points: 12, inner: 0.72, text: "BE NICE", textSize: 17 });
+  $("f14-halo").innerHTML = KIT.star({ size: 720, color: "cream", points: 18, inner: 0.8 });
+  (function () { let g = ""; for (let i = 0; i < 9; i++) g += '<svg class="f14-gh" id="f14-gh' + i + '" viewBox="0 0 84 76"><path d="M42 72 L8 36 A20 20 0 0 1 42 10 A20 20 0 0 1 76 36 Z" fill="' + (i % 3 ? "#fe90e8" : "#fffdf5") + '" stroke="#000" stroke-width="6" stroke-linejoin="round"/></svg>'; $("f14-ghosts").innerHTML = g; })();
+  $("f14-t1").outerHTML = KIT.tail("br");
+  $("f14-t2").outerHTML = KIT.tail("bl");
+  $("f14-x2").innerHTML = KIT.star({ size: 190, color: "yellow", points: 10, inner: 0.66, text: "×2", textSize: 30 });
+  (function () {
+    let h = "";
+    for (let i = 0; i < 22; i++) h += `<svg class="f14-heart" id="f14-h${i}" viewBox="0 0 84 76"><path d="M42 72 L8 36 A20 20 0 0 1 42 10 A20 20 0 0 1 76 36 Z" fill="${i % 3 === 2 ? "#ff5a4e" : "#fe90e8"}" stroke="#000" stroke-width="6" stroke-linejoin="round"/></svg>`;
+    $("f14-hearts").innerHTML = h;
+  })();
+  KIT.rig("f14-qag");
+  gsap.set("#f14-qag-badge-ai", { opacity: 0 }); gsap.set("#f14-qag-badge-si", { opacity: 1 }); // AGENT stays S.I. after chorus 1
+
+  const beats = KIT.beatsIn(T0, T1), downs = KIT.beatsIn(T0, T1, { down: true });
+  const inR = (a, b) => (t) => t >= a && t < b;
+  const pop = (sel, t, o) => {
+    o = o || {};
+    tl.set(sel, { opacity: 1, scale: o.s0 == null ? 0.2 : o.s0, rotation: o.r0 == null ? 0 : o.r0 }, t);
+    tl.to(sel, { scale: 1, rotation: o.r1 == null ? 0 : o.r1, duration: o.d || 0.26, ease: o.ease || "back.out(2.6)" }, t + 0.001);
+  };
+
+  /* ---------------- t = 0 ---------------- */
+  tl.set(["#f14-sU", "#f14-bgK", "#f14-fgK"], { opacity: 0 }, 0);
+  tl.set("#f14-rn", { opacity: 0, x: 1300, rotation: -2 }, 0);
+  tl.set("#f14-rn .k-mark", { scaleX: 0 }, 0);
+  tl.set(["#f14-ms", "#f14-xpost", "#f14-qbox", "#f14-tape1", "#f14-tape2", "#f14-huh", "#f14-siren", ".f14-dz", "#f14-bang"], { opacity: 0 }, 0);
+  tl.set("#f14-qbox", { y: -1100 }, 0);
+  tl.set(["#f14-tape1", "#f14-tape2"], { scaleX: 0, transformOrigin: "0% 50%" }, 0);
+  tl.set("#f14-tape1", { rotation: -8 }, 0);
+  tl.set("#f14-tape2", { rotation: 7 }, 0);
+  KIT.badge(tl, "f14-qag", "si", 0);
+  tl.set("#f14-qag-badge-si", { scale: 1 }, 0.0005); // no pop on the cut
+  KIT.face(tl, "f14-qag", "side", 0);
+  // AGENT is on stage from the start, eyeing the lever (the box will drop onto it)
+  KIT.groove(tl, "f14-qag", beats.filter(inR(0, 2.15)), 0.8);
+  KIT.blink(tl, "f14-qag", 1.4);
+  KIT.face(tl, "f14-qag", "nervous", 0.86);
+  KIT.pose(tl, "f14-qag", "point", 1.5, 0.2);
+  KIT.face(tl, "f14-qag", "shock", 2.2);
+  KIT.pose(tl, "f14-qag", "hype", 2.2, 0.12);
+  gsap.set("#f14-qag", { x: -380, y: 28 });
+  tl.set("#f14-qag", { x: -380, y: 28 }, 0);
+  tl.to("#f14-qag", { y: -22, duration: 0.14, ease: "power2.out" }, 2.2);
+  tl.to("#f14-qag", { x: 0, y: 0, duration: 0.2, ease: "power2.inOut" }, 2.345); // scoots right under the falling box
+
+  /* ============ SATURDAY — "Saturday, Satya's posting, says we need an emergency brake" ============ */
+  tl.set("#f14-calS", { scale: 1.6, rotation: 14, opacity: 1, transformOrigin: "50% 40%" }, 0);
+  tl.to("#f14-calS", { scale: 0.84, rotation: -5, duration: 0.24, ease: "back.out(2.2)" }, 0.16);
+  KIT.shake(tl, "#f14-cam", 0.2, 14, 0.28, 3);
+  // hazard floor crawls on the beat
+  beats.filter(inR(0, 5.6)).forEach((b, i) => tl.to("#f14-floor", { backgroundPosition: `${(i + 1) * 73.5}px 0px`, duration: 0.24, ease: "power2.out" }, b));
+  downs.filter(inR(0.5, 5.6)).forEach((d) => KIT.punch(tl, "#f14-calS .k-cal", d, 1.05, 0.3));
+  // "Satya's" — Microsoft chip + the real TechCrunch headline
+  pop("#f14-ms", 0.84, { s0: 0.2, r0: -30, r1: -8 });
+  tl.set("#f14-rn", { opacity: 1 }, 0.84);
+  tl.to("#f14-rn", { x: 0, duration: 0.3, ease: "back.out(1.4)" }, 0.84);
+  // "posting"
+  pop("#f14-xpost", 1.16, { s0: 0.3, r0: 8, r1: 3 });
+  // "emergency brake" highlighter
+  tl.to("#f14-rn-mark0", { scaleX: 1, duration: 0.3, ease: "power2.inOut" }, 1.84);
+  tl.to("#f14-rn", { scale: 1.2, duration: 0.36, ease: "power2.out" }, 1.84); // push in on the headline phrase
+  // "brake" — the lever is yanked (3D, see module); impact on screen
+  tl.set("#f14-bang", { opacity: 1, scale: 0.2, rotation: 0, transformOrigin: "50% 50%" }, 2.2);
+  tl.to("#f14-bang", { scale: 1, rotation: 18, duration: 0.2, ease: "back.out(2)" }, 2.201);
+  tl.to("#f14-bang", { opacity: 0, duration: 0.25 }, 2.5);
+  KIT.flash(tl, "#f14-flash", 2.2, 0.7, 0.22);
+  KIT.shake(tl, "#f14-cam", 2.22, 26, 0.4, 13);
+  KIT.punch(tl, "#f14-ebrake", 2.22, 1.18, 0.35);
+  // sirens on every beat after the pull
+  beats.filter(inR(2.2, 5.6)).forEach((b) => tl.fromTo("#f14-siren", { opacity: 0.85 }, { opacity: 0, duration: 0.45, ease: "power2.in", immediateRender: false }, b));
+  tl.set("#f14-siren", { opacity: 0.85 }, 2.2);
+  // "Assume" — receipt clears, AGENT drops in, sealed in a quarantine box
+  tl.to(["#f14-rn", "#f14-ms", "#f14-xpost"], { y: -760, duration: 0.2, ease: "power2.in" }, 2.46);
+  tl.set(["#f14-rn", "#f14-ms", "#f14-xpost"], { opacity: 0 }, 2.67);
+  tl.set("#f14-qbox", { opacity: 1 }, 2.5);
+  tl.to("#f14-qbox", { y: 0, duration: 0.32, ease: "bounce.out" }, 2.52);
+  KIT.shake(tl, "#f14-cam", 2.84, 16, 0.3, 27);
+  KIT.face(tl, "f14-qag", "shock", 2.62);
+  KIT.pose(tl, "f14-qag", "shrug", 2.66, 0.14);
+  KIT.talk(tl, "f14-qag", KIT.wordsIn(T0, T1).map((w) => w.s).filter(inR(0, 5.6)));
+  KIT.sweat(tl, "f14-qag", 3.0);
+  // "compromised" — tape wraps the box
+  tl.set("#f14-tape1", { opacity: 1 }, 3.52);
+  tl.to("#f14-tape1", { scaleX: 1, duration: 0.18, ease: "power3.out" }, 3.52);
+  tl.set("#f14-tape2", { opacity: 1 }, 3.7);
+  tl.to("#f14-tape2", { scaleX: 1, duration: 0.18, ease: "power3.out" }, 3.7);
+  KIT.shake(tl, "#f14-cam", 3.58, 10, 0.2, 8);
+  KIT.face(tl, "f14-qag", "nervous", 3.6);
+  KIT.pose(tl, "f14-qag", "cover", 3.62, 0.18);
+  // "?!"
+  pop("#f14-huh", 4.2, { s0: 2.4, r0: 20, r1: 8, d: 0.22 });
+  KIT.face(tl, "f14-qag", "shock", 4.24);
+  KIT.pose(tl, "f14-qag", "hype", 4.24, 0.14);
+  // "man, that's a lot to take" — dizzy X eyes, stars orbiting
+  KIT.face(tl, "f14-qag", "sad", 4.5);
+  KIT.pose(tl, "f14-qag", "down", 4.5, 0.25);
+  KIT.face(tl, "f14-qag", "dead", 5.12);
+  tl.set(".f14-dz", { opacity: 1 }, 5.1);
+  [5.12, 5.3, 5.48].forEach((t, i) => tl.to("#f14-qag-head", { rotation: i % 2 ? 9 : -9, duration: 0.17, ease: "sine.inOut" }, t));
+  KIT.groove(tl, "f14-qag", beats.filter(inR(2.9, 3.5)), 0.6);
+  KIT.blink(tl, "f14-qag", 4.0);
+  // dizzy stars: pure function of time
+  KIT.onFrame(tl, (t) => {
+    const on = t >= 5.1 && t < 5.7;
+    for (let i = 0; i < 3; i++) {
+      const a = (t - 5.1) * 9 + (i * Math.PI * 2) / 3, el = document.getElementById("f14-dz" + i);
+      if (!el) continue;
+      el.style.transform = on ? `translate(${790 - 35 + Math.cos(a) * 200}px, ${436 - 35 + Math.sin(a) * 48}px) scale(${0.8 + 0.25 * Math.sin(a)})` : "translate(-200px,-200px)";
+      el.style.zIndex = Math.sin(a) > 0 ? 3 : 1;
+    }
+  });
+
+  /* ============ SUNDAY — "I read the fine print: come November, y'all be nice" ============ */
+  tl.set("#f14-sU", { opacity: 1 }, 5.62);
+  tl.set("#f14-fgS", { opacity: 0 }, 5.62);
+  tl.set("#f14-bgS", { opacity: 0 }, 5.62);
+  KIT.flash(tl, "#f14-flash", 5.64, 0.6, 0.25);
+  tl.set("#f14-calU", { scale: 1.7, rotation: -18, transformOrigin: "50% 40%" }, 5.62);
+  tl.to("#f14-calU", { scale: 0.8, rotation: -5, duration: 0.24, ease: "back.out(2.2)" }, 5.64);
+  KIT.shake(tl, "#f14-cam", 5.68, 16, 0.3, 19);
+  tl.set("#f14-ru", { y: 900, rotation: 3 }, 0);
+  tl.set("#f14-ru .k-mark", { scaleX: 0 }, 0);
+  tl.set(".f14-glassL .k-mark", { scaleX: 0 }, 0);
+  tl.to("#f14-ru", { y: 0, rotation: -1.5, duration: 0.34, ease: "back.out(1.3)" }, 5.74);
+  // magnifier: lens centre in receipt coords (lx, ly); its glass content moves in lockstep
+  const lensAt = (lx, ly) => ({ x: lx, y: ly });
+  const lensIn = (lx, ly) => ({ x: -500 * M + RIN - (lx * MAG), y: -270 * M + RIN - ((ly - 50) * MAG) });
+  const P0 = [760, 980], P1 = [330, 624], P2 = [520, 624], P3 = [358, 666];
+  const moveLens = (from, to, t, d, ease) => {
+    tl.to("#f14-lens", Object.assign(lensAt(to[0], to[1]), { duration: d, ease }), t);
+    tl.to("#f14-lens-in", Object.assign(lensIn(to[0], to[1]), { duration: d, ease }), t);
+  };
+  tl.set("#f14-lens", Object.assign({ opacity: 0 }, lensAt(P0[0], P0[1])), 0);
+  tl.set("#f14-lens-in", lensIn(P0[0], P0[1]), 0);
+  tl.set("#f14-lens", { opacity: 1 }, 6.0);
+  moveLens(P0, P1, 6.0, 0.55, "power3.out");        // "I ... read"
+  moveLens(P1, P2, 6.7, 0.5, "sine.inOut");          // reading across "abusive behavior toward our models"
+  tl.to(["#f14-ru-mark0", "#f14-lm0"], { scaleX: 1, duration: 0.5, ease: "sine.inOut" }, 6.7);
+  // "fine print" — the quote card lands on the stop
+  tl.set("#f14-quote", { opacity: 1, x: 900, rotation: 6 }, 7.12);
+  tl.to("#f14-quote", { x: 0, rotation: 2, duration: 0.26, ease: "back.out(1.6)" }, 7.12);
+  // "come November" — lens drops to the date, stamp slams
+  moveLens(P2, P3, 7.74, 0.26, "power3.inOut");
+  tl.to(["#f14-ru-mark1", "#f14-lm1"], { scaleX: 1, duration: 0.24, ease: "power2.inOut" }, 7.96);
+  tl.set("#f14-stamp", { opacity: 1, scale: 3, rotation: 4 }, 7.96);
+  tl.to("#f14-stamp", { scale: 1, rotation: -8, duration: 0.14, ease: "power4.in" }, 7.961);
+  KIT.shake(tl, "#f14-cam", 8.1, 18, 0.3, 23);
+  // "y'all be nice"
+  pop("#f14-nice", 8.84, { s0: 0.1, r0: -60, r1: -10, d: 0.32 });
+  KIT.punch(tl, "#f14-stamp", 8.55, 1.05, 0.25);
+  downs.filter(inR(6, 9.2)).forEach((d) => KIT.punch(tl, "#f14-calU .k-cal", d, 1.05, 0.3));
+
+  /* ============ SUNDAY — "No needless cruelty to Claude, so say please, and say it twice" ============ */
+  tl.set("#f14-sU", { opacity: 0 }, 9.14);
+  tl.set(["#f14-bgK", "#f14-fgK"], { opacity: 1 }, 9.14);
+  KIT.flash(tl, "#f14-flash", 9.14, 0.5, 0.2);
+  tl.set("#f14-sun", { rotation: 0 }, 0);
+  tl.to("#f14-sun", { rotation: 40, duration: 13.7 - 9.14, ease: "none" }, 9.14);
+  pop("#f14-sunpill", 9.16, { s0: 0.4, r0: -8, r1: -3 });
+  tl.set("#f14-sunpill", { opacity: 0 }, 0);
+  // words slam one by one
+  [["#f14-cw1", 9.2], ["#f14-cw2", 9.52], ["#f14-cw3", 9.96]].forEach((w, i) => {
+    tl.set(w[0], { opacity: 1, scale: 2.4, y: -30 }, w[1]);
+    tl.to(w[0], { scale: 1, y: 0, duration: 0.2, ease: "back.out(2.4)" }, w[1] + 0.001);
+    KIT.shake(tl, "#f14-cam", w[1] + 0.02, 8 + i * 4, 0.18, 30 + i);
+  });
+  // ... then they shrink up to make room for CLAWD
+  tl.to("#f14-cru", { scale: 0.42, y: -232, duration: 0.3, ease: "power3.inOut" }, 10.36);
+  pop("#f14-clname", 10.66, { s0: 0.3, r0: -10, r1: -2 });
+  // star halo behind CLAWD: pops on "Claude", turns slowly, pulses with every hop
+  // a gentle stage for "no needless cruelty": spotlight on CLAWD's platform, the halo turning, hearts floating up
+  tl.set("#f14-beam", { opacity: 0 }, 0);
+  tl.to("#f14-beam", { opacity: 1, duration: 0.3, ease: "power2.out" }, 9.14);
+  tl.set("#f14-halo", { opacity: 1, scale: 0.4, rotation: -30, transformOrigin: "50% 50%" }, 9.15);
+  tl.to("#f14-halo", { scale: 0.86, rotation: 0, duration: 0.45, ease: "back.out(1.6)" }, 9.151);
+  tl.to("#f14-halo", { scale: 1, duration: 0.3, ease: "back.out(2.4)" }, 10.6);
+  tl.set("#f14-halo svg", { rotation: 0, transformOrigin: "50% 50%" }, 0);
+  tl.to("#f14-halo svg", { rotation: 40, duration: 13.7 - 9.32, ease: "none" }, 9.32);
+  [11.44, 11.95, 12.36, 12.88].forEach((b) => KIT.punch(tl, "#f14-halo", b, 1.08, 0.3));
+  (function () {
+    const r = KIT.rng(1414);
+    for (let i = 0; i < 9; i++) {
+      const t = 9.16 + i * 0.14, x = 700 + r() * 520, el = "#f14-gh" + i;
+      tl.set(el, { opacity: 0, x: x, y: 760, scale: 0.5 + r() * 0.5, rotation: (r() - 0.5) * 30 }, t);
+      tl.to(el, { opacity: 1, duration: 0.2 }, t + 0.001);
+      tl.to(el, { y: 300 + r() * 140, x: x + (r() - 0.5) * 160, duration: 1.4, ease: "sine.out" }, t + 0.001);
+      tl.to(el, { opacity: 0, duration: 0.3 }, t + 1.15);
+    }
+  })();
+  // "please" — bubble 1 + hearts
+  pop("#f14-b1", 11.42, { s0: 0.2, r0: -14, r1: -4, d: 0.24 });
+  pop("#f14-b2", 12.86, { s0: 0.2, r0: 14, r1: 4, d: 0.24 });
+  pop("#f14-x2", 12.9, { s0: 0.2, r0: -40, r1: 10, d: 0.3 });
+  const burst = (t, cx, cy, from, n, seed) => {
+    const r = KIT.rng(seed);
+    for (let k = 0; k < n; k++) {
+      const el = "#f14-h" + (from + k), a = -Math.PI * 0.85 + (k / (n - 1)) * Math.PI * 0.7 + (r() - 0.5) * 0.2, d = 130 + r() * 120;
+      tl.set(el, { opacity: 1, x: cx - 42, y: cy - 38, scale: 0.3, rotation: (r() - 0.5) * 40 }, t);
+      tl.to(el, { x: cx - 42 + Math.cos(a) * d, y: cy - 38 + Math.sin(a) * d * 0.8, scale: 0.75 + r() * 0.5, duration: 0.55, ease: "power3.out" }, t + 0.001);
+      tl.to(el, { y: cy - 38 + Math.sin(a) * d * 0.8 - 60, opacity: 0, duration: 0.5, ease: "power1.in" }, t + 0.7 + r() * 0.25);
+    }
+  };
+  burst(11.46, 960, 480, 0, 8, 51);
+  burst(12.9, 960, 470, 8, 9, 77);
+  burst(13.2, 960, 480, 17, 5, 91);
+  // bubbles breathe on the beat
+  beats.filter(inR(11.7, 13.7)).forEach((b) => KIT.punch(tl, "#f14-b1", b, 1.04, 0.25));
+  beats.filter(inR(13.0, 13.7)).forEach((b) => KIT.punch(tl, "#f14-b2", b, 1.04, 0.25));
+  // hold through the stop, gentle push into the cut
+  tl.to("#f14-cam", { scale: 1.05, duration: 0.6, ease: "power2.in" }, 13.08);
+})();
+</script>
+
+<script type="module">
+  import * as K3 from "./assets/kit/kit3d.js";
+  const { THREE } = K3;
+  const tl = window.__timelines["14-sat-sun"];
+  const T0 = 159.939, T1 = 173.639;
+  const beats = KIT.beatsIn(T0, T1);
+  const W = K3.setup(document.getElementById("f14-gl"), { w: 1920, h: 1080, fov: 30, cam: [0, 0, 30] });
+
+  /* --- EMERGENCY BRAKE lever (Saturday) --- */
+  // wall-mounted on the hazard plate (plate centre = screen 1640,596); swings in the screen plane
+  const lever = new THREE.Group();
+  const bracket = K3.box(2.1, 2.1, 0.7, 0x30303f, { outline: 0.09 }); lever.add(bracket);
+  const bolt = (x, y) => { const b = K3.cyl(0.16, 0.16, 0.2, "off", { outline: 0.04 }); b.rotation.x = Math.PI / 2; b.position.set(x, y, 0.42); lever.add(b); };
+  bolt(-0.72, 0.72); bolt(0.72, 0.72); bolt(-0.72, -0.72); bolt(0.72, -0.72);
+  const pivot = new THREE.Group(); pivot.position.z = 0.75; lever.add(pivot);
+  const hub = K3.cyl(0.66, 0.66, 0.8, "yellow", { outline: 0.07 }); hub.rotation.x = Math.PI / 2; pivot.add(hub);
+  const arm = K3.cyl(0.25, 0.3, 3.3, "off", { outline: 0.08 }); arm.position.y = 1.95; pivot.add(arm);
+  const grip = K3.cyl(0.4, 0.4, 0.95, 0x30303f, { outline: 0.07 }); grip.position.y = 3.25; pivot.add(grip);
+  const knob = K3.sphere(0.88, "red", { outline: 0.09 }); knob.position.y = 4.1; pivot.add(knob);
+  lever.position.set(10.13, -0.83, 0);
+  lever.rotation.set(0.08, 0.05, 0);
+  W.scene.add(lever);
+
+  /* --- CLAWD (Sunday) --- */
+  const cl = K3.clawd({ scale: 0.98 });
+  W.scene.add(cl.group);
+  const FLOOR = -3.28; // platform top at about screen y 760
+  // CLAWD's stage platform with a trapdoor he pops out of
+  const plat = new THREE.Group(); W.scene.add(plat);
+  const pTop = K3.cyl(3.7, 3.8, 0.55, "cream", { outline: 0.09, seg: 48 }); pTop.position.y = -0.275; plat.add(pTop);
+  const pBase = K3.cyl(4.0, 4.1, 0.55, "pink", { outline: 0.09, seg: 48 }); pBase.position.y = -0.82; plat.add(pBase);
+  const trap = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.7, 0.04, 40), K3.flat(0x15151a)); trap.position.y = 0.03; plat.add(trap);
+
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const backOut = (p, s = 1.9) => 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2);
+  const UP = -0.62, DOWN = 2.05;
+  // hops ride the beat grid (11.33 · 11.87 · 12.42), the big one spins on "twice", then a settle hop into the cut
+  // take-off ON the words: "please" 11.44 and "twice" 12.88 (with a spin); smaller beat hops between
+  const hops = [[11.44, 0.46, 1.9], [11.95, 0.36, 0.9], [12.36, 0.34, 0.8], [12.88, 0.56, 2.4, true], [13.48, 0.24, 0.5]];
+  // heart mesh (extruded toon heart with outline)
+  const hs = new THREE.Shape();
+  hs.moveTo(0, -1); hs.bezierCurveTo(-0.2, -0.75, -1, -0.3, -1, 0.25); hs.bezierCurveTo(-1, 0.8, -0.35, 1.05, 0, 0.6);
+  hs.bezierCurveTo(0.35, 1.05, 1, 0.8, 1, 0.25); hs.bezierCurveTo(1, -0.3, 0.2, -0.75, 0, -1);
+  const hg = new THREE.ExtrudeGeometry(hs, { depth: 0.38, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.06, bevelSegments: 2, curveSegments: 10 });
+  hg.center();
+  const hearts = [[11.4, -1.8, -0.6, 1], [11.48, 1.6, 0.7, 0.85], [11.93, 0.3, 0.3, 0.9], [12.48, -0.9, -0.5, 0.8], [12.92, -2.6, -1, 1.1],
+    [12.98, 0.1, 0.1, 1.2], [13.04, 2.5, 1, 1.05], [13.46, -1.3, -0.4, 0.8], [13.52, 1.4, 0.5, 0.75]].map((d, i) => {
+    const mesh = K3.solid(hg, i % 4 === 3 ? "red" : "pink", { outline: 0.07 });
+    mesh.visible = false; W.scene.add(mesh);
+    return { mesh, t0: d[0], x: d[1], dx: d[2], s: d[3] };
+  });
+
+  KIT.onFrame(tl, (t) => {
+    /* lever */
+    lever.visible = t < 5.62;
+    if (lever.visible) {
+      let a = UP;
+      if (t < 2.17) {
+        for (const b of beats) { const d = t - b; if (d >= 0 && d < 0.4 && b < 2.1) a += 0.05 * Math.sin(d * 24) * (1 - d / 0.4); }
+      } else if (t < 2.42) {
+        a = UP + (DOWN - UP) * backOut(clamp((t - 2.17) / 0.25));
+      } else {
+        const d = t - 2.42; a = DOWN + 0.07 * Math.sin(d * 34) * Math.exp(-d * 7);
+      }
+      pivot.rotation.z = a;
+      const sq = t >= 2.2 && t < 2.5 ? 1 - (t - 2.2) / 0.3 : 0;
+      lever.scale.set(1 + sq * 0.07, 1 + sq * 0.07, 1);
+    }
+    /* clawd — the star of "be nice": rises on "Claude", waves, hops on every beat, spins on "twice", pops 3D hearts */
+    // platform glides up into place for "no needless cruelty"; trapdoor opens just before "Claude"
+    plat.visible = t >= 9.12;
+    const pu = clamp((t - 9.12) / 0.4);
+    plat.position.y = FLOOR - 7 * Math.pow(1 - pu, 3);
+    const tu = t < 10.6 ? clamp((t - 10.36) / 0.14) : 1 - clamp((t - 10.8) / 0.14);
+    trap.scale.set(Math.max(0.001, tu), 1, Math.max(0.001, tu)); trap.visible = tu > 0.01;
+    const rise = clamp((t - 10.5) / 0.4);
+    cl.group.visible = t >= 10.5;
+    if (cl.group.visible) {
+      cl.group.position.set(0, FLOOR + 4.2 * rise * (1 - rise) * 1.3, 0);
+      let hy = 0, hu = -1, spin = 0;
+      for (const h of hops) {
+        const u = (t - h[0]) / h[1];
+        if (u >= 0 && u < 1) { hy = Math.max(hy, 4 * h[2] * u * (1 - u)); hu = u; if (h[3]) spin = Math.PI * 2 * (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2); }
+      }
+      const twice = t > 12.84 && t < 13.5;
+      cl.animate(t, {
+        beat: [], bounce: 0,
+        wave: t > 10.62 && t < 11.3 ? 1 : twice ? 1 : hu >= 0 ? 0.55 : 0,
+        waveL: twice ? 1 : hu >= 0 ? 0.55 : 0,
+        look: t < 11.3 ? 0 : t < 12.6 ? -0.8 : 0.8,
+        squint: t > 11.3,
+        blink: [10.95],
+        turn: t < 11.3 ? -0.32 + 0.12 * Math.sin(t * 2.2) : t < 12.6 ? -0.42 : 0.42,
+      });
+      cl.rig.position.y += hy;
+      cl.group.rotation.y += spin;
+      cl.group.rotation.x = 0.16;
+      cl.group.scale.setScalar(0.98 * Math.max(0.05, backOut(rise, 1.8)));
+      // squash & stretch: crouch before take-off, stretch on the way up, squash on landing
+      let sx = 1, sy = 1;
+      for (const h of hops) {
+        const u = (t - h[0]) / h[1], pre = (h[0] - t) / 0.12, post = (t - h[0] - h[1]) / 0.2, A = h[2] > 1.5 ? 1 : 0.6;
+        if (pre > 0 && pre < 1) { sy = 1 - 0.24 * A * (1 - pre); sx = 1 + 0.14 * A * (1 - pre); }
+        if (u >= 0 && u < 0.35) { sy = 1 + 0.18 * A * (1 - u / 0.35); sx = 1 - 0.08 * A * (1 - u / 0.35); }
+        if (post >= 0 && post < 1) { sy = 1 - 0.22 * A * (1 - post); sx = 1 + 0.14 * A * (1 - post); }
+      }
+      if (t >= 10.9 && t < 11.1) { const land = clamp((t - 10.9) / 0.2); sy = 1 - 0.2 * (1 - land); sx = 1 + 0.12 * (1 - land); }
+      cl.rig.scale.set(sx, sy, 1);
+    }
+    /* 3D hearts popping off Clawd */
+    hearts.forEach((h) => {
+      const u = (t - h.t0) / 1.15;
+      h.mesh.visible = u >= 0 && u < 1;
+      if (!h.mesh.visible) return;
+      const e = 1 - Math.pow(1 - u, 2);
+      const sc = 0.62 * h.s * (u < 0.14 ? backOut(u / 0.14, 2.6) : u > 0.78 ? 1 - (u - 0.78) / 0.22 : 1);
+      h.mesh.scale.setScalar(Math.max(0.001, sc));
+      h.mesh.position.set(h.x + Math.sin(u * 7 + h.x) * 0.45 + h.dx * e, FLOOR + 4.4 + e * 3.6, 1.6);
+      h.mesh.rotation.set(0, Math.sin(u * 6 + h.x) * 0.7, h.dx * -0.12);
+    });
+    W.render();
+  });
+</script>
+</template>
+</body>
+</html>

@@ -1,0 +1,80 @@
+{
+  "factory": {
+    "repo": "OWNER/FACTORY-REPO",
+    "boxNamePrefix": "factory-",
+    "boxLabel": "factory",
+    "busyLabel": "busy",
+    "branchPrefix": "factory/issue-",
+    "gitAuthor": {
+      "name": "Software Factory",
+      "email": "OWNER@users.noreply.github.com"
+    },
+    "allowedActors": [
+      "OWNER"
+    ],
+    "browser": true,
+    "waitForWorkerMinutes": 20,
+    "agentTimeoutMinutes": 25,
+    "commandTimeoutMinutes": 15
+  },
+  "labels": {
+    "ready": "ready",
+    "running": "factory:running",
+    "review": "factory:review",
+    "needsAttention": "factory:needs-attention"
+  },
+  "agents": {
+    "claude": {
+      "description": "Claude Code signed in with a Claude subscription. The token comes from `claude setup-token`. For an API key see references/agents.md in the skill.",
+      "auth": [
+        {
+          "secret": "CLAUDE_CODE_OAUTH_TOKEN",
+          "env": "CLAUDE_CODE_OAUTH_TOKEN"
+        }
+      ],
+      "boxSettings": "ask",
+      "command": "claude -p \"$(cat {prompt})\" --dangerously-skip-permissions --output-format text > {summary}"
+    },
+    "codex": {
+      "description": "Codex CLI signed in with a ChatGPT plan. The secret is the content of ~/.codex/auth.json after `codex login`. For an API key see references/agents.md in the skill.",
+      "auth": [
+        {
+          "secret": "CODEX_AUTH_JSON",
+          "file": "/workspace/home/.codex/auth.json",
+          "localFile": "~/.codex/auth.json"
+        }
+      ],
+      "env": {
+        "CODEX_HOME": "/workspace/home/.codex"
+      },
+      "boxSettings": "ask",
+      "command": "codex exec --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message {summary} \"$(cat {prompt})\""
+    }
+  },
+  "repos": [
+    {
+      "repo": "OWNER/APP-REPO",
+      "baseBranch": "main",
+      "setup": [
+        "npm ci"
+      ],
+      "checks": [
+        "npm test",
+        "npm run build"
+      ],
+      "exclude": []
+    }
+  ],
+  "workers": [
+    {
+      "id": "claude-01",
+      "agent": "claude",
+      "enabled": true
+    },
+    {
+      "id": "codex-01",
+      "agent": "codex",
+      "enabled": true
+    }
+  ]
+}

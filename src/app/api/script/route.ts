@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { getRequestUser, unauthorizedResponse } from "../../../lib/auth";
 import { DEFAULT_AR_VOICE } from "../../../../types/shorts";
-import { executeApi } from "../../../helpers/api-response";
+import { apiError, executeApi } from "../../../helpers/api-response";
 import {
   checkRateLimit,
   clientIp,
+  rateLimitUnavailableResponse,
   rateLimitedResponse,
 } from "../../../lib/rate-limit";
 import { generateScript } from "../../../lib/script-generator";
@@ -36,7 +38,15 @@ const handleScript = executeApi(ScriptRequest, async (req, body) => {
 
 /** 6 طلبات سكربت لكل IP كل 10 دقائق (LLM مكلف نسبياً). */
 export const POST = async (req: Request) => {
-  const verdict = await checkRateLimit(`script:${clientIp(req)}`, 6, 10 * 60 * 1000);
+  const user = await getRequestUser();
+  if (!user) return unauthorizedResponse();
+  if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    return apiError("أرسل الطلب بصيغة application/json.", 415);
+  }
+
+  const subject = user.authenticated ? `user:${user.clerkId}` : `ip:${clientIp(req)}`;
+  const verdict = await checkRateLimit(`script:${subject}`, 6, 10 * 60 * 1000);
+  if (verdict.unavailable) return rateLimitUnavailableResponse();
   if (!verdict.allowed) {
     return rateLimitedResponse(verdict.retryAfterSec);
   }

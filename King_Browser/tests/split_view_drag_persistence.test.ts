@@ -45,7 +45,7 @@ function dropToSplitScreen(
   const droppedT = currentTabs.find(t => t.id === targetTabId);
   if (!activeT || !droppedT) return { updatedTabs: currentTabs, newActiveTabId: activeTabId, primaryId: activeTabId, secondaryId: '' };
 
-  let updated = currentTabs.map(t => {
+  const updated = currentTabs.map(t => {
     if (t.id === partnerTabId) return { ...t, splitWith: targetTabId };
     if (t.id === targetTabId) return { ...t, splitWith: partnerTabId };
     if (t.splitWith === partnerTabId || t.splitWith === targetTabId) return { ...t, splitWith: undefined };

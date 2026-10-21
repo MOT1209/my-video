@@ -17,6 +17,7 @@ const blobState: FakeBlobState = {
 
 mock.module("@vercel/blob", () => ({
   BlobAccessError: class BlobAccessError extends Error {},
+  get: async () => null,
   head: async (path: string, opts?: { token?: string }) => {
     void path;
     void opts;

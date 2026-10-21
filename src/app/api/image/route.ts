@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { getRequestUser, unauthorizedResponse } from "../../../lib/auth";
 import { executeApi } from "../../../helpers/api-response";
 import {
   checkRateLimit,
   clientIp,
+  rateLimitUnavailableResponse,
   rateLimitedResponse,
 } from "../../../lib/rate-limit";
 import {
@@ -28,11 +30,16 @@ const handleImage = executeApi(ImageRequest, async (req, body) => {
 
 /** 8 صور لكل IP كل 10 دقائق (توليد صور مكلف نسبياً). */
 export const POST = async (req: Request) => {
+  const user = await getRequestUser();
+  if (!user) return unauthorizedResponse();
+
+  const subject = user.authenticated ? `user:${user.clerkId}` : `ip:${clientIp(req)}`;
   const verdict = await checkRateLimit(
-    `image:${clientIp(req)}`,
+    `image:${subject}`,
     8,
     10 * 60 * 1000,
   );
+  if (verdict.unavailable) return rateLimitUnavailableResponse();
   if (!verdict.allowed) {
     return rateLimitedResponse(verdict.retryAfterSec);
   }

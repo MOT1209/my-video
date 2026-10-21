@@ -1,4 +1,4 @@
-import { apiSuccess } from "../../../helpers/api-response";
+import { apiError, apiSuccess } from "../../../helpers/api-response";
 import { listRenders } from "../../../lib/db/repository";
 import { requireSession } from "../../../lib/session";
 
@@ -10,8 +10,12 @@ export async function GET(req: Request) {
   }
   const { db, user } = guard.session;
 
-  const raw = Number(new URL(req.url).searchParams.get("limit") ?? 20);
-  const limit = Number.isFinite(raw) ? raw : 20;
+  const rawLimit = new URL(req.url).searchParams.get("limit");
+  const raw = rawLimit === null ? 20 : Number(rawLimit);
+  if (!Number.isInteger(raw) || raw < 1 || raw > 100) {
+    return apiError("قيمة limit يجب أن تكون عدداً صحيحاً بين 1 و100.", 400);
+  }
+  const limit = raw;
 
   const rows = await listRenders(db, user.id, limit);
   return apiSuccess({

@@ -280,6 +280,7 @@ export interface ElectronAPI {
   ) => () => void;
   onMcpActionCancel: (callback: (id: string) => void) => () => void;
   respondMcpAction: (id: string, result?: unknown, error?: unknown) => void;
+  reportMcpActionPhase?: (id: string, phase: 'awaiting-approval' | 'executing') => void;
   clearIncognitoSession: (tabId?: string) => Promise<boolean>;
   initIncognitoPartition: (tabId: string) => Promise<boolean>;
   resetRememberedPermissions: () => Promise<boolean>;

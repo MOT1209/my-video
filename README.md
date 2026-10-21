@@ -15,20 +15,20 @@
 ملاحظات:
 - النص الكامل = Hook + المشاهد، الحد 1000 حرف (`MAX_TTS_CHARS` في `src/lib/tts.ts`).
 - الكاش بمفتاح hash (`voiceId::text`) — نفس النص لا يُولّد مرتين.
-- بدون `BLOB_READ_WRITE_TOKEN` يعمل الصوت محلياً لكن التصيير يفشل.
+- بدون `BLOB_READ_WRITE_TOKEN` يعمل الصوت المحلي عند توفر fallback لكن التصيير يعيد 503.
 
 ## حدود الاستخدام (Rate Limiting)
 
-حماية لكل IP عبر **Upstash Redis** (موزّع عبر النسخ، مع fallback للذاكرة محلياً):
+حماية عبر **Upstash Redis** (موزّعة عبر النسخ، وبحسب المستخدم المصادَق أو IP للتطوير المحلي):
 - الصوت `/api/tts`: **20 طلب / 5 دقائق** — الرد 429 مع رسالة عربية و`Retry-After`.
 - التصيير `/api/render`: **5 عمليات / ساعة** (التصيير مكلف: دقائق sandbox).
 
 ## الأوامر
 
 ```bash
-npm run dev          # خادم التطوير
-npm test             # اختبارات الوحدة (bun test — حالياً 91 اختباراً عبر 15 ملفاً)
-npm run lint         # فحص ESLint (يستبعد .agents/ و .claude/)
+npm run dev           # خادم التطوير
+bun test src/lib types # اختبارات الوحدة (Bun)
+npm run lint          # فحص ESLint (يستبعد .agents/ و .claude/)
 npm run cleanup-blobs            # عرض Blobs الأقدم من 30 يوم (dry-run)
 npm run cleanup-blobs -- --delete --older-than-days=7   # حذف فعلي
 npx remotion studio  # Remotion Studio
@@ -43,13 +43,14 @@ npx remotion studio  # Remotion Studio
 | `src/app/api/tts/` | توليد الصوت + الكاش |
 | `src/lib/edge-tts.ts` | عميل Edge TTS (WebSocket + حدود الكلمات) |
 | `src/lib/sec-ms-gec.ts` | توكن Sec-MS-GEC v2 (نقل مطابق للمكتبة الرسمية، مُغطى باختبارات) |
-| `src/lib/rate-limit.ts` | حد المعدل (Upstash Redis + fallback محلي) |
+| `src/lib/rate-limit.ts` | حد المعدل (Upstash Redis؛ fallback محلي خارج الإنتاج فقط) |
 | `src/lib/azure-tts.ts` | fallback رسمي للصوت (يعمل مع `AZURE_SPEECH_KEY/REGION`) |
 | `src/app/api/script/` | رابط/موضوع ← سكربت عبر Gemini |
 | `src/app/api/image/` | خلفيات AI + كاش content-hash |
 | `src/lib/render-cache.ts` | كاش ناتج التصيير (مفتاح حتمي) |
 | `src/lib/render-metrics.ts` | قياس $/video |
 | `src/app/api/render/` | التصيير عبر Sandbox + رفع Blob (SSE) |
+| `.github/workflows/my-video-ci.yml` | تحقق CI لتطبيق Next.js في الجذر |
 | `scripts/cleanup-blobs.ts` | تنظيف الملفات القديمة من Blob |
 | `types/shorts.ts` | الأنواع والقواعد (60 ثانية، 12 مشهد) |
 
@@ -81,13 +82,17 @@ npx remotion studio  # Remotion Studio
 
 ## النشر الكامل (ميزات الحساب)
 
-كل بند اختياري — غيابه يعطّل ميزته برسالة إرشادية لا بعطل:
+ميزات الحساب اختيارية محلياً، لكن مفاتيح Clerk وNeon وUpstash وBlob مطلوبة لمسارات التصيير الإنتاجية؛ غيابها يؤدي إلى رفض آمن (401/503) ولا يفتح التصيير أو يتجاوز الحدود:
 
 1. **Neon**: أنشئ قاعدة من console.neon.tech، أضف `DATABASE_URL`، ثم طبّق الهجرة: `npx drizzle-kit migrate`.
-2. **Clerk**: أضف `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` و`CLERK_SECRET_KEY` — بدونهما يبقى `/api/render` مفتوحاً لأي زائر (يظهر تحذير في السجلات).
+2. **Clerk**: أضف `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` و`CLERK_SECRET_KEY`؛ الطلبات غير المصادقة تُرفض، وغيابهما في الإنتاج يُرفض أيضاً.
 3. **Stripe**: أضف `STRIPE_SECRET_KEY` ووجّه الـ webhook إلى `/api/billing/webhook` مع `STRIPE_WEBHOOK_SECRET`.
-4. **Upstash**: أضف `UPSTASH_REDIS_REST_URL` و`UPSTASH_REDIS_REST_TOKEN` للحد والقفل الموزعين.
+4. **Upstash**: أضف `UPSTASH_REDIS_REST_URL` و`UPSTASH_REDIS_REST_TOKEN` للحد والقفل الموزعين. لا يُستخدم fallback محلي في الإنتاج؛ فشل Redis يعيد 503.
 5. **Cron**: أضف `CRON_SECRET` واضبط مهمة Vercel Cron على `/api/cron/retry-renders`.
+
+## فحوص CI
+
+يُشغّل `.github/workflows/my-video-ci.yml` فحوص تطبيق Next.js في جذر المستودع (lint، اختبارات Bun، TypeScript، build) بشكل مستقل عن سير عمل King Browser. لأوامر التحقق المحلية استخدم `bun test src/lib types` ثم `npx tsc --noEmit` و`npm run lint` و`npm run build`. مفاتيح Google AI تُرسل من الخادم فقط؛ راجع سجلات الطلبات عند تشخيص أخطاء مزود الخدمة.
 
 ## التطوير المحلي
 

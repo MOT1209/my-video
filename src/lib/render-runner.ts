@@ -43,6 +43,8 @@ export interface RunRenderOptions {
   blobToken: string;
   /** مفتاح جلسة الـ sandbox — مستخدِم/موضوع واحد لكل جلسة. */
   sessionKey: string;
+  /** Authenticated owner for storage/cache boundary separation. */
+  ownerId?: string;
   onProgress?: ProgressReporter;
 }
 

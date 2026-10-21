@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { isSafeAgentNavigationUrl } from '../src/utils/safeNavigation';
+import * as mcpActionTiming from '../src/utils/mcpActionTiming';
 
 async function run() {
   let request: Function = () => {};
@@ -46,6 +47,7 @@ async function run() {
     '../services/aiAgent': { aiAgent: { setActionContext: (value: any) => { context = value; } } },
     '../services/agentOrchestrator': { orchestrator: { enqueueAction: () => ({ id: 'approval', done: new Promise<boolean>(resolve => { approve = resolve; }) }), updateActionState: () => {}, denyAction: () => approve(false) } },
     '../utils/safeNavigation': { isSafeAgentNavigationUrl },
+    '../utils/mcpActionTiming': mcpActionTiming,
     '../utils/searchHistoryBookmarks': { searchHistoryAndBookmarks: () => [] },
   };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/hooks/useBrowserAgentBridge.ts', 'utf8'), {

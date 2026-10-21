@@ -15,6 +15,15 @@ const CheckoutRequest = z.object({
 });
 
 export async function POST(req: Request) {
+  const user = await getRequestUser();
+  if (!user) {
+    return unauthorizedResponse();
+  }
+
+  if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    return apiError("أرسل الطلب بصيغة application/json.", 415);
+  }
+
   const stripe = getStripe();
   if (!stripe) {
     return apiError(
@@ -23,12 +32,13 @@ export async function POST(req: Request) {
     );
   }
 
-  const user = await getRequestUser();
-  if (!user) {
-    return unauthorizedResponse();
+  let payload: unknown;
+  try {
+    payload = await req.json();
+  } catch {
+    return apiError("تعذّر قراءة JSON صالح.", 400);
   }
-
-  const parsed = CheckoutRequest.safeParse(await req.json().catch(() => null));
+  const parsed = CheckoutRequest.safeParse(payload);
   if (!parsed.success) {
     return apiError("حزمة الكريدت غير محددة.", 400);
   }
@@ -37,8 +47,7 @@ export async function POST(req: Request) {
     return apiError("حزمة كريدت غير معروفة.", 404);
   }
 
-  const origin =
-    req.headers.get("origin") ?? new URL(req.url).origin;
+  const origin = new URL(req.url).origin;
 
   try {
     const session = await stripe.checkout.sessions.create(
