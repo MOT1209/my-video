@@ -7,7 +7,7 @@ import path from 'path';
 // Security: browser_* tools are forwarded to the renderer over a
 // sender-gated IPC round-trip instead of executing JS in the main window.
 // Imported from main/mcpBridge (not main.ts) to avoid a circular import.
-import { requestRendererMcpAction, cancelPendingMcpActions } from './main/mcpBridge.js';
+import { requestRendererMcpAction, cancelPendingMcpActions, setMcpActionPhaseListener } from './main/mcpBridge.js';
 // §11 execution engine + §12 policy engine: agent-facing actions are classified
 // and queued through these dependency-free modules instead of going straight to
 // the renderer bridge. Only types and the engine/classifier values are imported.
@@ -757,6 +757,12 @@ export class BrowserMCPServer {
         // action stops instead of running out its 15s bridge timeout.
         abortInFlight: (reason) => cancelPendingMcpActions(reason),
         onEvent: (event) => this.forwardEngineEvent(event)
+      });
+      // While the renderer waits for the user's approval, the engine timeout
+      // must not fire first. One extra second lets the bridge report the
+      // clearer reason (approval vs. execution) when the window runs out.
+      setMcpActionPhaseListener((_phase, windowMs) => {
+        this.engineInstance?.extendInFlightTimeout(windowMs + 1_000);
       });
     }
     return this.engineInstance;

@@ -139,6 +139,8 @@ export class ExecutionEngine {
   private stopReason: string | null = null;
   private lastFinalState: { stoppedBy: string; inFlightAborted: boolean; inFlightSettledLater: boolean } | null = null;
   private actionCounter = 0;
+  private inFlightTimer: { entry: QueueEntry; handle: ReturnType<typeof setTimeout> } | null = null;
+  private inFlightGeneration = 0;
 
   private readonly now: () => number;
   private readonly maxQueueSize: number;
@@ -315,21 +317,47 @@ export class ExecutionEngine {
     this.inFlightEntry = entry;
     record.status = 'running';
     record.startedAt = this.now();
+    this.inFlightGeneration = generation;
     this.publish(record);
 
-    const timeout = new Promise<never>((_, reject) => {
-      const t = setTimeout(
-        () => reject(new Error(`Action '${record.toolName}' timed out after ${this.actionTimeoutMs}ms`)),
-        this.actionTimeoutMs
-      );
-      t.unref?.();
-    });
+    this.armInFlightTimeout(entry, record, generation, this.actionTimeoutMs);
 
     this.options.executor(entry.request).then(
       (result) => this.settle(entry, record, generation, 'completed', undefined, result),
       (error: unknown) => this.settle(entry, record, generation, 'failed', error instanceof Error ? error.message : String(error))
     );
-    timeout.catch((error: Error) => this.settle(entry, record, generation, 'failed', error.message));
+  }
+
+  private armInFlightTimeout(entry: QueueEntry, record: ActionRecord, generation: number, ms: number): void {
+    this.clearInFlightTimer();
+    const handle = setTimeout(() => {
+      if (this.inFlightTimer?.handle === handle) this.inFlightTimer = null;
+      this.settle(entry, record, generation, 'failed', `Action '${record.toolName}' timed out after ${ms}ms`);
+    }, ms);
+    handle.unref?.();
+    this.inFlightTimer = { entry, handle };
+  }
+
+  private clearInFlightTimer(entry?: QueueEntry): void {
+    if (!this.inFlightTimer) return;
+    if (entry && this.inFlightTimer.entry !== entry) return;
+    clearTimeout(this.inFlightTimer.handle);
+    this.inFlightTimer = null;
+  }
+
+  /**
+   * Re-arms the running action's timeout to `ms` from now. The renderer uses
+   * this (through the MCP bridge) to give the user time to approve a sensitive
+   * action, then to restart the execution clock once it is approved. Returns
+   * false when nothing current is in flight, e.g. after STOP NOW.
+   */
+  extendInFlightTimeout(ms: number): boolean {
+    const entry = this.inFlightEntry;
+    const record = this.inFlight;
+    if (!entry || !record || !Number.isFinite(ms) || ms <= 0) return false;
+    if (this.inFlightGeneration !== this.generation) return false;
+    this.armInFlightTimeout(entry, record, this.inFlightGeneration, ms);
+    return true;
   }
 
   /**
@@ -346,6 +374,7 @@ export class ExecutionEngine {
     _result?: unknown
   ): void {
     if (record.endedAt !== undefined) return;
+    this.clearInFlightTimer(entry);
     if (this.inFlightEntry === entry) {
       this.inFlightEntry = null;
       this.inFlight = null;

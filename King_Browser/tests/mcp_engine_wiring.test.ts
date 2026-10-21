@@ -39,6 +39,7 @@ async function run() {
     },
     crypto, os, fs, path,
     './main/mcpBridge.js': {
+      setMcpActionPhaseListener: () => {},
       requestRendererMcpAction: async (_win: any, tool: string, args: any) => {
         forwarded.push({ tool, args });
         if (holdRenderer) {

@@ -107,6 +107,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   respondMcpAction: (id: string, result?: unknown, error?: unknown) => {
     ipcRenderer.send('mcp-action-response', { id, result, error });
   },
+  reportMcpActionPhase: (id: string, phase: 'awaiting-approval' | 'executing') => {
+    ipcRenderer.send('mcp-action-phase', { id, phase });
+  },
   // §10 engine control panel bridge: status/history/commands/approvals plus the
   // live event stream forwarded by the main process ('mcp-engine-event').
   getEngineStatus: () => ipcRenderer.invoke('mcp-engine-status'),

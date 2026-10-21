@@ -1,5 +1,11 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import { randomBytes } from 'crypto';
+import {
+  MCP_ACTION_TIMEOUT_MS,
+  isMcpActionPhase,
+  windowForMcpActionPhase,
+  type McpActionPhase
+} from '../../src/utils/mcpActionTiming.js';
 
 // Security: MCP browser_* tools are forwarded to the renderer over an
 // 'mcp-action-request' IPC and awaited on a channel gated by isTrustedSender()
@@ -17,9 +23,22 @@ interface PendingMcpAction {
   win: BrowserWindow;
   toolName: string;
   onClosed?: () => void;
+  /** Restarts the response timeout with `ms`; set by requestRendererMcpAction. */
+  rearm?: (ms: number, phase: McpActionPhase) => void;
 }
 
 const pendingMcpActions = new Map<string, PendingMcpAction>();
+
+type McpActionPhaseListener = (phase: McpActionPhase, windowMs: number) => void;
+let phaseListener: McpActionPhaseListener | null = null;
+
+/**
+ * Lets the MCP server follow the renderer's phase changes so its execution
+ * engine re-arms the in-flight timeout together with the bridge timer.
+ */
+export function setMcpActionPhaseListener(listener: McpActionPhaseListener | null): void {
+  phaseListener = listener;
+}
 
 /** Revoke pending approvals on timeout, server shutdown, or policy changes. */
 export function cancelPendingMcpActions(reason: string, toolName?: string): void {
@@ -66,11 +85,28 @@ export function initMcpBridge(trustedSenderCheck: TrustedSenderCheck): void {
     }
     pending.resolve(payload.result);
   });
+
+  // The renderer reports when an action waits for the user's approval and when
+  // it starts executing. Only the window length comes from fixed constants;
+  // the renderer cannot choose a deadline.
+  ipcMain.on('mcp-action-phase', (event: Electron.IpcMainEvent, payload: { id?: unknown; phase?: unknown }) => {
+    if (!isTrustedSender(event)) return;
+    const id = payload?.id;
+    const phase = payload?.phase;
+    if (typeof id !== 'string' || !isMcpActionPhase(phase)) return;
+    const pending = pendingMcpActions.get(id);
+    if (!pending?.rearm) return;
+    const windowMs = windowForMcpActionPhase(phase);
+    pending.rearm(windowMs, phase);
+    try { phaseListener?.(phase, windowMs); } catch (_) {}
+  });
 }
 
 /**
  * Asks the trusted main window renderer to execute an MCP browser_* tool and
- * waits for its response. Rejects after a 15s timeout or if the window is gone.
+ * waits for its response. Rejects when the current phase's window runs out
+ * (MCP_ACTION_TIMEOUT_MS, or MCP_APPROVAL_WINDOW_MS while the user is asked to
+ * approve) or if the window is gone.
  */
 export function requestRendererMcpAction(win: BrowserWindow | null, toolName: string, args: Record<string, unknown>): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -79,8 +115,9 @@ export function requestRendererMcpAction(win: BrowserWindow | null, toolName: st
       return;
     }
     const id = Date.now().toString(36) + '_' + randomBytes(8).toString('hex');
-    const deadline = Date.now() + 15000;
-    const timer = setTimeout(() => {
+    const deadline = Date.now() + MCP_ACTION_TIMEOUT_MS;
+    let phase: McpActionPhase = 'executing';
+    const onTimeout = () => {
       const p = pendingMcpActions.get(id);
       if (p) {
         pendingMcpActions.delete(id);
@@ -89,24 +126,37 @@ export function requestRendererMcpAction(win: BrowserWindow | null, toolName: st
         }
       }
       try { win.webContents.send('mcp-action-cancel', id); } catch (_) {}
-      reject(new Error(`MCP action '${toolName}' timed out waiting for renderer response`));
-    }, 15000);
+      reject(new Error(phase === 'awaiting-approval'
+        ? `MCP action '${toolName}' was not approved in King Browser in time`
+        : `MCP action '${toolName}' timed out waiting for renderer response`));
+    };
+    const timer = setTimeout(onTimeout, MCP_ACTION_TIMEOUT_MS);
     timer.unref?.();
 
+    const rearm = (ms: number, nextPhase: McpActionPhase) => {
+      const p = pendingMcpActions.get(id);
+      if (!p) return;
+      phase = nextPhase;
+      clearTimeout(p.timer);
+      p.timer = setTimeout(onTimeout, ms);
+      p.timer.unref?.();
+    };
+
     const onClosed = () => {
+      const p = pendingMcpActions.get(id);
       pendingMcpActions.delete(id);
-      clearTimeout(timer);
+      clearTimeout(p ? p.timer : timer);
       reject(new Error('King Browser window was closed'));
     };
     try {
       win.once('closed', onClosed);
     } catch (_) {}
 
-    pendingMcpActions.set(id, { resolve, reject, timer, win, toolName, onClosed });
+    pendingMcpActions.set(id, { resolve, reject, timer, win, toolName, onClosed, rearm });
     try {
       win.webContents.send('mcp-action-request', id, toolName, args, deadline);
     } catch (err) {
-      clearTimeout(timer);
+      clearTimeout(pendingMcpActions.get(id)?.timer ?? timer);
       try { win.removeListener('closed', onClosed); } catch (_) {}
       pendingMcpActions.delete(id);
       reject(err instanceof Error ? err : new Error(String(err)));

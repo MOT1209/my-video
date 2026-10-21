@@ -33,6 +33,7 @@ import { generateId } from './utils/idGenerator';
 import { safeParseArrayWithBackup, safeParseObjectWithBackup } from './utils/safeStorage';
 import { showConfirm, showAlert } from './utils/confirmDialog';
 import { isSafeNavigationUrl } from './utils/safeNavigation';
+import { syncMcpServerWithSetting } from './utils/mcpServerSync';
 import { matchesShortcut } from './utils/keyboardShortcuts';
 import { useBookmarks } from './hooks/useBookmarks';
 import { useVpn } from './hooks/useVpn';
@@ -471,7 +472,12 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
     isMac,
   });
 
-
+  // The MCP setting is the source of truth for the server: main auto-starts it
+  // from a disk mirror that can disagree with these settings (see mcpServerSync).
+  useEffect(() => {
+    if (demoParams.isDemo) return;
+    void syncMcpServerWithSetting(Boolean(settings.mcpServerEnabled), window.electronAPI);
+  }, [settings.mcpServerEnabled, demoParams.isDemo]);
 
   // Permission requests state (Chrome-style top bar prompts) + onPermissionRequest
   // IPC listener + respond/dismiss handlers (extracted to usePermissionRequests)
