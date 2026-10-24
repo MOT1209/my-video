@@ -82,11 +82,11 @@ jobs:
           fi
 
       - name: Unit and integration tests (PGlite + PostgreSQL 16)
-        run: bun test
+        run: bun test --parallel
 
       - name: Confirm the PostgreSQL concurrency suite ran (not skipped)
         run: |
-          bun test src/lib/db/postgres.integration.test.ts 2>&1 | tee pg.log
+          bun test --parallel src/lib/db/postgres.integration.test.ts 2>&1 | tee pg.log
           if grep -Eq '^ *[1-9][0-9]* skip' pg.log || ! grep -Eq '^ *[1-9][0-9]* pass' pg.log; then
             echo "::error::PostgreSQL concurrency tests were skipped — TEST_DATABASE_URL is not reaching the service."
             exit 1

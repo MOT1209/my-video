@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تقرير تدقيق المصادقة — my-video</title>
+<style>
+  *{box-sizing:border-box}
+  :root{
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f0f2f5;
+    --ink:#16181d; --muted:#5a6270; --line:#dfe3ea;
+    --brand:#0b6b5f; --brand-2:#0e7490; --brand-soft:#e6f4f1;
+    --p0:#b42318; --p0-bg:#fdecea;
+    --p1:#b54708; --p1-bg:#fef3e2;
+    --p2:#7a6100; --p2-bg:#fdf8e3;
+    --p3:#475467; --p3-bg:#eef1f5;
+    --ok:#067647; --ok-bg:#e7f6ee;
+    --bad:#b42318; --bad-bg:#fdecea;
+    --warn:#b54708; --warn-bg:#fef3e2;
+    --radius:14px;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:"Segoe UI","Noto Naskh Arabic","Noto Sans Arabic",Tahoma,system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0d1117; --surface:#141a22; --surface-2:#1b232d;
+      --ink:#e6e9ef; --muted:#9aa4b2; --line:#26303c;
+      --brand:#4fd1c5; --brand-2:#67c7d8; --brand-soft:#12302d;
+      --p0:#ff9a91; --p0-bg:#3a1512;
+      --p1:#ffc27a; --p1-bg:#3a2410;
+      --p2:#f2d98a; --p2-bg:#332c10;
+      --p3:#c2cad6; --p3-bg:#222b36;
+      --ok:#7ee2a8; --ok-bg:#12301f;
+      --bad:#ff9a91; --bad-bg:#3a1512;
+      --warn:#ffc27a; --warn-bg:#3a2410;
+    }
+  }
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--sans); line-height:1.9;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--brand-2); text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  .hero{
+    background:
+      radial-gradient(900px 320px at 85% -10%, color-mix(in srgb, var(--brand) 22%, transparent), transparent 70%),
+      linear-gradient(135deg, color-mix(in srgb, var(--brand) 10%, var(--surface)), var(--surface));
+    border-bottom:1px solid var(--line);
+    padding:44px 24px 34px;
+  }
+  .hero-inner{max-width:1120px; margin:0 auto}
+  .eyebrow{
+    display:inline-flex; gap:8px; align-items:center;
+    font-size:12px; letter-spacing:.04em; font-weight:700;
+    color:var(--brand); background:var(--brand-soft);
+    border:1px solid color-mix(in srgb, var(--brand) 25%, transparent);
+    padding:4px 12px; border-radius:999px; margin-bottom:16px;
+  }
+  .hero h1{margin:0 0 8px; font-size:clamp(26px,3.4vw,40px); line-height:1.35; letter-spacing:-.01em}
+  .hero p{margin:0; color:var(--muted); max-width:70ch; font-size:15px}
+  .meta{display:flex; flex-wrap:wrap; gap:8px; margin-top:20px}
+  .meta span{
+    font-size:12px; color:var(--muted); background:var(--surface);
+    border:1px solid var(--line); border-radius:999px; padding:3px 11px;
+  }
+
+  .wrap{max-width:1120px; margin:0 auto; padding:0 24px}
+  .kpis{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:12px;
+    margin:-22px auto 0; position:relative; z-index:2;
+  }
+  .kpi{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 16px; box-shadow:0 6px 18px rgba(15,23,42,.05);
+  }
+  .kpi b{display:block; font-size:24px; line-height:1.3}
+  .kpi small{color:var(--muted); font-size:12px}
+
+  .layout{
+    display:grid; grid-template-columns:250px minmax(0,1fr); gap:28px;
+    padding:30px 0 60px; align-items:start;
+  }
+  .layout > *{min-width:0}
+  .content{max-width:100%}
+  .toc{
+    position:sticky; top:20px; background:var(--surface);
+    border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; font-size:13px;
+  }
+  .toc b{display:block; font-size:12px; color:var(--muted); letter-spacing:.04em; margin-bottom:10px}
+  .toc ol{list-style:none; margin:0; padding:0; counter-reset:toc}
+  .toc li{counter-increment:toc; margin:2px 0}
+  .toc li a{display:block; padding:5px 8px; border-radius:8px; color:var(--ink); opacity:.86}
+  .toc li a::before{content:counter(toc) ". "; color:var(--muted); font-variant-numeric:tabular-nums}
+  .toc li a:hover{background:var(--surface-2); opacity:1; text-decoration:none}
+
+  section{
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius); padding:24px 26px; margin-bottom:16px;
+    scroll-margin-top:16px;
+  }
+  section > h2{
+    margin:0 0 16px; font-size:21px; line-height:1.5;
+    padding-bottom:10px; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:10px;
+  }
+  section > h2::before{
+    content:""; width:6px; height:22px; border-radius:3px;
+    background:linear-gradient(var(--brand), var(--brand-2)); flex:none;
+  }
+  h3{margin:22px 0 8px; font-size:16px}
+  p{margin:8px 0}
+  ul,ol{margin:8px 0; padding-inline-start:22px}
+  li{margin:4px 0}
+  strong{font-weight:700}
+
+  code{
+    font-family:var(--mono); font-size:.86em;
+    background:var(--surface-2); border:1px solid var(--line);
+    border-radius:6px; padding:1px 6px;
+    direction:ltr; unicode-bidi:isolate; white-space:nowrap;
+  }
+  .path{white-space:nowrap}
+
+  table{width:100%; border-collapse:collapse; margin:12px 0; font-size:13.5px}
+  .table-scroll{overflow-x:auto; border:1px solid var(--line); border-radius:10px}
+  table th,table td{padding:9px 11px; text-align:start; vertical-align:top; border-bottom:1px solid var(--line)}
+  table th{background:var(--surface-2); font-size:12px; color:var(--muted); font-weight:700; white-space:nowrap}
+  table tr:last-child td{border-bottom:0}
+  table td code{white-space:nowrap}
+
+  .badge{
+    display:inline-block; font-size:11px; font-weight:700; line-height:1.7;
+    padding:1px 9px; border-radius:999px; border:1px solid transparent;
+    white-space:nowrap;
+  }
+  .p0{color:var(--p0); background:var(--p0-bg); border-color:color-mix(in srgb,var(--p0) 30%,transparent)}
+  .p1{color:var(--p1); background:var(--p1-bg); border-color:color-mix(in srgb,var(--p1) 30%,transparent)}
+  .p2{color:var(--p2); background:var(--p2-bg); border-color:color-mix(in srgb,var(--p2) 30%,transparent)}
+  .p3{color:var(--p3); background:var(--p3-bg); border-color:color-mix(in srgb,var(--p3) 30%,transparent)}
+  .b-ok{color:var(--ok); background:var(--ok-bg); border-color:color-mix(in srgb,var(--ok) 30%,transparent)}
+  .b-bad{color:var(--bad); background:var(--bad-bg); border-color:color-mix(in srgb,var(--bad) 30%,transparent)}
+  .b-warn{color:var(--warn); background:var(--warn-bg); border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+
+  .finding{
+    border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; margin:14px 0; background:var(--surface);
+  }
+  .finding.p0-edge{border-inline-start:4px solid var(--p0)}
+  .finding.p1-edge{border-inline-start:4px solid var(--p1)}
+  .finding.p2-edge{border-inline-start:4px solid var(--p2)}
+  .finding h3{margin:0 0 8px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; font-size:16px}
+  .finding .label{font-size:12px; font-weight:700; color:var(--muted); margin-top:10px}
+  .finding ul{margin:4px 0 0}
+
+  .note,.warnbox,.decision{
+    border-radius:12px; padding:14px 16px; margin:14px 0; font-size:13.5px;
+    border:1px solid var(--line); background:var(--surface-2);
+  }
+  .note{border-inline-start:4px solid var(--brand-2)}
+  .warnbox{border-inline-start:4px solid var(--p1); background:var(--p1-bg); color:var(--ink)}
+  .decision{
+    border:1px solid color-mix(in srgb,var(--brand) 40%,var(--line));
+    background:linear-gradient(135deg,var(--brand-soft),var(--surface));
+  }
+  .decision b{color:var(--brand)}
+
+  .flow{margin:14px 0; display:flex; flex-direction:column; gap:0}
+  .flow-step{
+    border:1px solid var(--line); background:var(--surface-2);
+    border-radius:10px; padding:9px 14px; font-size:13.5px;
+  }
+  .flow-step.bad{border-color:color-mix(in srgb,var(--bad) 40%,var(--line)); background:var(--bad-bg)}
+  .flow-step.ok{border-color:color-mix(in srgb,var(--ok) 40%,var(--line)); background:var(--ok-bg)}
+  .flow-arrow{text-align:center; color:var(--muted); line-height:1.5; font-size:16px}
+
+  .checklist{list-style:none; padding:0; margin:10px 0}
+  .checklist li{position:relative; padding-inline-start:30px; margin:7px 0}
+  .checklist li::before{
+    content:""; position:absolute; inset-inline-start:0; top:.45em;
+    width:16px; height:16px; border:2px solid var(--line); border-radius:4px;
+  }
+
+  pre{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; overflow-x:auto; max-width:100%; direction:ltr; text-align:left;
+    font-family:var(--mono); font-size:12.5px; line-height:1.7; margin:10px 0;
+  }
+  pre code{background:none; border:0; padding:0; white-space:pre}
+
+  footer{
+    border-top:1px solid var(--line); padding:22px 24px 40px;
+    color:var(--muted); font-size:12.5px; text-align:center;
+  }
+  footer code{font-size:.9em}
+
+  @media (max-width:900px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .layout{grid-template-columns:1fr}
+    .toc{position:static; order:-1}
+    .toc ol{columns:2; column-gap:16px}
+  }
+  @media (max-width:560px){
+    .kpis{grid-template-columns:1fr}
+    section{padding:18px 16px}
+    .hero{padding:32px 16px 28px}
+    .wrap{padding:0 16px}
+    .toc ol{columns:1}
+    code{white-space:normal; overflow-wrap:anywhere}
+    .path{white-space:normal}
+  }
+  @media print{
+    body{background:#fff}
+    .hero{background:#fff; border-bottom:1px solid #ccc}
+    .toc{display:none}
+    .layout{display:block; padding:16px 0}
+    section{box-shadow:none; break-inside:avoid; border-color:#ccc}
+    a{color:inherit; text-decoration:none}
+    .kpi{box-shadow:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">تقرير تدقيق تقني · وضع القراءة فقط</div>
+    <h1>فشل تسجيل الدخول في my-video</h1>
+    <p>تشخيص مبني على الأدلة لدورة المصادقة عبر Clerk في Next.js 16، مع خريطة التدفق، والأخطاء المؤكدة بالأوامر، وخطة إصلاح مرتّبة.</p>
+    <div class="meta">
+      <span>المستودع: MOT1209/my-video</span>
+      <span>التاريخ: 23 أكتوبر 2026</span>
+      <span>الحالة: تغييرات staged فوق <code>927432f</code></span>
+      <span>التصنيف: <b>A</b> — خطأ برمجي مؤكد</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="kpis">
+    <div class="kpi"><b>2</b><small>خطأ حاجز للبناء (P0)</small></div>
+    <div class="kpi"><b>5</b><small>اختبارات فاشلة</small></div>
+    <div class="kpi"><b>0</b><small>ملفات middleware / proxy</small></div>
+    <div class="kpi"><b>0</b><small>مفاتيح Clerk محلياً</small></div>
+  </div>
+</div>
+
+<div class="wrap layout">
+
+  <nav class="toc" aria-label="فهرس التقرير">
+    <b>محتويات التقرير</b>
+    <ol>
+      <li><a href="#s1">الملخص التنفيذي</a></li>
+      <li><a href="#s2">حالة تسجيل الدخول</a></li>
+      <li><a href="#s3">خريطة تدفّق المصادقة</a></li>
+      <li><a href="#s4">الملفات المفحوصة</a></li>
+      <li><a href="#s5">أخطاء مؤكدة</a></li>
+      <li><a href="#s6">مشكلات محتملة</a></li>
+      <li><a href="#s7">نتائج الاختبارات الفعلية</a></li>
+      <li><a href="#s8">ما تعذّر التحقق منه</a></li>
+      <li><a href="#s9">Clerk والقاعدة وStripe والكريدت</a></li>
+      <li><a href="#s10">خطة الإصلاح</a></li>
+      <li><a href="#s11">معايير القبول</a></li>
+      <li><a href="#s12">القرار النهائي</a></li>
+    </ol>
+  </nav>
+
+  <div class="content">
+
+    <section id="s1">
+      <h2>1) الملخص التنفيذي</h2>
+      <p>تسجيل الدخول <strong>لا يمكن أن يعمل</strong> في هذه النسخة، لسببين مستقلّين ومتراكبين:</p>
+      <ol>
+        <li><strong>لا يوجد ملف <code>proxy.ts</code> (أو <code>middleware.ts</code>) يستدعي <code>clerkMiddleware()</code></strong> — وهذا شرط إلزامي في Clerk v7 مع Next 16. بدونه كل نداء لـ <code>auth()</code> يرمي استثناءً، فتصبح كل المسارات المحمية <strong>500</strong> لا <strong>401</strong>.</li>
+        <li><strong>العمل الحالي staged لا يُبنى أصلاً</strong>: <code class="path">src/app/api/render/route.ts:10</code> يستورد <code>warnIfUnauthenticatedProduction</code> من <code class="path">src/lib/auth.ts</code>، وهذا التصدير <strong>غير موجود</strong> في أي ملف في المستودع.</li>
+      </ol>
+      <p>بالإضافة إلى ذلك <code>ClerkProvider</code> غير موجود في <code class="path">src/app/layout.tsx</code>، بل داخل صفحة <code>/sign-in</code> وحدها، ولا توجد أي واجهة لتسجيل الخروج أو إظهار حالة الدخول. محلياً لا توجد مفاتيح Clerk في <code>.env.local</code> إطلاقاً، لذا تُعرض صفحة «تسجيل الدخول غير مُهيأ» — وهذا سلوك مقصود بالتصميم لا خطأ.</p>
+      <div class="note"><strong>الحكم:</strong> السبب الجذري لفشل المصادقة هو <strong>A</strong> (خطأ برمجي مؤكد في الكود)، وليس إعداد نشر أو مزوّد خارجي.</div>
+
+      <h3>دليل سريع على التصنيف</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>التصنيف</th><th>المعنى</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge p0">A</span></td><td>خطأ برمجي مؤكد في الكود، قابل للإصلاح والتكرار.</td></tr>
+            <tr><td><span class="badge p1">B</span></td><td>إعداد بيئة أو نشر (متغيرات، مفاتيح، لوحة تحكم).</td></tr>
+            <tr><td><span class="badge p2">C</span></td><td>ثغرة أمنية أو خطر تكلفة.</td></tr>
+            <tr><td><span class="badge p3">D</span></td><td>دين تقني، توثيق، أو نظافة مستودع.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="s2">
+      <h2>2) حالة تسجيل الدخول</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>الطبقة</th><th>الحالة</th><th>الدليل</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>صفحة <code>/sign-in</code></td>
+              <td><span class="badge b-warn">تعمل شكلياً</span> تعرض رسالة إرشادية بلا مفاتيح</td>
+              <td><code class="path">src/app/sign-in/[[...rest]]/page.tsx:8-24</code></td>
+            </tr>
+            <tr>
+              <td><code>ClerkProvider</code></td>
+              <td><span class="badge b-bad">غائب عن الجذر</span> موجود داخل الصفحة فقط</td>
+              <td><code class="path">src/app/layout.tsx:22-31</code> مقابل <code class="path">sign-in/page.tsx:27-31</code></td>
+            </tr>
+            <tr>
+              <td><code>clerkMiddleware()</code></td>
+              <td><span class="badge b-bad">غير موجود إطلاقاً</span></td>
+              <td>لا ملف <code>middleware.ts</code>/<code>proxy.ts</code> (glob + <code>git log --diff-filter=A</code> = صفر)</td>
+            </tr>
+            <tr>
+              <td><code>auth()</code> على الخادم</td>
+              <td><span class="badge b-bad">يرمي استثناءً</span> عند وجود المفاتيح</td>
+              <td><code class="path">src/lib/auth.ts:30-39</code> + Clerk <code class="path">createGetAuth.js:20-25</code></td>
+            </tr>
+            <tr>
+              <td>حفظ/عرض الحساب</td>
+              <td><span class="badge b-bad">500 بدل 401</span> ⇒ لا يظهر رابط الدخول</td>
+              <td><code class="path">AccountPanel.tsx:90-93</code> يحوّل أي خطأ غير 401/503 إلى <code>phase="error"</code></td>
+            </tr>
+            <tr>
+              <td>تسجيل الخروج</td>
+              <td><span class="badge b-bad">غير موجود</span></td>
+              <td>لا <code>UserButton</code>/<code>SignOutButton</code>/<code>useUser</code> (grep: صفر نتائج)</td>
+            </tr>
+            <tr>
+              <td>المفاتيح محلياً</td>
+              <td><span class="badge b-warn">غير مضبوطة</span></td>
+              <td><code>.env.local</code> فُحص بأسماء المفاتيح فقط: لا Clerk ولا <code>DATABASE_URL</code> ولا Stripe</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="s3">
+      <h2>3) خريطة تدفّق المصادقة الحالي</h2>
+      <div class="flow">
+        <div class="flow-step">زائر → <code>/sign-in</code></div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step">بلا مفاتيح → رسالة «غير مُهيأ» (لا <code>SignIn</code>)</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step">بمفاتيح → <code>&lt;ClerkProvider&gt;</code> داخل الصفحة → <code>&lt;SignIn /&gt;</code></div>
+        <div class="flow-arrow">↓ بعد النجاح (بلا redirect صريح)</div>
+        <div class="flow-step">/ — بلا Provider، بلا حالة دخول مرئية</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><code>AccountPanel</code> → <code>GET /api/credits</code></div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><code>requireSession()</code> → <code>getRequestUser()</code></div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step"><code>isAuthConfigured() = true</code> → <code>readClerkUser()</code> → <code>auth()</code></div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step bad">✗ لا <code>clerkMiddleware</code> ⇒ استثناء Clerk</div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step bad">500 ⇒ AccountPanel: «تعذّر جلب بيانات الحساب»</div>
+      </div>
+    </section>
+
+    <section id="s4">
+      <h2>4) الملفات المفحوصة</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>الملف</th><th>ما تم التحقق منه</th></tr></thead>
+          <tbody>
+            <tr><td><code class="path">src/lib/auth.ts</code> (137 سطراً)</td><td>كل التصديرات؛ لا يوجد <code>warnIfUnauthenticatedProduction</code></td></tr>
+            <tr><td><code class="path">src/app/api/render/route.ts</code></td><td>الاستيراد في <code>:10</code> والنداء في <code>:67</code>؛ الحرّاس في <code>:60,143,145,147</code></td></tr>
+            <tr><td><code class="path">src/lib/session.ts</code></td><td><code>requireSession()</code> بلا <code>try/catch</code> حول <code>getRequestUser()</code> (<code>:27-31</code>)</td></tr>
+            <tr><td><code class="path">src/app/api/credits/route.ts</code></td><td><code>requireSession()</code> في <code>:9</code> بلا التقاط الاستثناء</td></tr>
+            <tr><td><code class="path">src/app/api/projects/route.ts</code> و<code class="path">renders/route.ts</code></td><td>نفس النمط، بلا التقاط</td></tr>
+            <tr><td><code class="path">src/app/api/billing/checkout/route.ts</code></td><td><code>getRequestUser()</code> في <code>:26</code> بلا التقاط</td></tr>
+            <tr><td><code class="path">src/app/api/billing/webhook/route.ts</code></td><td>لا يستخدم <code>auth()</code> — يعتمد على توقيع Stripe و<code>clerkId</code> من metadata</td></tr>
+            <tr><td><code class="path">src/app/api/cron/retry-renders/route.ts</code></td><td>محمي بـ <code>CRON_SECRET</code> بمقارنة زمن ثابت، مستقل عن Clerk</td></tr>
+            <tr><td><code class="path">src/app/layout.tsx</code></td><td>لا <code>ClerkProvider</code></td></tr>
+            <tr><td><code class="path">src/app/sign-in/[[...rest]]/page.tsx</code></td><td>Provider محلي، لا <code>fallbackRedirectUrl</code>/<code>signUpUrl</code></td></tr>
+            <tr><td><code class="path">src/components/AccountPanel.tsx</code></td><td>لا يعرف Clerk؛ 401→signed-out، 503→no-database، غير ذلك→error</td></tr>
+            <tr><td><code class="path">src/lib/db/repository.ts</code> (609 أسطر)</td><td><code>ensureUser</code> يمنح 3 كريدت عند أول إدراج؛ <code>startChargedRender</code>/<code>refundRender</code> ذرّية</td></tr>
+            <tr><td><code class="path">src/lib/billing-session.ts</code></td><td><code>openBillingSession</code> تُعيد <code>null</code> بلا DB</td></tr>
+            <tr><td><code class="path">src/lib/credits.ts</code> / <code>stripe.ts</code></td><td>1 كريدت/تصيير، 3 حزم، تحقق صارم من metadata والمبلغ</td></tr>
+            <tr><td><code class="path">src/lib/db/schema.ts</code></td><td><code>users.clerkId</code> فريد؛ <code>renders_active_user_cache_uq</code> جزئي</td></tr>
+            <tr><td><code class="path">package.json</code> / <code>package-lock.json</code></td><td><code>pg</code> و<code>@types/pg</code> في devDependencies وموجودان في القفل</td></tr>
+            <tr><td><code class="path">vercel.json</code> / <code>next.config.js</code> / CI</td><td>بناء <code>next build</code> في CI؛ لا <code>proxy.ts</code> في أي منها</td></tr>
+            <tr><td><code class="path">docs/audits/PHASE_5_PRODUCTION_READINESS.md</code></td><td>يعترف صراحة: «Clerk: mocked… Real session and JWT handling was not exercised»</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="s5">
+      <h2>5) أخطاء مؤكدة</h2>
+
+      <div class="finding p0-edge">
+        <h3><span class="badge p0">A1 · P0</span> تصدير مفقود يُسقط البناء والاختبارات</h3>
+        <ul>
+          <li><code class="path">src/app/api/render/route.ts:10</code> يستورد <code>warnIfUnauthenticatedProduction</code>، و<code>:67</code> يناديه.</li>
+          <li>البحث في المستودع كله: <strong>مطابقتان فقط</strong> (الاستيراد والنداء) — لا تعريف.</li>
+        </ul>
+        <div class="label">الأدلة</div>
+        <pre><code>tsc --noEmit
+src/app/api/render/route.ts(10,3): error TS2305:
+  Module '"../../../lib/auth"' has no exported member
+  'warnIfUnauthenticatedProduction'.
+
+bun test src/app/api/routes.test.ts
+SyntaxError: Export named 'warnIfUnauthenticatedProduction'
+  not found in module 'src/lib/auth.ts'
+  → 4 pass / 5 fail</code></pre>
+        <div class="label">الأثر</div>
+        <p><code>next build</code> يفشل في CI (<code class="path">root-app-ci.yml:73</code>)، والنشر عبر <code>vercel.json</code> (<code>turbo run build</code>) يفشل.</p>
+      </div>
+
+      <div class="finding p1-edge">
+        <h3><span class="badge p1">A2 · P1</span> غياب <code>clerkMiddleware()</code> هو السبب الجذري لفشل الدخول</h3>
+        <ul>
+          <li>لا <code>middleware.ts</code> ولا <code>proxy.ts</code> في الجذر أو <code>src/</code>، و<code>git log --all --diff-filter=A</code> يؤكد أنهما <strong>لم يُضافا قط</strong>.</li>
+          <li>Clerk 7.9.16 مع Next 16: <code class="path">sdk-versions.js:12</code> → <code>middlewareFileReference = "middleware or proxy"</code>.</li>
+          <li><code class="path">createGetAuth.js:20-25</code>: إن غاب <code>detectClerkMiddleware(req)</code> → <code>assertAuthStatus(req, noAuthStatusMessage)</code>.</li>
+          <li><code class="path">errors.js:22-23</code>: الرسالة «auth() was called but Clerk can't detect usage of clerkMiddleware()».</li>
+        </ul>
+        <div class="label">الأثر</div>
+        <p>مع مفاتيح مضبوطة، كل <code>getRequestUser()</code> يرمي ⇒ 500 على <code>/api/credits</code>، <code>/api/projects</code>، <code>/api/renders</code>، <code>/api/render</code>، <code>/api/billing/checkout</code>.</p>
+        <div class="warnbox"><strong>مهم:</strong> <code>ALLOW_ANONYMOUS_PAID_ROUTES=true</code> لا يُنقذ الحالة، لأن الاستثناء يقع قبل فحص هذا المتغير.</div>
+      </div>
+
+      <div class="finding p1-edge">
+        <h3><span class="badge p1">A3 · P1</span> <code>ClerkProvider</code> في المكان الخطأ</h3>
+        <ul>
+          <li><code class="path">src/app/layout.tsx:22-31</code> بلا Provider؛ <code class="path">sign-in/page.tsx:27-31</code> تُركّبه داخل الصفحة.</li>
+        </ul>
+        <div class="label">الأثر</div>
+        <p>لا حالة مصادقة على مستوى التطبيق، ولا سياق لـ <code>useAuth</code> مستقبلاً؛ ومخالف لتوثيق Clerk الذي يوجب Provider في الـ root layout.</p>
+      </div>
+
+      <div class="finding p2-edge">
+        <h3><span class="badge p2">A4 · P2</span> لا واجهة خروج ولا مؤشر حالة</h3>
+        <ul>
+          <li>صفر استخدامات لـ <code>UserButton</code>/<code>SignOutButton</code>/<code>SignedIn</code>/<code>useUser</code>/<code>useAuth</code>.</li>
+        </ul>
+        <div class="label">الأثر</div>
+        <p>المستخدم لا يعرف أنه مسجّل، ولا يستطيع الخروج أو تبديل الحساب.</p>
+      </div>
+
+      <div class="finding p2-edge">
+        <h3><span class="badge p2">A5 · P2</span> لا توجيه بعد تسجيل الدخول</h3>
+        <ul>
+          <li><code>&lt;SignIn /&gt;</code> بلا <code>fallbackRedirectUrl</code> أو <code>signUpUrl</code> (<code class="path">sign-in/page.tsx:29</code>).</li>
+        </ul>
+        <div class="label">الأثر</div>
+        <p>العودة إلى <code>/</code> بلا تأكيد بصري، وبلا مسار واضح لإنشاء حساب جديد.</p>
+      </div>
+    </section>
+
+    <section id="s6">
+      <h2>6) مشكلات محتملة (غير مؤكدة أو بيئية)</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>التصنيف</th><th>البند</th><th>التفصيل</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="badge p1">B</span></td>
+              <td><code>.env.local</code> ناقص</td>
+              <td>لا مفاتيح Clerk ولا <code>DATABASE_URL</code> ولا Stripe؛ الموجود: <code>VERCEL_OIDC_TOKEN</code>, <code>BLOB_READ_WRITE_TOKEN</code>, <code>GROQ_API_KEY</code>, <code>FISH_AUDIO_API_KEY</code>. لذا محلياً تظهر صفحة «غير مُهيأ» وهذا متوقع.</td>
+            </tr>
+            <tr>
+              <td><span class="badge p1">B</span></td>
+              <td><code>pg</code> غير مثبت محلياً</td>
+              <td><code>node_modules/pg</code> و<code>node_modules/@types/pg</code> غير موجودين، مع أنهما في <code class="path">package.json:46,57</code> والقفل (<code class="path">package-lock.json:10248</code>). خطأ <code>TS2307</code> <strong>محلي فقط</strong> وسيُحل بـ <code>npm ci</code>.</td>
+            </tr>
+            <tr>
+              <td><span class="badge p0">C</span></td>
+              <td>خطر تكلفة</td>
+              <td>إن فُتح <code>ALLOW_ANONYMOUS_PAID_ROUTES=true</code> في الإنتاج بلا Clerk، تُفتح <code>/api/render</code> و<code>/api/script</code> و<code>/api/tts</code> و<code>/api/image</code> لأي زائر.</td>
+            </tr>
+            <tr>
+              <td><span class="badge p0">C</span></td>
+              <td>فشل مغلق لكن صامت للمستخدم</td>
+              <td>عند غياب <code>DATABASE_URL</code> تُرجع المسارات 503 برسالة تقنية، لا بحالة «حساب غير مهيأ» مفهومة.</td>
+            </tr>
+            <tr>
+              <td><span class="badge p3">D</span></td>
+              <td>توثيق ناقص</td>
+              <td><code>.env.example</code> وREADME يذكران المفاتيح فقط، ولا يذكران <code>proxy.ts</code>/<code>clerkMiddleware</code> إطلاقاً — وهو سبب بنيوي لتكرار الخطأ.</td>
+            </tr>
+            <tr>
+              <td><span class="badge p3">D</span></td>
+              <td>نظافة المستودع</td>
+              <td><code>bash.exe.stackdump</code> غير متعقّب وغير مُستثنى في <code>.gitignore</code>؛ وملف داخل مجلد باسم عربي غير قياسي متعقّب فعلاً.</td>
+            </tr>
+            <tr>
+              <td><span class="badge p3">D</span></td>
+              <td>تغطية Clerk</td>
+              <td><code class="path">docs/audits/PHASE_5_PRODUCTION_READINESS.md:205</code>: «Clerk: mocked. Real session and JWT handling was not exercised».</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="s7">
+      <h2>7) نتائج الاختبارات الفعلية</h2>
+      <p>نُفّذت أوامر قراءة فقط، بلا تثبيت أو تعديل:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>الأمر</th><th>النتيجة</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>node_modules/.bin/tsc --noEmit</code></td>
+              <td><span class="badge b-bad">فشل</span> — خطآن: <code>TS2305</code> في <code class="path">render/route.ts:10</code>، و<code>TS2307</code> في <code class="path">postgres.integration.test.ts:6</code> (بيئي)</td>
+            </tr>
+            <tr>
+              <td><code>bun test src/lib/auth.test.ts</code></td>
+              <td><span class="badge b-ok">3 pass / 0 fail</span> (12 توقّعاً)</td>
+            </tr>
+            <tr>
+              <td><code>bun test src/app/api/routes.test.ts</code></td>
+              <td><span class="badge b-bad">4 pass / 5 fail</span> — كل الفشل بسبب <code>warnIfUnauthenticatedProduction</code> المفقود</td>
+            </tr>
+            <tr>
+              <td><code>npx next build</code></td>
+              <td><span class="badge p3">لم يُشغّل</span> (يستهلك وقتاً ويكتب <code>.next/</code>؛ ممنوع في وضع القراءة)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>الاختبارات الفاشلة تحديداً</h3>
+      <ul>
+        <li>«الإنتاج بلا Clerk: كل المسارات المكلفة تُغلق 503 قبل أي عمل»</li>
+        <li>«Clerk مفعّل والطلب غير مسجّل ⇒ 401»</li>
+        <li>«مستخدم مسجّل في الإنتاج بلا DATABASE_URL ⇒ 503 (لا تصيير مجاني بصمت)»</li>
+        <li>«الإنتاج بلا Upstash ⇒ 503 حتى لمستخدم مسجّل»</li>
+        <li>«تحقق مدخلات التصيير: JSON تالف، تكوين مجهول، رابط file:، حجم زائد»</li>
+      </ul>
+      <div class="note">الاختبارات التي نجحت: <code>auth.test.ts</code> بالكامل، واختبار <code>executeApi</code>، والشراء في الإنتاج، وويب هوك Stripe (3 حالات).</div>
+    </section>
+
+    <section id="s8">
+      <h2>8) ما تعذّر التحقق منه</h2>
+      <ul>
+        <li><strong>بيئة Vercel المنشورة:</strong> لا يمكن التأكد من وجود <code>NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</code> و<code>CLERK_SECRET_KEY</code> و<code>DATABASE_URL</code> أو قيمها. لا تُطبع أي أسرار.</li>
+        <li><strong>حالة ترحيلات قاعدة البيانات الحيّة:</strong> لم يُشغَّل <code>drizzle-kit generate</code> (يكتب ملفات)، ولا استعلام على قاعدة إنتاجية.</li>
+        <li><strong>سلوك Clerk الحقيقي (JWT/session):</strong> الاختبارات تُحاكي <code>@clerk/nextjs/server</code> فقط.</li>
+        <li><strong><code>next build</code> الفعلي:</strong> لم يُنفّذ.</li>
+        <li><strong>تاريخ ملفات middleware:</strong> لم يُعثر على أي إضافة سابقة، لكن لا يمكن الجزم بسبب حذف غير مُسجّل خارج Git.</li>
+      </ul>
+    </section>
+
+    <section id="s9">
+      <h2>9) علاقة Clerk بقاعدة البيانات وStripe والكريدت</h2>
+      <ul>
+        <li><strong>القاعدة:</strong> <code>users.clerkId</code> فريد، و<code>ensureUser()</code> يُدرج بثلاثة كريدت مجانية عند أول دخول (<code class="path">repository.ts:42-59</code>, <code class="path">credits.ts:10</code>). بدون <code>auth()</code> لا يصل <code>clerkId</code> أبداً ⇒ لا صفوف مستخدمين في الإنتاج.</li>
+        <li><strong>الكريدت:</strong> <code>startChargedRender</code> تخصم وتفتح الصف وتسجّل الاستهلاك في جملة SQL واحدة، والإرجاع idempotent عبر <code>refunded_at</code>. المنطق سليم لكنه <strong>غير قابل للوصول</strong> لأن الطلب يُرفض/ينفجر قبل الوصول إليه.</li>
+        <li><strong>Stripe checkout:</strong> يبدأ بـ <code>getRequestUser()</code> (<code class="path">checkout/route.ts:26</code>) ⇒ يسقط بنفس الاستثناء.</li>
+        <li><strong>Stripe webhook:</strong> <strong>مستقل تماماً</strong> عن Clerk middleware — يتحقق من التوقيع ويقرأ <code>clerkId</code> من metadata. لذا التلقيت يعمل حتى لو كانت المصادقة معطّلة، لكن لا أحد يستطيع بدء الدفع من الواجهة.</li>
+        <li><strong>الحرّاس:</strong> <code>requireSession()</code> (للكريدت/المشاريع/السجل) و<code>guardPaidRoute()</code> (للمسارات المكلفة) كلاهما يستدعي <code>getRequestUser()</code> مباشرة بلا التقاط استثناء ⇒ <strong>500 لا 401</strong>.</li>
+      </ul>
+    </section>
+
+    <section id="s10">
+      <h2>10) خطة إصلاح مرتبة</h2>
+
+      <div class="finding p0-edge">
+        <h3><span class="badge p0">P0</span> فوراً — إزالة الحاجز</h3>
+        <ol>
+          <li>تصدير <code>warnIfUnauthenticatedProduction()</code> من <code class="path">src/lib/auth.ts</code> (تحذير مرة واحدة عند <code>NODE_ENV==="production" &amp;&amp; !isAuthConfigured()</code>)، أو حذف الاستيراد والنداء من <code>render/route.ts</code> إن كان غير مرغوب.</li>
+          <li>التأكد من <code>npm ci</code> محلياً ليعود <code>pg</code> و<code>@types/pg</code> (لا تغيير في الكود).</li>
+        </ol>
+      </div>
+
+      <div class="finding p1-edge">
+        <h3><span class="badge p1">P1</span> السبب الجذري للمصادقة</h3>
+        <ol start="3">
+          <li>إضافة <code>proxy.ts</code> في الجذر مع <code>clerkMiddleware()</code> وإعداد <code>publicRoutes</code> لـ <code>/</code> و<code>/sign-in(.*)</code> و<code>/api/billing/webhook</code> و<code>/api/cron/retry-renders</code> (الأخيران محميان بأسرارهما).</li>
+          <li>نقل <code>&lt;ClerkProvider&gt;</code> إلى <code class="path">src/app/layout.tsx</code> وإزالة النسخة المحلية من صفحة الدخول.</li>
+          <li>إضافة <code>catch</code> حول <code>getRequestUser()</code> في <code>requireSession()</code> و<code>guardPaidRoute()</code> لإرجاع 401/503 برسالة عربية بدل 500.</li>
+        </ol>
+      </div>
+
+      <div class="finding p2-edge">
+        <h3><span class="badge p2">P2</span> تجربة الاستخدام</h3>
+        <ol start="6">
+          <li>إضافة <code>fallbackRedirectUrl="/"</code> و<code>signUpUrl="/sign-up"</code> (وصفحة sign-up إن لزم).</li>
+          <li>إضافة <code>UserButton</code>/<code>SignOutButton</code> في <code class="path">AccountPanel.tsx</code> وإظهار حالة الدخول.</li>
+          <li>تحسين رسالة 503 إلى «الحساب غير مهيأ» مع إبقاء التفاصيل التقنية في السجل.</li>
+        </ol>
+      </div>
+
+      <div class="finding p2-edge">
+        <h3><span class="badge p3">P3</span> وقاية</h3>
+        <ol start="9">
+          <li>تحديث <code>.env.example</code> وREADME بذكر <code>proxy.ts</code> إلزامياً.</li>
+          <li>إضافة <code>*.stackdump</code> إلى <code>.gitignore</code>.</li>
+          <li>توسيع الاختبارات لتشمل <code>clerkMiddleware</code> حقيقياً أو على الأقل التحقق من وجود <code>proxy.ts</code> (اختبار بنيوي).</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="s11">
+      <h2>11) معايير القبول</h2>
+      <ul class="checklist">
+        <li><code>npx tsc --noEmit</code> ينجح بلا أخطاء.</li>
+        <li><code>bun test</code> ينجح بالكامل (بما فيه اختبارات <code>routes.test.ts</code> التسعة).</li>
+        <li><code>npx next build</code> ينجح.</li>
+        <li>وجود <code>proxy.ts</code> يستدعي <code>clerkMiddleware()</code>، و<code>ClerkProvider</code> في <code class="path">src/app/layout.tsx</code>.</li>
+        <li>بمفاتيح Clerk: <code>/sign-in</code> يعرض نموذج Clerk، وبعد الدخول يظهر رصيد الكريدت بدل «تعذّر جلب بيانات الحساب».</li>
+        <li>بلا تسجيل دخول: <code>/api/credits</code> تُرجع <strong>401</strong> (لا 500).</li>
+        <li>ظهور زر خروج فعّال.</li>
+        <li>بلا مفاتيح Clerk محلياً: الوضع المحلي يعمل كما هو، وصفحة الدخول تعرض الرسالة الإرشادية.</li>
+      </ul>
+    </section>
+
+    <section id="s12">
+      <h2>12) القرار النهائي</h2>
+      <div class="decision">
+        <p><b>أول إصلاح يجب تنفيذه: A1 — تصدير <code>warnIfUnauthenticatedProduction</code> من <code class="path">src/lib/auth.ts</code>.</b></p>
+        <p>السبب: إنه حاجز مزدوج (typecheck + 5 اختبارات) يمنع التحقق من أي إصلاح لاحق. بعد اجتيازه مباشرةً يُنفَّذ <b>A2 — إضافة <code>proxy.ts</code> مع <code>clerkMiddleware()</code></b>، وهو الإصلاح الجذري الفعلي لتسجيل الدخول، ويجب أن يكونا في الـ PR نفسه لأن A2 بلا A1 لا يُبنى، وA1 بلا A2 لا يُصلح الدخول.</p>
+        <p><strong>التصنيف:</strong> A (خطأ برمجي مؤكد) — وليس B (إعداد نشر) كما قد يوحي ظهور المشكلة محلياً.</p>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<footer>
+  أُعدّ هذا التقرير في وضع قراءة فقط: لا تعديل على الكود، ولا تثبيت حزم، ولا ترحيلات، ولا نشر.<br>
+  لم تُطبع أي قيم أسرار؛ فُحص <code>.env.local</code> بأسماء المفاتيح فقط. الأوامر المذكورة نُفّذت فعلياً ما لم يُذكر خلاف ذلك.
+</footer>
+
+</body>
+</html>

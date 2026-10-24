@@ -21,7 +21,7 @@ Open http://127.0.0.1:5174. To produce a static site, run `npm run build`; deplo
 - Authored entrances, tour transitions, desktop depth, and reduced-motion support
 - Local fonts and assets, no analytics or third-party scripts
 
-Release links were verified against the public GitHub API on 2026-10-05 for **v1.5.0**. Update the `RELEASE` constant, platform file names, and displayed release labels in `src/App.tsx` when publishing a newer version. The release-page fallback always links to GitHub's latest release.
+Download filenames and version labels must stay in sync with the electron-builder `artifactName` values in the root `package.json` and the version in its manifest. Release assets are published as a draft by `.github/workflows/release.yml`; verify the actual asset list and promote the release before treating direct `releases/latest/download/` links as live. The release-page fallback always points to GitHub's latest release page.
 
 Product copy lives in `src/content.ts`; visual tokens and responsive styles live in `src/styles.css`. See `ASSETS.md` for asset sources and `VERIFICATION.md` for checks performed.
 

@@ -30,4 +30,5 @@ Allow: /
 User-agent: OAI-SearchBot
 Allow: /
 
-# Sitemaps & Structured LLM Context
+# The static marketing site does not currently publish a sitemap.
+# llms.txt and llms-full.txt are public and discoverable at the site root.
