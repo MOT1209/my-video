@@ -1,4 +1,5 @@
-import { ClerkProvider, SignIn } from "@clerk/nextjs";
+import { SignIn } from "@clerk/nextjs";
+import { Suspense } from "react";
 
 /**
  * صفحة تسجيل الدخول (Clerk).
@@ -24,10 +25,14 @@ export default function SignInPage() {
   }
 
   return (
-    <ClerkProvider>
-      <div className="flex min-h-screen items-center justify-center" dir="ltr">
-        <SignIn />
-      </div>
-    </ClerkProvider>
+    <div className="flex min-h-screen items-center justify-center" dir="ltr">
+      <Suspense>
+        <SignIn
+          fallbackRedirectUrl="/"
+          signUpFallbackRedirectUrl="/"
+          forceRedirectUrl="/"
+        />
+      </Suspense>
+    </div>
   );
 }

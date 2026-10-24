@@ -21,9 +21,12 @@ export default [
       "next-env.d.ts",
       "next.config.js",
       // مهارات وملفات مساعدة جاهزة — خارج نطاق فحص كود التطبيق
+      "Skills/**",
       ".agents/**",
       ".claude/**",
       "public/**",
+      // King_Browser هو مشروع Electron مستقل بحزمه واختباراته (npm test داخله)، وليس جزءاً من تطبيق الفيديو
+      "King_Browser/**",
     ],
   },
   // Base JS recommended

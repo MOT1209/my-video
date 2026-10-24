@@ -2,13 +2,12 @@ import type { RequestUser } from "./auth";
 import { RENDER_CREDIT_COST } from "./credits";
 import { getDb, type Db } from "./db/client";
 import {
-  addCredits,
-  createRender,
   ensureUser,
   finishRender,
   getCredits,
-  recordUsage,
-  spendCredits,
+  refundRender,
+  startChargedRender,
+  type StartChargedRenderResult,
   type UserRow,
 } from "./db/repository";
 import type { RenderStatus } from "./db/schema";
@@ -17,13 +16,19 @@ import type { RenderStatus } from "./db/schema";
  * جلسة فوترة لعملية تصيير واحدة.
  * القاعدة: **الكاش مجاني، التصيير الفعلي بكريدت واحد** — والكريدت يُخصم
  * قبل إنشاء الـ sandbox (لا بعد استخدام الموارد) ويُرجَع تلقائياً إذا فشل
- * التصيير. الإرجاع مرّة واحدة فقط مهما تكرّر النداء.
+ * التصيير.
+ *
+ * كل الضمانات محفوظة **في قاعدة البيانات** لا في ذاكرة العملية:
+ * - الخصم وفتح صف التصيير وتسجيل الاستهلاك جملة SQL واحدة.
+ * - الإرجاع مرة واحدة لكل صف (`refunded_at`) مهما تكرّر من أي عملية،
+ *   ولا يقع لصف اكتمل (`done`).
+ * - الإغلاق مشروط بأن الصف ما زال مفتوحاً (لا كتابة فوق نتيجة نهائية).
  */
 
 export interface RenderStartArgs {
   compositionId: string;
   inputProps: Record<string, unknown> | null;
-  cacheKey: string | null;
+  cacheKey: string;
   projectId?: string | null;
 }
 
@@ -40,19 +45,22 @@ export interface BillingSession {
   userId: string;
   /** الرصيد الحالي — يُعاد للعميل في رسالة النجاح لتحديث الواجهة. */
   balance(): Promise<number>;
-  /** خصم كريدت التصيير. */
-  charge(): Promise<{ ok: boolean; credits: number }>;
-  /** إرجاع الكريدت بعد فشل التصيير (مرة واحدة فقط). */
-  refund(): Promise<void>;
-  /** فتح صف تصيير في السجل — يُعيد معرّفه أو null عند تعذّر التسجيل. */
-  startRender(args: RenderStartArgs): Promise<string | null>;
-  finishRender(renderId: string | null, args: RenderFinishArgs): Promise<void>;
+  /** خصم كريدت التصيير وفتح صفّه ذرّياً (أو رفض: رصيد/تكرار). */
+  startPaidRender(args: RenderStartArgs): Promise<StartChargedRenderResult>;
+  /**
+   * إرجاع كريدت صف فشل تصييره (idempotent عبر العمليات).
+   * false = تعذّر الوصول للقاعدة: لا تُغلق الصف فاشلاً عندها، كي يبقى
+   * `running` فيلتقطه الطابور ويُرجع الكريدت لاحقاً.
+   */
+  refund(renderId: string): Promise<boolean>;
+  /** إغلاق الصف — يُعيد false إن كان قد أُغلق سابقاً (لا كتابة فوقه). */
+  finishRender(renderId: string, args: RenderFinishArgs): Promise<boolean>;
 }
 
 /**
  * يُعيد جلسة فوترة، أو null إذا تعذّر فرضها (لا DATABASE_URL).
- * تعطيل الفوترة **لا يمنع التصيير** — يمنعه فقط المصادقة (401) عند
- * تفعيل Clerk. الفرق مقصود: الفوترة طبقة أعمال، لا حدّ أمني.
+ * القرار فيما إذا كان غياب الفوترة مقبولاً يقع على المسار
+ * (`billingRequiredResponse` في الإنتاج) لا هنا.
  */
 export async function openBillingSession(
   user: RequestUser,
@@ -60,7 +68,6 @@ export async function openBillingSession(
 ): Promise<BillingSession | null> {
   const db = dbOverride === undefined ? getDb() : dbOverride;
   if (!db) {
-    console.warn("billing: الكريدت غير مفروض — DATABASE_URL غير مهيأ.");
     return null;
   }
 
@@ -68,20 +75,6 @@ export async function openBillingSession(
     clerkId: user.clerkId,
     email: user.email,
   });
-
-  let charged = false;
-  let refunded = false;
-
-  const finishWithLog = async (renderId: string | null, args: RenderFinishArgs) => {
-    if (!renderId) {
-      return;
-    }
-    try {
-      await finishRender(db, renderId, args);
-    } catch (err) {
-      console.warn("billing: فشل تحديث صف التصيير", err);
-    }
-  };
 
   return {
     userId: row.id,
@@ -95,49 +88,36 @@ export async function openBillingSession(
       }
     },
 
-    async charge() {
-      const result = await spendCredits(db, row.id, RENDER_CREDIT_COST);
-      if (result.ok) {
-        charged = true;
-        try {
-          await recordUsage(db, {
-            userId: row.id,
-            kind: "render",
-            units: RENDER_CREDIT_COST,
-          });
-        } catch (err) {
-          console.warn("billing: فشل تسجيل استهلاك التصيير", err);
-        }
-      }
-      return result;
+    startPaidRender(args) {
+      return startChargedRender(db, {
+        userId: row.id,
+        cost: RENDER_CREDIT_COST,
+        compositionId: args.compositionId,
+        inputProps: args.inputProps,
+        cacheKey: args.cacheKey,
+        projectId: args.projectId ?? null,
+      });
     },
 
-    async refund() {
-      if (!charged || refunded) {
-        return;
-      }
-      await addCredits(db, row.id, RENDER_CREDIT_COST);
-      refunded = true;
-    },
-
-    async startRender(args) {
+    async refund(renderId) {
       try {
-        const created = await createRender(db, {
-          userId: row.id,
-          projectId: args.projectId ?? null,
-          compositionId: args.compositionId,
-          inputProps: args.inputProps,
-          cacheKey: args.cacheKey,
-          status: "running",
-          creditsUsed: RENDER_CREDIT_COST,
-        });
-        return created.id;
+        await refundRender(db, renderId);
+        return true;
       } catch (err) {
-        console.warn("billing: فشل فتح صف تصيير في السجل", err);
-        return null;
+        // الصف يبقى بلا refunded_at ⇒ يلتقطه الطابور (صف running مهجور) ويُرجعه لاحقاً
+        console.error("billing: فشل إرجاع الكريدت — سيُعاد عبر الطابور", err);
+        return false;
       }
     },
 
-    finishRender: finishWithLog,
+    async finishRender(renderId, args) {
+      try {
+        return await finishRender(db, renderId, args, { from: ["running"] });
+      } catch (err) {
+        // الصف يبقى running ⇒ الطابور يحسمه لاحقاً (يفحص الكاش قبل أي إرجاع)
+        console.warn("billing: فشل تحديث صف التصيير — سيحسمه الطابور", err);
+        return false;
+      }
+    },
   };
 }

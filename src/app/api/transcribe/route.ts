@@ -1,35 +1,41 @@
-import { getRequestUser, unauthorizedResponse } from "../../../lib/auth";
+import { guardPaidRoute } from "../../../lib/auth";
 import { apiError, apiSuccess } from "../../../helpers/api-response";
 import { getDb } from "../../../lib/db/client";
 import { ensureUser, recordUsage } from "../../../lib/db/repository";
 import {
   checkRateLimit,
   clientIp,
-  rateLimitUnavailableResponse,
-  rateLimitedResponse,
+  rateLimitRejection,
 } from "../../../lib/rate-limit";
-import { transcribeAudio } from "../../../lib/transcribe";
+import { MAX_AUDIO_BYTES, transcribeAudio } from "../../../lib/transcribe";
+
+/** هامش ترويسات multipart فوق حد الملف الصوتي نفسه. */
+const MAX_TRANSCRIBE_BODY_BYTES = MAX_AUDIO_BYTES + 64 * 1024;
 
 /**
  * نسخ ملف صوتي مرفوع إلى نص + كابشن (بند ASR من المرحلة 2).
  * المصادقة تُفرض عند تفعيل Clerk، وتسجيل الاستهلاك غير حرج (لا يعطّل النسخ).
  */
 export async function POST(req: Request) {
-  const requestUser = await getRequestUser();
-  if (!requestUser) {
-    return unauthorizedResponse();
+  const guard = await guardPaidRoute();
+  if ("response" in guard) {
+    return guard.response;
   }
+  const requestUser = guard.user;
 
   const subject = requestUser.authenticated
     ? `user:${requestUser.clerkId}`
     : `ip:${clientIp(req)}`;
   // النسخ مكلف نسبياً (صوت طويل = توكنات): 5 عمليات لكل موضوع كل 10 دقائق
   const verdict = await checkRateLimit(`transcribe:${subject}`, 5, 10 * 60 * 1000);
-  if (verdict.unavailable) return rateLimitUnavailableResponse();
   if (!verdict.allowed) {
-    return rateLimitedResponse(verdict.retryAfterSec);
+    return rateLimitRejection(verdict);
   }
 
+  // رفض مبكر قبل قراءة الجسم في الذاكرة (formData تُحمّل الملف كاملاً)
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_TRANSCRIBE_BODY_BYTES) {
+    return apiError("الملف الصوتي أكبر من الحد المسموح (15MB).", 413);
+  }
   const form = await req.formData().catch(() => null);
   if (!form) {
     return apiError("أرسل الطلب بصيغة multipart/form-data مع حقل audio.", 400);
@@ -38,7 +44,7 @@ export async function POST(req: Request) {
   if (!(file instanceof File)) {
     return apiError("حقل audio مفقود أو ليس ملفاً.", 400);
   }
-  if (file.size === 0 || file.size > 15 * 1024 * 1024) {
+  if (file.size === 0 || file.size > MAX_AUDIO_BYTES) {
     return apiError("حجم الملف الصوتي فارغ أو يتجاوز 15 ميجابايت.", 413);
   }
 
@@ -79,7 +85,9 @@ export async function POST(req: Request) {
       captions: result.captions,
       model: result.model,
     });
-  } catch {
-    return apiError("تعذّر نسخ الملف الصوتي.", 502);
+  } catch (err) {
+    // رسائل transcribeAudio عربية من صنعنا (بلا نص رد المزوّد) — آمنة للعرض
+    console.error("transcribe: فشل النسخ", (err as Error)?.message);
+    return apiError((err as Error)?.message || "تعذّر نسخ الملف الصوتي.", 502);
   }
 }

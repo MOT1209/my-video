@@ -305,44 +305,48 @@ export const ShortsEditor: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-8 md:flex-row md:items-start" dir="rtl">
+    <div className="flex flex-col gap-8 lg:flex-row lg:items-start" dir="rtl">
       {/* المحرر */}
       <InputContainer>
         {loadedTitle ? (
           <div className="text-xs opacity-70 mb-2">مشروع محمّل: {loadedTitle}</div>
         ) : null}
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium">الخطاف (أول ثانيتين)</label>
+          <label htmlFor="hook" className="text-sm font-medium">الخطاف (أول ثانيتين)</label>
           <input
+            id="hook"
             value={hook}
             onChange={(e) => setHook(e.currentTarget.value)}
             maxLength={120}
             placeholder="عنوان يجذب الانتباه فوراً"
-            className="leading-[1.7] block w-full rounded bg-background p-2 text-sm border outline-none"
+            className="leading-[1.7] block w-full rounded bg-background p-2 text-sm border"
           />
         </div>
 
         <Spacing />
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium">المشاهد (سطر = مشهد، حتى 12)</label>
+          <label htmlFor="scenes" className="text-sm font-medium">المشاهد (سطر = مشهد، حتى 12)</label>
           <textarea
+            id="scenes"
             value={scenesText}
             onChange={(e) => setScenesText(e.currentTarget.value)}
             rows={5}
             placeholder={"سطر لكل مشهد\nمثال: العادة الصغيرة تهزم الحماس الكبير"}
-            className="leading-[1.7] block w-full rounded bg-background p-2 text-sm border outline-none"
+            className="leading-[1.7] block w-full rounded bg-background p-2 text-sm border"
           />
           <div className="text-xs opacity-60">
             {scenes.length} مشاهد · {narrationText.length} حرف للتعليق
           </div>
           <div className="flex gap-2 items-center mt-1">
             <input
+              id="script-source"
+              aria-label="رابط مقال أو موضوع لتوليد سكربت"
               value={scriptSource}
               onChange={(e) => setScriptSource(e.currentTarget.value)}
               maxLength={500}
               placeholder="رابط مقال أو موضوع… (توليد سكربت AI)"
-              className="leading-[1.7] block w-full rounded bg-background p-2 text-xs border outline-none"
+              className="leading-[1.7] block w-full rounded bg-background p-2 text-xs border"
             />
             <Button
               disabled={scriptLoading}
@@ -358,11 +362,12 @@ export const ShortsEditor: React.FC = () => {
 
         <div className="flex gap-3">
           <div className="flex flex-col gap-1 flex-1">
-            <label className="text-sm font-medium">الثيم</label>
+            <label htmlFor="theme" className="text-sm font-medium">الثيم</label>
             <select
+              id="theme"
               value={theme}
               onChange={(e) => setTheme(e.currentTarget.value as ShortTheme)}
-              className="rounded bg-background p-2 text-sm border outline-none"
+              className="rounded bg-background p-2 text-sm border"
             >
               {THEME_LABELS.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -372,11 +377,12 @@ export const ShortsEditor: React.FC = () => {
             </select>
           </div>
           <div className="flex flex-col gap-1 flex-1">
-            <label className="text-sm font-medium">الصوت</label>
+            <label htmlFor="voice" className="text-sm font-medium">الصوت</label>
             <select
+              id="voice"
               value={voiceId}
               onChange={(e) => setVoiceId(e.currentTarget.value)}
-              className="rounded bg-background p-2 text-sm border outline-none"
+              className="rounded bg-background p-2 text-sm border"
             >
               <optgroup label="عربي">
                 {AR_VOICES.map((v) => (
@@ -399,13 +405,14 @@ export const ShortsEditor: React.FC = () => {
         <Spacing />
 
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium">أسلوب تحريك الكابشن</label>
+          <label htmlFor="caption-style" className="text-sm font-medium">أسلوب تحريك الكابشن</label>
           <select
+            id="caption-style"
             value={captionStyle}
             onChange={(e) =>
               setCaptionStyle(e.currentTarget.value as CaptionStyle)
             }
-            className="rounded bg-background p-2 text-sm border outline-none"
+            className="rounded bg-background p-2 text-sm border"
           >
             {CAPTION_STYLE_ORDER.map((id) => (
               <option key={id} value={id}>
@@ -516,7 +523,11 @@ export const ShortsEditor: React.FC = () => {
       </InputContainer>
 
       {/* المعاينة العمودية */}
-      <div className="mx-auto w-full max-w-[320px] shrink-0 overflow-hidden rounded-xl shadow-[0_0_200px_rgba(0,0,0,0.15)]">
+      <div
+        // مشغّل Remotion يُخرج المعاينة خارج إطارها داخل سياق RTL، فنعزله باتجاه LTR (النصوص داخل التكوين تضبط اتجاهها بنفسها)
+        dir="ltr"
+        className="mx-auto w-full max-w-[320px] shrink-0 overflow-hidden rounded-xl shadow-[0_0_200px_rgba(0,0,0,0.15)]"
+      >
         <Player
           component={ShortMain}
           inputProps={inputProps}
@@ -536,7 +547,7 @@ export const ShortsEditor: React.FC = () => {
       </div>
 
       {/* الحساب: المشاريع + السجل + الكريدت */}
-      <div className="w-full md:max-w-[360px] shrink-0">
+      <div className="w-full lg:max-w-[360px] shrink-0">
         <AccountPanel currentProps={inputProps} onLoad={applyProject} />
       </div>
     </div>

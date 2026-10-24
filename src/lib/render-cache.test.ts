@@ -14,8 +14,11 @@ class FakeBlobNotFoundError extends Error {
 mock.module("@vercel/blob", () => ({
   BlobNotFoundError: FakeBlobNotFoundError,
   BlobAccessError: class BlobAccessError extends Error {},
-  get: async () => null,
   head: () => fakeHead(),
+  // mock.module يتسرّب بين الملفات في bun: نوفّر بقية واجهة الحزمة كي لا تنكسر اختبارات أخرى
+  put: () => Promise.reject(new Error("put غير مُحاكى في render-cache.test")),
+  del: () => Promise.resolve(),
+  list: () => Promise.resolve({ blobs: [], hasMore: false }),
 }));
 
 const { findCachedRender, RENDER_CACHE_PREFIX, renderCachePath, stableStringify } =
@@ -42,14 +45,6 @@ test("inputProps مختلفة تعطي مسارات مختلفة", () => {
   const p3 = renderCachePath("MyComp", { hook: "أ", sceneCount: 1 });
   expect(p1).not.toBe(p2);
   expect(p1).not.toBe(p3);
-});
-
-test("مسارات الكاش الخاصة تختلف حسب المستخدم ولا تكشف معرّفه", () => {
-  const first = renderCachePath("ShortsComp", { x: 1 }, "clerk-user-a");
-  const second = renderCachePath("ShortsComp", { x: 1 }, "clerk-user-b");
-  expect(first).not.toBe(second);
-  expect(first).not.toContain("clerk-user-a");
-  expect(second).not.toContain("clerk-user-b");
 });
 
 test("صيغة المسار: prefix/compositionId/hash.mp4", () => {

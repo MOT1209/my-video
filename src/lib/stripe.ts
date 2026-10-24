@@ -48,7 +48,22 @@ export interface CreditGrantDecision {
   clerkId: string | null;
   credits: number;
   packId: string | null;
+  /** معرّف جلسة الدفع (cs_...) — مفتاح منع التكرار الثاني بعد معرّف الحدث. */
+  checkoutSessionId: string | null;
 }
+
+/**
+ * أحداث الدفع التي تمنح الكريدت:
+ * - `completed`: الدفع الفوري (بطاقة) — `payment_status = paid`.
+ * - `async_payment_succeeded`: وسائل الدفع المؤجّلة (تحويل بنكي...) — تكتمل
+ *   الجلسة أولاً بحالة `unpaid` ثم يصل هذا الحدث عند التحصيل. بدونه لا
+ *   يحصل من دفع بوسيلة مؤجّلة على كريدته أبداً.
+ * فريدية `checkout_session_id` في القاعدة تمنع منح الجلسة نفسها مرتين.
+ */
+export const CREDIT_GRANTING_EVENTS = [
+  "checkout.session.completed",
+  "checkout.session.async_payment_succeeded",
+] as const;
 
 /**
  * خريطة نقية: حدث Stripe → قرار تلقيت الكريدت.
@@ -63,39 +78,54 @@ export function creditsFromStripeEvent(event: StripeEventLike): CreditGrantDecis
     clerkId: null,
     credits: 0,
     packId: null,
+    checkoutSessionId: null,
   };
 
-  if (event.type !== "checkout.session.completed") {
+  if (!(CREDIT_GRANTING_EVENTS as readonly string[]).includes(event.type)) {
     return base;
   }
 
   const object = event.data.object;
+  const checkoutSessionId =
+    typeof object.id === "string" && object.id ? object.id : null;
   const paymentStatus = typeof object.payment_status === "string" ? object.payment_status : null;
-  if (paymentStatus !== "paid" && paymentStatus !== "no_payment_required") {
-    return { ...base, reason: "unpaid" };
+  // `no_payment_required` (خصم 100%) لا يمنح حزمة مدفوعة: جلساتنا لا تفعّل
+  // أكواد الخصم، فوصول هذه الحالة يعني إعداداً لم نصمّم له — نرفض بأمان.
+  if (paymentStatus !== "paid") {
+    return { ...base, reason: "unpaid", checkoutSessionId };
   }
 
   const metadata = (object.metadata ?? {}) as Record<string, unknown>;
   const clerkId = typeof metadata.clerkId === "string" && metadata.clerkId ? metadata.clerkId : null;
   if (!clerkId) {
-    return { ...base, reason: "missing-user" };
+    return { ...base, reason: "missing-user", checkoutSessionId };
   }
 
   const credits = Number(metadata.credits);
   const packId = typeof metadata.packId === "string" ? metadata.packId : null;
+  const invalid = { ...base, reason: "invalid-credits" as const, clerkId, packId, checkoutSessionId };
   if (!Number.isInteger(credits) || credits <= 0) {
-    return { ...base, reason: "invalid-credits", clerkId, packId };
+    return invalid;
   }
 
-  // حزمة مُعلنة → يجب أن يطابق عدد كريدتاتها (كشف خطأ تسعير/برمجة)
-  if (packId) {
-    const pack = findCreditPack(packId);
-    if (!pack || pack.credits !== credits) {
-      return { ...base, reason: "invalid-credits", clerkId, packId };
-    }
+  // الحزمة إلزامية ويجب أن تطابق الكريدتات المُعلنة حِزم الخادم: كل جلسة
+  // دفع ننشئها نحن تحمل packId، فغيابه يعني جلسة لم تصدر من checkout لدينا.
+  const pack = packId ? findCreditPack(packId) : null;
+  if (!pack || pack.credits !== credits) {
+    return invalid;
+  }
+  // المبلغ المحصّل (إن وُجد) يجب أن يطابق سعر الحزمة — حراسة ضد جلسة
+  // بسعر مختلف (خصم/تلاعب/خطأ تسعير) تمنح حزمة كاملة.
+  const amountTotal = object.amount_total;
+  const currency = typeof object.currency === "string" ? object.currency.toLowerCase() : null;
+  if (
+    (typeof amountTotal === "number" && amountTotal !== pack.priceCents) ||
+    (currency !== null && currency !== "usd")
+  ) {
+    return invalid;
   }
 
-  return { grant: true, reason: "granted", clerkId, credits, packId };
+  return { grant: true, reason: "granted", clerkId, credits, packId, checkoutSessionId };
 }
 
 /**

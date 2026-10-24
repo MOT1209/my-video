@@ -1,5 +1,6 @@
 "use client";
 
+import { UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
 import type { ShortProps } from "../../types/shorts";
@@ -62,6 +63,19 @@ const STATUS_LABELS: Record<string, string> = {
   error: "فاشل",
 };
 
+const ClerkAccountControl: React.FC = () => {
+  const { isLoaded, isSignedIn } = useAuth();
+  if (!isLoaded || !isSignedIn) {
+    return null;
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-medium">حسابك · مسجّل الدخول</span>
+      <UserButton />
+    </div>
+  );
+};
+
 export const AccountPanel: React.FC<{
   /** الحالة الحالية للمحرّر — تُحفظ كمشروع. */
   currentProps: ShortProps;
@@ -84,6 +98,13 @@ export const AccountPanel: React.FC<{
       return;
     }
     if (creditsRes.status === 503) {
+      const body = (await creditsRes.json().catch(() => null)) as
+        | { code?: string }
+        | null;
+      if (body?.code === "AUTH_UNAVAILABLE") {
+        setPhase("error");
+        return;
+      }
       setPhase("no-database");
       return;
     }
@@ -227,8 +248,7 @@ export const AccountPanel: React.FC<{
         <div className="text-sm font-medium">حسابك</div>
         <div className="text-xs opacity-70">
           ميزات الحساب تحتاج قاعدة بيانات. أضف <code>DATABASE_URL</code> (Neon)
-          وتشغيل ترحيلات <code>drizzle/</code> ثم أعد النشر. حتى ذلك الحين
-          يعمل المحرّر والتصيير كالمعتاد بلا فرض كريدت.
+          وشغّل ترحيلات <code>drizzle/</code> ثم أعد النشر.
         </div>
       </InputContainer>
     );
@@ -247,7 +267,13 @@ export const AccountPanel: React.FC<{
     return (
       <InputContainer>
         <div className="text-sm font-medium">حسابك</div>
-        <ErrorComp message="تعذّر جلب بيانات الحساب." />
+        <ErrorComp
+          message={
+            phase === "error"
+              ? "تعذّر التحقق من جلسة الدخول مؤقتاً. حاول مجدداً."
+              : "تعذّر جلب بيانات الحساب."
+          }
+        />
         <Spacing />
         <Button secondary onClick={() => void refresh()}>
           إعادة المحاولة
@@ -258,8 +284,13 @@ export const AccountPanel: React.FC<{
 
   return (
     <InputContainer>
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-medium">حسابك</div>
+      <div className="flex items-center justify-between gap-3">
+        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
+        process.env.CLERK_SECRET_KEY ? (
+          <ClerkAccountControl />
+        ) : (
+          <div className="text-sm font-medium">حساب محلي</div>
+        )}
         <div className="text-sm">
           الرصيد: <strong>{info.credits}</strong> كريدت · التصيير ={" "}
           {info.renderCost}

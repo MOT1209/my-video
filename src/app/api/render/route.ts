@@ -2,17 +2,22 @@ import { waitUntil } from "@vercel/functions";
 import { COMP_NAME, CompositionProps } from "../../../../types/constants";
 import { AnyRenderRequest } from "../../../../types/schema";
 import { SHORT_COMP_NAME, ShortProps } from "../../../../types/shorts";
-import {
-  databaseNotConfiguredResponse,
-  getRequestUser,
-  unauthorizedResponse,
-} from "../../../lib/auth";
-import { isDatabaseConfigured } from "../../../lib/db/client";
 import { apiError } from "../../../helpers/api-response";
-import { openBillingSession } from "../../../lib/billing-session";
-import { RENDER_CREDIT_COST } from "../../../lib/credits";
+import {
+  billingUnavailableResponse,
+  guardPaidRoute,
+  warnIfUnauthenticatedProduction,
+} from "../../../lib/auth";
+import {
+  openBillingSession,
+  type BillingSession,
+} from "../../../lib/billing-session";
 import { findCachedRender, renderCachePath } from "../../../lib/render-cache";
-import { friendlyRenderError } from "../../../lib/render-errors";
+import {
+  executeRenderJob,
+  MAX_RENDER_BODY_BYTES,
+  readJsonBody,
+} from "../../../lib/render-job";
 import {
   estimateRenderCostUsd,
   logRenderMetrics,
@@ -30,7 +35,7 @@ import {
 import {
   checkRateLimit,
   clientIp,
-  rateLimitUnavailableResponse,
+  rateLimitRejection,
   rateLimitedResponse,
 } from "../../../lib/rate-limit";
 import { formatSSE, type RenderProgress } from "./helpers";
@@ -45,19 +50,28 @@ import { formatSSE, type RenderProgress } from "./helpers";
  * 4) كاش: نفس التكوين = رابط جاهز بلا كلفة.
  * 5) كريدت: يُخصم **بعد** التأكد من غياب الكاش (الكاش ليس تصييراً)،
  *    ويُرجَع تلقائياً إذا فشل التصيير.
+ *
+ * في الإنتاج بلا قاعدة بيانات (لا فرض للكريدت) يُرفض التصيير 503 بدل أن
+ * يُقدَّم مجاناً بصمت — إلا بالفتح الصريح ALLOW_ANONYMOUS_PAID_ROUTES=true.
  */
 export async function POST(req: Request) {
   // 1) الهوية أولاً — أرخص رفض، وقبل أي عمل مكلف
-  const requestUser = await getRequestUser();
-  if (!requestUser) {
-    return unauthorizedResponse();
+  const guard = await guardPaidRoute();
+  if ("response" in guard) {
+    return guard.response;
   }
-  if (process.env.NODE_ENV === "production" && !isDatabaseConfigured()) {
-    return databaseNotConfiguredResponse();
+  const requestUser = guard.user;
+  if (!requestUser.authenticated) {
+    // وضع محلي/بلا مفاتيح: نبّه مرة واحدة في الإنتاج حتى لا يُنسى الفخ مفتوحاً
+    warnIfUnauthenticatedProduction();
   }
 
   const ip = clientIp(req);
-  /** التصيير يُعزل بالمستخدم المصادَق؛ التطوير المحلي يبقى معزولاً حسب IP. */
+  /**
+   * موضوع التصيير: معرّف المستخدم إن كان الطلب مصادَقاً، وإلا الـ IP.
+   * فيالوضع المحلي (بلا Clerk) يبقى السلوك السابق حرفياً، ومع Clerk يصبح
+   * العزل بالمستخدم (أدق من IP مشترك بين شبكة كاملة).
+   */
   const subject = requestUser.authenticated
     ? `user:${requestUser.clerkId}`
     : `ip:${ip}`;
@@ -68,32 +82,33 @@ export async function POST(req: Request) {
     5,
     60 * 60 * 1000,
   );
-  if (verdict.unavailable) {
-    return rateLimitUnavailableResponse();
-  }
   if (!verdict.allowed) {
-    return rateLimitedResponse(verdict.retryAfterSec);
+    return rateLimitRejection(verdict);
   }
 
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
   if (!blobToken) {
-    return apiError("التصيير غير متاح: مخزن الفيديو غير مهيأ على الخادم.", 503);
+    return apiError(
+      "التصيير غير مهيأ على الخادم: مخزن الفيديو غير متاح حالياً.",
+      503,
+    );
   }
 
   if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return apiError("أرسل الطلب بصيغة application/json.", 415);
   }
 
-  let payload: unknown;
-  try {
-    payload = await req.json();
-  } catch {
-    return apiError("تعذّر قراءة JSON صالح.", 400);
+  const bodyResult = await readJsonBody(req, MAX_RENDER_BODY_BYTES);
+  if (!bodyResult.ok) {
+    return apiError(
+      bodyResult.status === 413 ? "طلب التصيير أكبر من المسموح." : "طلب تصيير غير صالح.",
+      bodyResult.status,
+    );
   }
-
+  const payload = bodyResult.value;
   const parsedBody = AnyRenderRequest.safeParse(payload);
   if (!parsedBody.success) {
-    return apiError("بيانات التصيير غير صالحة.", 400);
+    return apiError("طلب تصيير غير صالح.", 400);
   }
   const body = parsedBody.data;
 
@@ -101,26 +116,39 @@ export async function POST(req: Request) {
   let compositionId: string;
   let inputProps: unknown;
   if (body.id === SHORT_COMP_NAME) {
-    const parsedProps = ShortProps.safeParse(body.inputProps);
-    if (!parsedProps.success) {
-      return apiError("بيانات الفيديو غير صالحة.", 400);
-    }
     compositionId = SHORT_COMP_NAME;
-    inputProps = parsedProps.data;
-  } else if (body.id === COMP_NAME) {
-    const parsedProps = CompositionProps.safeParse(body.inputProps);
-    if (!parsedProps.success) {
-      return apiError("بيانات الفيديو غير صالحة.", 400);
+    const shortProps = ShortProps.safeParse(body.inputProps);
+    if (!shortProps.success) {
+      return apiError("مدخلات الفيديو غير صالحة.", 400);
     }
+    inputProps = shortProps.data;
+  } else if (body.id === COMP_NAME) {
     compositionId = COMP_NAME;
-    inputProps = parsedProps.data;
+    const compProps = CompositionProps.safeParse(body.inputProps);
+    if (!compProps.success) {
+      return apiError("مدخلات الفيديو غير صالحة.", 400);
+    }
+    inputProps = compProps.data;
   } else {
-    return apiError("نوع الفيديو غير معروف.", 400);
+    return apiError("معرّف التكوين غير معروف.", 400);
   }
 
-  const encoder = new TextEncoder();
-  const stream = new TransformStream();
-  const writer = stream.writable.getWriter();
+  /**
+   * جلسة الفوترة قبل القفل: فشلها (قاعدة معطّلة) يُرد 503 ولا يترك قفلاً
+   * معلّقاً. null يعني «الكريدت غير مفروض» (لا DATABASE_URL) — مقبول فقط
+   * خارج الإنتاج أو بالفتح الصريح.
+   */
+  let billing: BillingSession | null;
+  try {
+    billing = await openBillingSession(requestUser);
+  } catch (err) {
+    console.error("render: تعذّر فتح جلسة الفوترة", err);
+    return billingUnavailableResponse();
+  }
+  if (!billing && process.env.NODE_ENV === "production") {
+    console.error("render: DATABASE_URL غير مهيأ في الإنتاج — التصيير مغلق");
+    return billingUnavailableResponse();
+  }
 
   /** قفل موزّع: موضوع واحد = تصيير واحد نشط في كل نسخ الخادم. */
   const lockKey = `render-lock:${subject}`;
@@ -150,21 +178,25 @@ export async function POST(req: Request) {
   const sessionKey = `render-sandbox:${subject}`;
   const inputPropsRecord = inputProps as Record<string, unknown>;
 
-  /** جلسة الفوترة: null يعني «الكريدت غير مفروض» (لا DATABASE_URL). */
-  const billing = await openBillingSession(requestUser);
-  if (process.env.NODE_ENV === "production" && !billing) {
-    await releaseRenderLock(lockKey, lockOwner).catch((err: unknown) => {
-      console.error("render: تعذّر تحرير القفل بعد فشل قاعدة البيانات", err instanceof Error ? err.name : "unknown");
-    });
-    return databaseNotConfiguredResponse();
-  }
+  const encoder = new TextEncoder();
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
 
-  const send = async (message: RenderProgress): Promise<void> => {
-    await writer.write(encoder.encode(formatSSE(message))).catch(() => {});
+  /**
+   * انقطاع العميل لا يُفشل التصيير: الكتابة على تيار مغلق تُبتلع ويكمل
+   * العمل حتى نهايته فيُسجَّل الناتج (لا إرجاع كريدت لتصيير ربما نجح).
+   */
+  let clientGone = false;
+  const send = async (message: RenderProgress) => {
+    if (clientGone) {
+      return;
+    }
+    try {
+      await writer.write(encoder.encode(formatSSE(message)));
+    } catch {
+      clientGone = true;
+    }
   };
-
-  const currentCredits = async (): Promise<number | null> =>
-    billing ? await billing.balance() : null;
 
   /** تسجيل مقاييس عملية ناجحة (كاش أو تصيير) وإرجاع أرقامها للعميل. */
   const reportSuccess = (
@@ -212,110 +244,32 @@ export async function POST(req: Request) {
   };
 
   const runRender = async () => {
-    const startMs = Date.now();
-    let renderId: string | null = null;
     try {
-      // 4) الكاش أولاً — قبل أي sandbox: نتيجة سابقة = صفر تكلفة
-      await send({ type: "phase", phase: "التحقق من الكاش...", progress: 0 });
-      const cached = await findCachedRender(cachePath, blobToken);
-      if (cached) {
-        const metrics = reportSuccess(
-          Math.round((Date.now() - startMs) / 1000),
-          cached.size,
-          true,
-        );
-        await send({
-          type: "done",
-          url: cached.url,
-          size: cached.size,
-          cached: true,
-          metrics,
-          credits: await currentCredits(),
-        });
-        return;
-      }
-
-      // 5) الكاش ليس تصييراً ⇒ الخصم الآن، قبل إنشاء أي مورد مدفوع
-      if (billing) {
-        const charged = await billing.charge();
-        if (!charged.ok) {
-          await send({
-            type: "error",
-            message: `رصيدك لا يكفي: التصيير يستهلك ${RENDER_CREDIT_COST} كريدت ولديك ${charged.credits}. أضف كريدت من لوحة الحساب ثم أعد المحاولة.`,
-          });
-          return;
-        }
-        renderId = await billing.startRender({
-          compositionId,
-          inputProps: inputPropsRecord,
-          cacheKey: cachePath,
-        });
-        if (!renderId) {
-          await billing.refund();
-          throw new Error("render_record_unavailable");
-        }
-      }
-
-      const outcome = await runRenderOnce({
+      await executeRenderJob({
         compositionId,
         inputProps: inputPropsRecord,
-        blobPath: cachePath,
-        blobToken,
-        sessionKey,
-        ownerId: requestUser.authenticated ? requestUser.clerkId : undefined,
-        onProgress: (event) =>
-          send({
-            type: "phase",
-            phase: event.phase,
-            progress: event.progress,
-            subtitle: event.subtitle,
+        cachePath,
+        billing,
+        send,
+        findCached: (path) => findCachedRender(path, blobToken),
+        render: (onProgress) =>
+          runRenderOnce({
+            compositionId,
+            inputProps: inputPropsRecord,
+            blobPath: cachePath,
+            blobToken,
+            sessionKey,
+            onProgress,
           }),
+        reportSuccess,
+        reportFailure,
       });
-
-      const metrics = reportSuccess(
-        outcome.sandboxWallSeconds,
-        outcome.size,
-        false,
-      );
-      if (billing) {
-        await billing.finishRender(renderId, {
-          status: "done",
-          url: outcome.url,
-          sizeBytes: outcome.size,
-          sandboxMs: outcome.sandboxWallSeconds * 1000,
-        });
-      }
-
-      await send({
-        type: "done",
-        url: outcome.url,
-        size: outcome.size,
-        cached: false,
-        metrics,
-        credits: await currentCredits(),
-      });
-    } catch (err) {
-      console.error("render: فشل تنفيذ التصيير", err instanceof Error ? err.name : "unknown");
-      reportFailure(Math.round((Date.now() - startMs) / 1000));
-      // Refund only a charged render; an SSE disconnect is swallowed by send().
-      if (billing && renderId) {
-        try {
-          await billing.refund();
-          await billing.finishRender(renderId, {
-            status: "error",
-            error: friendlyRenderError(err),
-          });
-        } catch (billingError) {
-          console.error("render: تعذّر إكمال استرداد الرصيد", billingError instanceof Error ? billingError.name : "unknown");
-        }
-      }
-      await send({ type: "error", message: friendlyRenderError(err) });
     } finally {
       // القفل يُستهلك فقط أثناء التصيير الفعلي — يُحرَّر دائماً هنا
       await releaseRenderLock(lockKey, lockOwner).catch((err: unknown) => {
         console.error("render: تعذّر تحرير قفل التصيير", err);
       });
-      // إغلاق واحد آمن حتى مع عبارات return الداخلية أعلاه
+      // إغلاق واحد آمن حتى مع عبارات return الداخلية
       await writer.close().catch(() => {});
     }
   };

@@ -11,6 +11,19 @@ export const SHORT_MAX_FRAMES = SHORT_FPS * SHORT_MAX_SECONDS;
 /** هامش أمان نهاية الفيديو بعد آخر كلمة */
 export const SHORT_TAIL_SECONDS = 1;
 
+/**
+ * رابط وسائط يُحمَّل داخل متصفح التصيير: http(s) فقط وبطول معقول.
+ * `z.string().url()` وحده يقبل `file:` و`javascript:` و`data:` — والأول
+ * يقرأ ملفات داخل sandbox التصيير ويطبعها في الفيديو.
+ */
+const MediaUrl = z
+  .string()
+  .max(2048)
+  .url()
+  .refine((value) => /^https?:\/\//i.test(value), {
+    message: "يُقبل رابط http(s) فقط",
+  });
+
 /** مناطق آمنة لتجنب أزرار يوتيوب */
 export const SHORT_SAFE_TOP = 160;
 export const SHORT_SAFE_BOTTOM = 420;
@@ -36,7 +49,7 @@ export const CAPTION_STYLE_LABELS: Record<CaptionStyle, string> = {
 export const BackgroundMedia = z
   .object({
     type: z.enum(["image", "video"]),
-    url: z.string().url(),
+    url: MediaUrl,
     /** تكبير Ken Burns من 1.0 إلى هذا الرقم */
     zoomTo: z.number().min(1).max(1.4).default(1.08),
     /** شدة التعتيم فوق الوسائط لضمان قراءة النص */
@@ -71,7 +84,7 @@ export type WordCaption = z.infer<typeof WordCaption>;
 export const ShortScene = z.object({
   id: z.string().min(1).max(64),
   text: z.string().min(1).max(280),
-  imageUrl: z.string().url().nullable().default(null),
+  imageUrl: MediaUrl.nullable().default(null),
 });
 export type ShortScene = z.infer<typeof ShortScene>;
 
@@ -82,14 +95,14 @@ export const ShortProps = z.object({
   lang: ShortLang.default("ar"),
   voiceId: z.string().min(1).max(120).default(DEFAULT_AR_VOICE),
   /** رابط mp3 عام (Blob) أو null قبل توليد الصوت */
-  audioUrl: z.string().url().nullable().default(null),
+  audioUrl: MediaUrl.nullable().default(null),
   audioDurationSec: z.number().min(0).max(SHORT_MAX_SECONDS).nullable().default(null),
   captions: z.array(WordCaption).max(600).default([]),
   /** نمط تحريك الكابشن */
   captionStyle: CaptionStyle.default("pop"),
   /** خلفية متحركة (صورة/فيديو) فوق الثيم — اختياري */
   backgroundMedia: BackgroundMedia,
-  musicUrl: z.string().url().nullable().default(null),
+  musicUrl: MediaUrl.nullable().default(null),
   musicDuck: z.number().min(0).max(1).default(0.15),
 });
 export type ShortProps = z.infer<typeof ShortProps>;

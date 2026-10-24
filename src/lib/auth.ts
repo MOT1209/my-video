@@ -26,6 +26,23 @@ export function isAuthConfigured(): boolean {
   );
 }
 
+let productionAuthWarningLogged = false;
+
+/** Warn once when production is deliberately using unauthenticated paid routes. */
+export function warnIfUnauthenticatedProduction(): void {
+  if (process.env.NODE_ENV === "production" && !isAuthConfigured()) {
+    if (process.env.ALLOW_ANONYMOUS_PAID_ROUTES !== "true") {
+      return;
+    }
+    if (!productionAuthWarningLogged) {
+      productionAuthWarningLogged = true;
+      console.warn(
+        "Paid routes are enabled without Clerk authentication via ALLOW_ANONYMOUS_PAID_ROUTES.",
+      );
+    }
+  }
+}
+
 /** بيانات المستخدم من Clerk — يُستدعى فقط عند وجود المفاتيح. */
 async function readClerkUser(): Promise<RequestUser | null> {
   const { auth } = await import("@clerk/nextjs/server");
@@ -54,6 +71,17 @@ export async function getRequestUser(): Promise<RequestUser | null> {
   return readClerkUser();
 }
 
+export function authServiceUnavailableResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      type: "error",
+      code: "AUTH_UNAVAILABLE",
+      message: "تعذّرت خدمة المصادقة مؤقتاً. حاول لاحقاً.",
+    },
+    { status: 503 },
+  );
+}
+
 export function unauthorizedResponse(): NextResponse {
   return NextResponse.json(
     { type: "error", message: "سجّل الدخول للمتابعة." },
@@ -62,12 +90,95 @@ export function unauthorizedResponse(): NextResponse {
 }
 
 /** رد واضح عند طلب ميزة تحتاج قاعدة بيانات غير مهيأة. */
+export function databaseUnavailableResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      type: "error",
+      message: "قاعدة البيانات غير متاحة مؤقتاً. حاول لاحقاً.",
+    },
+    { status: 503 },
+  );
+}
+
 export function databaseNotConfiguredResponse(): NextResponse {
   return NextResponse.json(
     {
       type: "error",
       message:
         "ميزة الحساب تحتاج قاعدة بيانات: أضف DATABASE_URL (Neon) ثم أعد المحاولة.",
+    },
+    { status: 503 },
+  );
+}
+
+/**
+ * المسارات المكلفة (التصيير وتوليد السكربت والصور) في الإنتاج بلا Clerk:
+ * تُغلق افتراضياً بدل أن تبقى مفتوحة لأي زائر، لأن حد المعدل في الذاكرة
+ * لكل نسخة serverless على حدة ولا يحمي التكلفة. من يريد فتحها عمداً
+ * (أداة شخصية مثلاً) يضبط ALLOW_ANONYMOUS_PAID_ROUTES=true.
+ * في التطوير المحلي تبقى مفتوحة كما كانت.
+ */
+export function allowAnonymousPaidRoutes(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.ALLOW_ANONYMOUS_PAID_ROUTES === "true"
+  );
+}
+
+export function paidRoutesDisabledResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      type: "error",
+      message:
+        "هذه الميزة معطّلة حتى تُفعَّل المصادقة: أضف مفاتيح Clerk، أو اضبط ALLOW_ANONYMOUS_PAID_ROUTES=true لفتحها عمداً.",
+    },
+    { status: 503 },
+  );
+}
+
+/** بوابة موحّدة للمسارات المكلفة: مستخدم صالح أو ردّ جاهز للإرجاع. */
+export async function guardPaidRoute(): Promise<
+  { user: RequestUser } | { response: NextResponse }
+> {
+  let user: RequestUser | null;
+  try {
+    user = await getRequestUser();
+  } catch (error) {
+    console.error(
+      "auth: Clerk request authentication failed",
+      error instanceof Error ? error.name : "unknown",
+    );
+    return { response: authServiceUnavailableResponse() };
+  }
+  if (!user) {
+    if (process.env.NODE_ENV === "production" && !isAuthConfigured()) {
+      if (!allowAnonymousPaidRoutes()) {
+        return { response: paidRoutesDisabledResponse() };
+      }
+      return {
+        user: { clerkId: LOCAL_USER_ID, email: null, authenticated: false },
+      };
+    }
+    return { response: unauthorizedResponse() };
+  }
+  if (!user.authenticated && !allowAnonymousPaidRoutes()) {
+    return { response: paidRoutesDisabledResponse() };
+  }
+  return { user };
+}
+
+/**
+ * رد موحّد حين تُطلب ميزة مدفوعة في الإنتاج وطبقة الفوترة غير مهيأة
+ * (لا DATABASE_URL): نرفض بدل أن نُصيّر مجاناً بصمت. الاستثناء الوحيد
+ * هو الفتح الصريح `ALLOW_ANONYMOUS_PAID_ROUTES=true` (أداة شخصية تقبل
+ * الاستخدام غير المقاس عن علم).
+ */
+export function billingUnavailableResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      type: "error",
+      message:
+        "التصيير معطّل مؤقتاً: طبقة الفوترة غير متاحة على الخادم (DATABASE_URL). حاول لاحقاً.",
     },
     { status: 503 },
   );

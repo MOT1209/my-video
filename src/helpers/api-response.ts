@@ -35,22 +35,23 @@ export const executeApi =
       return apiError("أرسل الطلب بصيغة application/json.", 415);
     }
 
-    let payload: unknown;
-    try {
-      payload = await req.json();
-    } catch {
-      return apiError("تعذّر قراءة JSON صالح.", 400);
-    }
-
+    // JSON تالف أو بيانات مخالفة للمخطط ⇒ 400 برسالة عامة (لا تفاصيل Zod الداخلية)
+    const payload = await req.json().catch(() => undefined);
     const parsed = schema.safeParse(payload);
-    if (!parsed.success) {
-      return apiError("بيانات الطلب غير صالحة.", 400);
+    if (payload === undefined || !parsed.success) {
+      return NextResponse.json(
+        { type: "error", message: "طلب غير صالح: تحقّق من الحقول المرسلة." },
+        { status: 400 },
+      );
     }
-
     try {
       const data = await handler(req, parsed.data);
-      return apiSuccess(data);
+      return NextResponse.json({
+        type: "success",
+        data: data,
+      });
     } catch (err) {
+      // لا نعيد تفاصيل المزوّد أو الخطأ الداخلي إلى العميل.
       const errorName = err instanceof Error ? err.name : "unknown";
       console.error(`api: تعذّر تنفيذ الطلب (${errorName})`);
       return apiError("تعذّر تنفيذ الطلب حالياً.", 502);

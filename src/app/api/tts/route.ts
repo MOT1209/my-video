@@ -1,23 +1,21 @@
 import { z } from "zod";
 import { DEFAULT_AR_VOICE } from "../../../../types/shorts";
 import { apiError, executeApi } from "../../../helpers/api-response";
-import { getRequestUser, unauthorizedResponse } from "../../../lib/auth";
+import { guardPaidRoute } from "../../../lib/auth";
 import {
   checkRateLimit,
   clientIp,
-  rateLimitUnavailableResponse,
-  rateLimitedResponse,
+  rateLimitRejection,
 } from "../../../lib/rate-limit";
 import {
   getCachedAudio,
   hashNarration,
-  MAX_TTS_CHARS,
   putAudioCache,
   synthesizeNarration,
 } from "../../../lib/tts";
 
 const TtsRequest = z.object({
-  text: z.string().min(1).max(MAX_TTS_CHARS),
+  text: z.string().min(1).max(1200),
   voiceId: z.string().min(1).max(120).default(DEFAULT_AR_VOICE),
 });
 
@@ -37,17 +35,17 @@ const handleTts = executeApi(TtsRequest, async (_req, body) => {
 
 /** 20 طلب صوت لكل IP كل 5 دقائق (حماية قبل النشر العام). */
 export const POST = async (req: Request) => {
-  const user = await getRequestUser();
-  if (!user) return unauthorizedResponse();
+  // Azure TTS مدفوع، والرفع إلى Blob يستهلك تخزيناً.
+  const guard = await guardPaidRoute();
+  if ("response" in guard) return guard.response;
   if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return apiError("أرسل الطلب بصيغة application/json.", 415);
   }
-
+  const user = guard.user;
   const subject = user.authenticated ? `user:${user.clerkId}` : `ip:${clientIp(req)}`;
   const verdict = await checkRateLimit(`tts:${subject}`, 20, 5 * 60 * 1000);
-  if (verdict.unavailable) return rateLimitUnavailableResponse();
   if (!verdict.allowed) {
-    return rateLimitedResponse(verdict.retryAfterSec);
+    return rateLimitRejection(verdict);
   }
   return handleTts(req);
 };

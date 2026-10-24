@@ -52,7 +52,7 @@ test("الإنتاج بلا إعداد Upstash يرفض العملية بدل ت
   try {
     expect(await checkRateLimit("production:missing", 2, 60_000)).toEqual({
       allowed: false,
-      retryAfterSec: 0,
+      retryAfterSec: 60,
       unavailable: true,
     });
   } finally {
@@ -67,6 +67,8 @@ test("الإنتاج بلا إعداد Upstash يرفض العملية بدل ت
 });
 
 test("بلا مفاتيح Upstash: سقوط الذاكرة المحلية + بلا اتصال Redis", async () => {
+  // الحالة المحاكاة مشتركة بين الملفات (ترتيبها يتغير بين التشغيلات) — نبدأ نظيفين
+  resetUpstashMockState();
   ENV_KEYS.forEach((k) => delete process.env[k]);
   resetUpstashRedisForTests();
   try {
@@ -158,4 +160,68 @@ test("خطأ Upstash: سقوط شفاف إلى الذاكرة المحلية (ل
     upstashMockState.throwError = null;
     restoreEnv();
   }
+});
+
+/** NODE_ENV للقراءة فقط في أنواع Next — نغيّره بالخاصية كما في auth.test. */
+async function inProduction(
+  extraEnv: Record<string, string | undefined>,
+  fn: () => Promise<void>,
+): Promise<void> {
+  const savedNodeEnv = process.env.NODE_ENV;
+  const savedAllow = process.env.RATE_LIMIT_ALLOW_IN_MEMORY;
+  const setNodeEnv = (value: string | undefined) =>
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value,
+      configurable: true,
+      writable: true,
+      enumerable: true,
+    });
+  try {
+    setNodeEnv("production");
+    for (const [k, v] of Object.entries(extraEnv)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    await fn();
+  } finally {
+    setNodeEnv(savedNodeEnv);
+    if (savedAllow === undefined) delete process.env.RATE_LIMIT_ALLOW_IN_MEMORY;
+    else process.env.RATE_LIMIT_ALLOW_IN_MEMORY = savedAllow;
+    restoreEnv();
+  }
+}
+
+test("الإنتاج بلا Upstash: المسارات المكلفة تُغلق (503) بدل عدّاد الذاكرة المجزّأ", async () => {
+  const { rateLimitRejection } = await import("./rate-limit");
+  await inProduction({ RATE_LIMIT_ALLOW_IN_MEMORY: undefined }, async () => {
+    ENV_KEYS.forEach((k) => delete process.env[k]);
+    resetUpstashRedisForTests();
+    const verdict = await checkRateLimit("prod:no-upstash", 100, 1000);
+    expect(verdict).toMatchObject({ allowed: false, unavailable: true });
+    const res = rateLimitRejection(verdict);
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Retry-After")).toBe("60");
+  });
+});
+
+test("الإنتاج مع تعطّل Upstash: رفض مغلق لا سقوط صامت للذاكرة", async () => {
+  await inProduction({ RATE_LIMIT_ALLOW_IN_MEMORY: undefined }, async () => {
+    setUpstashEnv();
+    upstashMockState.throwError = new Error("ECONNRESET");
+    const verdict = await checkRateLimit("prod:upstash-down", 100, 1000);
+    expect(verdict).toMatchObject({ allowed: false, unavailable: true });
+  });
+});
+
+test("الإنتاج مع فتح صريح RATE_LIMIT_ALLOW_IN_MEMORY=true: عدّاد الذاكرة يعمل", async () => {
+  const { rateLimitRejection } = await import("./rate-limit");
+  await inProduction({ RATE_LIMIT_ALLOW_IN_MEMORY: "true" }, async () => {
+    ENV_KEYS.forEach((k) => delete process.env[k]);
+    resetUpstashRedisForTests();
+    expect((await checkRateLimit("prod:opt-in", 1, 60_000)).allowed).toBe(true);
+    const blocked = await checkRateLimit("prod:opt-in", 1, 60_000);
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.unavailable).toBeUndefined();
+    expect(rateLimitRejection(blocked).status).toBe(429);
+  });
 });

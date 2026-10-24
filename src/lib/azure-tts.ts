@@ -88,9 +88,9 @@ export async function synthesizeAzure(
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new Error(
-      `فشل Azure TTS (${res.status}) ${detail.slice(0, 200)}`,
-    );
+    // نص رد المزوّد يُسجَّل في الخادم فقط — قد يحمل تفاصيل داخلية لا تخصّ العميل
+    console.warn("azure-tts: رد غير ناجح", res.status, detail.slice(0, 200));
+    throw new Error(`فشل Azure TTS (${res.status}).`);
   }
   const audio = Buffer.from(await res.arrayBuffer());
   if (audio.length === 0) {

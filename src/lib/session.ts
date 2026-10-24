@@ -1,6 +1,8 @@
 import type { NextResponse } from "next/server";
 import {
+  authServiceUnavailableResponse,
   databaseNotConfiguredResponse,
+  databaseUnavailableResponse,
   getRequestUser,
   unauthorizedResponse,
 } from "./auth";
@@ -25,21 +27,48 @@ export type SessionResult =
   | { ok: false; response: NextResponse };
 
 export async function requireSession(): Promise<SessionResult> {
-  const requestUser = await getRequestUser();
+  let requestUser;
+  try {
+    requestUser = await getRequestUser();
+  } catch (error) {
+    console.error(
+      "session: Clerk request authentication failed",
+      error instanceof Error ? error.name : "unknown",
+    );
+    return { ok: false, response: authServiceUnavailableResponse() };
+  }
   if (!requestUser) {
     return { ok: false, response: unauthorizedResponse() };
   }
   if (!isDatabaseConfigured()) {
     return { ok: false, response: databaseNotConfiguredResponse() };
   }
-  const db = getDb();
+  let db: Db | null;
+  try {
+    db = getDb();
+  } catch (error) {
+    console.error(
+      "session: database connection failed",
+      error instanceof Error ? error.name : "unknown",
+    );
+    return { ok: false, response: databaseUnavailableResponse() };
+  }
   if (!db) {
     return { ok: false, response: databaseNotConfiguredResponse() };
   }
-  const user = await ensureUser(db, {
-    clerkId: requestUser.clerkId,
-    email: requestUser.email,
-  });
+  let user: UserRow;
+  try {
+    user = await ensureUser(db, {
+      clerkId: requestUser.clerkId,
+      email: requestUser.email,
+    });
+  } catch (error) {
+    console.error(
+      "session: failed to load or create authenticated user",
+      error instanceof Error ? error.name : "unknown",
+    );
+    return { ok: false, response: databaseUnavailableResponse() };
+  }
   return {
     ok: true,
     session: { db, user, authenticated: requestUser.authenticated },

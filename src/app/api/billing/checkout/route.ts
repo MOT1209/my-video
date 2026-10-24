@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { getRequestUser, unauthorizedResponse } from "../../../../lib/auth";
+import {
+  authServiceUnavailableResponse,
+  getRequestUser,
+  unauthorizedResponse,
+} from "../../../../lib/auth";
 import { apiError, apiSuccess } from "../../../../helpers/api-response";
 import { findCreditPack } from "../../../../lib/credits";
 import { checkoutParamsForPack, getStripe } from "../../../../lib/stripe";
@@ -15,21 +19,34 @@ const CheckoutRequest = z.object({
 });
 
 export async function POST(req: Request) {
-  const user = await getRequestUser();
+  const stripe = getStripe();
+  let user;
+  try {
+    user = await getRequestUser();
+  } catch (error) {
+    console.error(
+      "billing/checkout: Clerk request authentication failed",
+      error instanceof Error ? error.name : "unknown",
+    );
+    return authServiceUnavailableResponse();
+  }
   if (!user) {
     return unauthorizedResponse();
   }
-
-  if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
-    return apiError("أرسل الطلب بصيغة application/json.", 415);
+  // الشراء يتطلب هوية حقيقية في الإنتاج: المستخدم المحلي المشترك
+  // (بلا Clerk) سيضع كريدت مدفوعاً في حساب لا يملكه أحد.
+  if (!user.authenticated && process.env.NODE_ENV === "production") {
+    return unauthorizedResponse();
   }
-
-  const stripe = getStripe();
   if (!stripe) {
     return apiError(
       "الفوترة غير مهيأة على الخادم: أضف STRIPE_SECRET_KEY ثم أعد المحاولة.",
       503,
     );
+  }
+
+  if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    return apiError("أرسل الطلب بصيغة application/json.", 415);
   }
 
   let payload: unknown;
@@ -47,7 +64,8 @@ export async function POST(req: Request) {
     return apiError("حزمة كريدت غير معروفة.", 404);
   }
 
-  const origin = new URL(req.url).origin;
+  const origin =
+    req.headers.get("origin") ?? new URL(req.url).origin;
 
   try {
     const session = await stripe.checkout.sessions.create(
