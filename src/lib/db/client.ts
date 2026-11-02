@@ -36,4 +36,9 @@ export function resetDbForTests(): void {
   cached = undefined;
 }
 
+/** للاختبار فقط — يحقن قاعدة (PGlite) بدل عميل Neon لاختبار المسارات كاملة. */
+export function setDbForTests(db: Db | null): void {
+  cached = db;
+}
+
 export { schema };

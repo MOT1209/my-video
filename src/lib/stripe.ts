@@ -141,6 +141,37 @@ export function toStripeEventLike(event: Stripe.Event): StripeEventLike {
 }
 
 /** معلمات Stripe Checkout لحزمة كريدت — دالة نقية قابلة للاختبار. */
+/**
+ * أصل روابط العودة من Stripe (success/cancel).
+ *
+ * ترويسة `Origin` يرسلها المتصفح، لكن أي عميل غير متصفح يضع فيها ما يشاء؛
+ * قبولها كما هي يجعل صفحة الدفع الرسمية تعيد المستخدم إلى موقع مهاجم بعد
+ * الدفع (تصيّد يبدو موثوقاً). نقبلها فقط إن طابقت أصلاً معروفاً لهذا النشر،
+ * وإلا نعود لأصل الطلب نفسه.
+ */
+export function checkoutReturnOrigin(
+  req: Request,
+  env: Record<string, string | undefined> = process.env,
+): string {
+  const own = new URL(req.url).origin;
+  const allowed = new Set<string>([own]);
+  for (const value of [
+    env.APP_URL,
+    env.VERCEL_URL && `https://${env.VERCEL_URL}`,
+    env.VERCEL_BRANCH_URL && `https://${env.VERCEL_BRANCH_URL}`,
+    env.VERCEL_PROJECT_PRODUCTION_URL && `https://${env.VERCEL_PROJECT_PRODUCTION_URL}`,
+  ]) {
+    if (!value) continue;
+    try {
+      allowed.add(new URL(value).origin);
+    } catch {
+      // قيمة بيئة تالفة: تُتجاهل
+    }
+  }
+  const header = req.headers.get("origin");
+  return header && allowed.has(header) ? header : own;
+}
+
 export function checkoutParamsForPack(pack: CreditPack, args: { clerkId: string; origin: string }) {
   return {
     mode: "payment" as const,

@@ -19,9 +19,13 @@ const ImageRequest = z.object({
 });
 
 const handleImage = executeApi(ImageRequest, async (req, body) => {
-  const prompt = buildImagePrompt(body.prompt);
+  // تلميح النمط يمر بنفس التنظيف والقص قبل اللاحقة الثابتة (9:16، بلا نص)،
+  // فلا يتجاوز الحد ولا يأتي بعد تعليمات الإطار
+  const prompt = buildImagePrompt(
+    body.styleHint ? `${body.prompt} ${body.styleHint}` : body.prompt,
+  );
   const { url, cached, hash } = await generateBackgroundImage({
-    prompt: body.styleHint ? `${prompt} ${body.styleHint}` : prompt,
+    prompt,
     blobToken: process.env.BLOB_READ_WRITE_TOKEN,
   });
   return { url, cached, hash };

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  assertPublicMediaUrls,
   assertPublicUrl,
   fetchPublicText,
   isBlockedAddress,
@@ -177,5 +178,29 @@ describe("fetchPublicText", () => {
       lookup: publicLookup,
     }).catch((e: Error) => e);
     expect((err as Error).message).not.toContain("401");
+  });
+});
+
+describe("assertPublicMediaUrls", () => {
+  test("يقبل روابط وسائط عامة ويتجاهل الفارغة", async () => {
+    await expect(
+      assertPublicMediaUrls(
+        ["https://cdn.example.com/a.png", null, undefined, "https://cdn.example.com/a.png"],
+        publicLookup,
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  test("يرفض إن كان أي رابط وسائط يشير لعنوان داخلي", async () => {
+    const lookup: LookupFn = async (host) =>
+      host === "internal.example.com"
+        ? [{ address: "10.0.0.8", family: 4 }]
+        : [{ address: "93.184.215.14", family: 4 }];
+    await expect(
+      assertPublicMediaUrls(
+        ["https://cdn.example.com/a.png", "http://internal.example.com/bg.mp4"],
+        lookup,
+      ),
+    ).rejects.toThrow();
   });
 });

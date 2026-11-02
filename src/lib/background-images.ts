@@ -90,7 +90,7 @@ export async function generateBackgroundImage(
   // 1) الكاش أولاً — نفس الربط = URL جاهز بلا أي تكلفة
   if (blobToken) {
     try {
-      const existing = await head(fullPath, { token: input.blobToken });
+      const existing = await head(fullPath, { token: blobToken });
       return {
         url: existing.url,
         cached: true,

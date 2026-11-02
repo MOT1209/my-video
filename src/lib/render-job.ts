@@ -60,7 +60,7 @@ export interface RenderJobOptions {
     sandboxWallSeconds: number,
     size: number,
     cached: boolean,
-  ) => { sandboxWallSeconds: number; estimatedCostUsd: number } | undefined;
+  ) => { sandboxWallSeconds: number; estimatedCostUsd?: number } | undefined;
   reportFailure?: (elapsedSeconds: number) => void;
   now?: () => number;
 }
