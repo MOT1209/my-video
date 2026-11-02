@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import {
   CREDIT_PACKS,
   findCreditPack,
@@ -6,7 +6,11 @@ import {
   hasEnoughCredits,
   RENDER_CREDIT_COST,
 } from "./credits";
-import { checkoutParamsForPack, creditsFromStripeEvent } from "./stripe";
+import {
+  checkoutParamsForPack,
+  checkoutReturnOrigin,
+  creditsFromStripeEvent,
+} from "./stripe";
 
 /** حدث Checkout مكتمل صالح — الأساس الذي تُبنى عليه بقية الحالات. */
 function paidEvent(object: Record<string, unknown> = {}) {
@@ -140,4 +144,35 @@ test("Checkout يستخدم price_data بلا منتجات مُنشأة مسبق
   });
   expect(params.success_url.startsWith("https://app.example/")).toBe(true);
   expect(params.cancel_url.startsWith("https://app.example/")).toBe(true);
+});
+
+describe("checkoutReturnOrigin", () => {
+  const req = (origin?: string) =>
+    new Request("https://app.example.com/api/billing/checkout", {
+      method: "POST",
+      headers: origin ? { origin } : {},
+    });
+
+  test("يقبل Origin الطلب نفسه وأصول Vercel/APP_URL المعروفة", () => {
+    expect(checkoutReturnOrigin(req("https://app.example.com"), {})).toBe(
+      "https://app.example.com",
+    );
+    expect(
+      checkoutReturnOrigin(req("https://my-video-git-x.vercel.app"), {
+        VERCEL_BRANCH_URL: "my-video-git-x.vercel.app",
+      }),
+    ).toBe("https://my-video-git-x.vercel.app");
+    expect(
+      checkoutReturnOrigin(req("https://video.example.org"), {
+        APP_URL: "https://video.example.org/",
+      }),
+    ).toBe("https://video.example.org");
+  });
+
+  test("Origin غريب أو غائب ⇒ أصل الطلب (لا عودة لموقع مهاجم بعد الدفع)", () => {
+    expect(checkoutReturnOrigin(req("https://evil.example"), {})).toBe(
+      "https://app.example.com",
+    );
+    expect(checkoutReturnOrigin(req(), {})).toBe("https://app.example.com");
+  });
 });

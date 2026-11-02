@@ -1,5 +1,8 @@
 /**
- * تنظيف Blobs القديمة (أصوات Shorts + snapshots) لتقليل التكلفة.
+ * تنظيف Blobs القديمة لتقليل التكلفة: أصوات Shorts، snapshots، فيديوهات
+ * كاش التصيير، وصور الخلفيات المولّدة. كل هذه كاش قابل لإعادة التوليد:
+ * حذف فيديو قديم يعني فقط أن نفس التكوين يُصيَّر من جديد عند طلبه (ورابطه
+ * القديم في سجل التصيير لا يعود يعمل).
  * يعمل محلياً عبر bun ويحتاج BLOB_READ_WRITE_TOKEN.
  *
  *   bun scripts/cleanup-blobs.ts                  # عرض فقط (dry-run) لأقدم من 30 يوم
@@ -9,7 +12,12 @@
 
 export {};
 
-const PREFIXES = ["shorts-audio/", "snapshot-cache/"];
+const PREFIXES = [
+  "shorts-audio/",
+  "snapshot-cache/",
+  "renders-cache/",
+  "backgrounds/",
+];
 
 function arg(name: string, fallback: string): string {
   const hit = process.argv.find((a) => a.startsWith(`--${name}=`));

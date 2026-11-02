@@ -90,7 +90,9 @@ export const RenderControls: React.FC<{
             {state.metrics
               ? state.cached
                 ? "من الكاش — نفس التكوين صُوّر قبلاً (بدون تكلفة تصيير)"
-                : `تكلفة التصيير التقديرية: $${state.metrics.estimatedCostUsd.toFixed(4)} خلال ${state.metrics.sandboxWallSeconds} ثانية`
+                : state.metrics.estimatedCostUsd !== undefined
+                  ? `تكلفة التصيير التقديرية: $${state.metrics.estimatedCostUsd.toFixed(4)} خلال ${state.metrics.sandboxWallSeconds} ثانية`
+                  : `اكتمل التصيير خلال ${state.metrics.sandboxWallSeconds} ثانية`
               : null}
           </div>
         </>

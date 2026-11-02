@@ -3,7 +3,8 @@ import { SSEMessage } from "../../types/schema";
 
 export interface RenderDoneMetrics {
   sandboxWallSeconds: number;
-  estimatedCostUsd: number;
+  /** غائب في الإنتاج (كلفة البنية لا تُرسل للعميل) */
+  estimatedCostUsd?: number;
 }
 
 export type State =

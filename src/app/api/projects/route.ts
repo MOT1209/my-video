@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ShortProps } from "../../../../types/shorts";
 import { apiError, apiSuccess } from "../../../helpers/api-response";
 import { listProjects, PROJECT_NOT_FOUND, saveProject } from "../../../lib/db/repository";
+import { checkRateLimit, rateLimitRejection } from "../../../lib/rate-limit";
 import { requireSession } from "../../../lib/session";
 
 /**
@@ -39,6 +40,12 @@ export async function POST(req: Request) {
     return guard.response;
   }
   const { db, user } = guard.session;
+
+  // كل حفظ كتابة في القاعدة بحالة كاملة (مئات الكابشنات): 60 لكل مستخدم كل 10 دقائق
+  const verdict = await checkRateLimit(`projects:user:${user.id}`, 60, 10 * 60 * 1000);
+  if (!verdict.allowed) {
+    return rateLimitRejection(verdict);
+  }
 
   const parsed = ProjectSaveRequest.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {

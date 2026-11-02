@@ -29,6 +29,10 @@ export type RenderResponse =
       size: number;
     };
 
+/**
+ * رسائل SSE لمسار التصيير — تعريف واحد يشترك فيه الخادم (`/api/render`)
+ * والعميل (`useRendering`)، حتى لا يتباعد الشكلان.
+ */
 export type SSEMessage =
   | { type: "phase"; phase: string; progress: number; subtitle?: string }
   | {
@@ -39,7 +43,10 @@ export type SSEMessage =
       cached?: boolean;
       metrics?: {
         sandboxWallSeconds: number;
-        estimatedCostUsd: number;
+        /** يُرسل خارج الإنتاج فقط: كلفة البنية تفصيل داخلي لا يخص العميل */
+        estimatedCostUsd?: number;
       };
+      /** رصيد الكريدت المتبقي بعد العملية (null إن كانت الفوترة معطّلة) */
+      credits?: number | null;
     }
   | { type: "error"; message: string };

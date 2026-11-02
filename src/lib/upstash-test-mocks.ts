@@ -16,6 +16,7 @@ export interface UpstashMockState {
   constructorCalls: Array<{ url: string; token: string }>;
   setCalls: Array<{ key: string; opts: unknown }>;
   delCalls: string[];
+  evalCalls: Array<{ keys: string[]; args: string[] }>;
   fixedWindowCalls: Array<{ limit: number; window: string }>;
 }
 
@@ -26,6 +27,7 @@ export const upstashMockState: UpstashMockState = {
   constructorCalls: [],
   setCalls: [],
   delCalls: [],
+  evalCalls: [],
   fixedWindowCalls: [],
 };
 
@@ -37,6 +39,7 @@ export function resetUpstashMockState(): void {
   upstashMockState.constructorCalls = [];
   upstashMockState.setCalls = [];
   upstashMockState.delCalls = [];
+  upstashMockState.evalCalls = [];
   upstashMockState.fixedWindowCalls = [];
 }
 
@@ -58,6 +61,14 @@ class FakeRedis {
 
   del(key: string) {
     upstashMockState.delCalls.push(key);
+    if (upstashMockState.throwError) {
+      return Promise.reject(upstashMockState.throwError);
+    }
+    return Promise.resolve(1);
+  }
+
+  eval(_script: string, keys: string[], args: string[]) {
+    upstashMockState.evalCalls.push({ keys, args });
     if (upstashMockState.throwError) {
       return Promise.reject(upstashMockState.throwError);
     }

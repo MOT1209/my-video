@@ -194,6 +194,20 @@ export async function assertPublicUrl(
   return url;
 }
 
+/**
+ * روابط الوسائط التي سيحمّلها متصفح التصيير داخل الـ sandbox (صور المشاهد،
+ * فيديو/صورة الخلفية، الصوت، الموسيقى). نفس فحص `assertPublicUrl` لكل مضيف
+ * مرة واحدة، قبل خصم الكريدت وإنشاء أي sandbox: رابط إلى عنوان داخلي أو
+ * metadata يُرفض بدل أن يُجلب من شبكة التصيير.
+ */
+export async function assertPublicMediaUrls(
+  urls: Array<string | null | undefined>,
+  lookup: LookupFn = defaultLookup,
+): Promise<void> {
+  const unique = [...new Set(urls.filter((u): u is string => Boolean(u)))];
+  await Promise.all(unique.map((url) => assertPublicUrl(url, lookup)));
+}
+
 async function readCapped(
   response: Response,
   maxBytes: number,
