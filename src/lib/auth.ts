@@ -82,6 +82,18 @@ export function resetAuthModeWarningForTests(): void {
   authModeWarned = false;
 }
 
+/** ميزات الحساب (مشاريع/سجل/رصيد) في الإنتاج بلا Clerk: لا حساب مشترك. */
+export function accountsDisabledResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      type: "error",
+      message:
+        "ميزات الحساب معطّلة حتى تُفعَّل المصادقة: أضف مفاتيح Clerk (NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY و CLERK_SECRET_KEY).",
+    },
+    { status: 503 },
+  );
+}
+
 /** رد واضح عند طلب ميزة تحتاج قاعدة بيانات غير مهيأة. */
 export function databaseNotConfiguredResponse(): NextResponse {
   return NextResponse.json(

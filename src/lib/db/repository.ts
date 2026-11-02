@@ -227,6 +227,11 @@ export async function finishRender(
     durationSec?: number | null;
     sandboxMs?: number | null;
     error?: string | null;
+    /**
+     * فشل نهائي لا يُعاد من الطابور (خطأ محتوى لا بنية): يرفع `attempts`
+     * إلى الحد فيستبعده `listRetryableRenders`. الافتراضي قابل لإعادة المحاولة.
+     */
+    retryable?: boolean;
   },
   fence: { from?: RenderStatus[]; attempts?: number } = {},
 ): Promise<boolean> {
@@ -246,6 +251,9 @@ export async function finishRender(
       durationSec: args.durationSec ?? null,
       sandboxMs: args.sandboxMs ?? null,
       error: args.error ?? null,
+      ...(args.status === "error" && args.retryable === false
+        ? { attempts: MAX_RENDER_ATTEMPTS }
+        : {}),
       updatedAt: new Date(),
     })
     .where(and(...conditions))

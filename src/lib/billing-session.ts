@@ -39,6 +39,8 @@ export interface RenderFinishArgs {
   durationSec?: number | null;
   sandboxMs?: number | null;
   error?: string | null;
+  /** false ⇒ فشل نهائي لا يعيده طابور الـ cron (انظر `isRetryableRenderError`). */
+  retryable?: boolean;
 }
 
 export interface BillingSession {

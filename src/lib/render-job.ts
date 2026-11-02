@@ -1,7 +1,7 @@
 import type { RenderProgress } from "../app/api/render/helpers";
 import type { BillingSession } from "./billing-session";
 import { RENDER_CREDIT_COST } from "./credits";
-import { friendlyRenderError } from "./render-errors";
+import { friendlyRenderError, isRetryableRenderError } from "./render-errors";
 import type { ProgressReporter, RunRenderOutcome } from "./render-runner";
 
 /**
@@ -166,6 +166,8 @@ export async function executeRenderJob(
         await billing.finishRender(renderId, {
           status: "error",
           error: friendlyRenderError(err),
+          // فشل المحتوى نهائي: لا إعادة مجانية من الطابور بعد إرجاع الكريدت
+          retryable: isRetryableRenderError(err),
         });
       }
     }

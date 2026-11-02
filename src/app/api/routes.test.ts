@@ -243,3 +243,59 @@ test("Webhook موقّع: غير مدفوع ⇒ 200 بلا منح؛ مدفوع �
 
   expect((await POST(await signedWebhook(paidSession))).status).toBe(503);
 });
+
+test("الإنتاج بلا Clerk مع قاعدة بيانات: ميزات الحساب 503 (لا حساب محلي مشترك)", async () => {
+  setEnv({
+    NODE_ENV: "production",
+    DATABASE_URL: "postgres://user:pass@localhost:5432/never-touched",
+  });
+  const projects = await import("./projects/route");
+  const project = await import("./projects/[id]/route");
+  const renders = await import("./renders/route");
+  const credits = await import("./credits/route");
+  const ctx = { params: Promise.resolve({ id: "00000000-0000-4000-8000-000000000000" }) };
+  const get = () => new Request("http://localhost/api");
+  const responses = [
+    await projects.GET(),
+    await project.GET(get(), ctx),
+    await project.DELETE(get(), ctx),
+    await renders.GET(get()),
+    await credits.GET(),
+  ];
+  for (const res of responses) {
+    expect(res.status).toBe(503);
+  }
+});
+
+test("TTS: معرّف صوت يحقن SSML يُرفض 400 قبل أي مزوّد", async () => {
+  setEnv({ NODE_ENV: "test", RATE_LIMIT_ALLOW_IN_MEMORY: "true" });
+  const { POST } = await import("./tts/route");
+  const res = await POST(
+    post(
+      JSON.stringify({
+        text: "مرحبا",
+        voiceId: "ar-SA-HamedNeural'><audio src='http://evil/x.mp3'/><voice name='x",
+      }),
+    ),
+  );
+  expect(res.status).toBe(400);
+});
+
+test("executeApi: خطأ داخلي غير مقصود لا تتسرب رسالته للعميل", async () => {
+  const { z } = await import("zod");
+  const { executeApi } = await import("../../helpers/api-response");
+  const { UserFacingError } = await import("../../lib/user-facing-error");
+  const leaky = executeApi(z.object({}), async () => {
+    throw new Error("connect ECONNREFUSED 10.0.0.7:5432 secret-host");
+  });
+  const res = await leaky(post("{}"));
+  expect(res.status).toBe(500);
+  const body = (await res.json()) as { message: string };
+  expect(body.message).not.toContain("10.0.0.7");
+
+  const intended = executeApi(z.object({}), async () => {
+    throw new UserFacingError("رسالة مقصودة للمستخدم");
+  });
+  const body2 = (await (await intended(post("{}"))).json()) as { message: string };
+  expect(body2.message).toBe("رسالة مقصودة للمستخدم");
+});

@@ -7,7 +7,7 @@ import {
   refundRender,
 } from "./db/repository";
 import { renderCachePath } from "./render-cache";
-import { friendlyRenderError } from "./render-errors";
+import { friendlyRenderError, isRetryableRenderError } from "./render-errors";
 import type { RunRenderOutcome } from "./render-runner";
 
 /**
@@ -91,8 +91,9 @@ export interface RetryResult {
  * مع فحص الكاش أولاً. كل كتابة محصورة بـ fencing (`attempts`): عامل حجز
  * الصف ثم تأخر لا يُفسد نتيجة محاولة أحدث.
  *
- * ملاحظة كلفة (قرار منتج قائم): الكريدت أُرجع عند الفشل، فنجاح إعادة
- * المحاولة مجاني للمستخدم — تعويض محدود (≤ 3 محاولات للصف).
+ * ملاحظة كلفة: الكريدت أُرجع عند الفشل، فنجاح إعادة المحاولة مجاني
+ * للمستخدم — لذلك لا يدخل الطابور إلا فشل البنية (`isRetryableRenderError`)؛
+ * فشل المحتوى يُغلق نهائياً (attempts = الحد) فلا يُستغل لحرق sandbox مجاناً.
  */
 export async function retryFailedRenders(
   db: Db,
@@ -155,7 +156,12 @@ export async function retryFailedRenders(
     } catch (err) {
       const message = friendlyRenderError(err);
       console.error("render-recovery: فشلت إعادة المحاولة", (err as Error)?.message);
-      await finishRender(db, claimed.id, { status: "error", error: message }, fence).catch(
+      await finishRender(
+        db,
+        claimed.id,
+        { status: "error", error: message, retryable: isRetryableRenderError(err) },
+        fence,
+      ).catch(
         (finishErr) => {
           console.error("render-recovery: فشل إغلاق صف فاشل", (finishErr as Error)?.message);
         },

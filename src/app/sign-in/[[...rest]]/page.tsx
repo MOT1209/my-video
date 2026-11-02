@@ -1,4 +1,4 @@
-import { ClerkProvider, SignIn } from "@clerk/nextjs";
+import { SignIn } from "@clerk/nextjs";
 
 /**
  * صفحة تسجيل الدخول (Clerk).
@@ -24,10 +24,9 @@ export default function SignInPage() {
   }
 
   return (
-    <ClerkProvider>
-      <div className="flex min-h-screen items-center justify-center" dir="ltr">
-        <SignIn />
-      </div>
-    </ClerkProvider>
+    // ClerkProvider في الـ layout الجذري يلفّ هذه الصفحة
+    <div className="flex min-h-screen items-center justify-center" dir="ltr">
+      <SignIn />
+    </div>
   );
 }

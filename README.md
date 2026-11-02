@@ -199,7 +199,7 @@ npm test                         # اختباراته الخاصة (esbuild + No
 3. للـ Cron: `vercel.json` يعرّف مهمة يومية على `/api/cron/retry-renders`، وتحتاج `CRON_SECRET`.
 
 > [!WARNING]
-> **قبل الإنتاج:** فعّل [Vercel Spend Management](https://vercel.com/docs/accounts/spend-management)، وأضف مفاتيح **Clerk** (وإلا بقي التصيير مفتوحاً للجميع)، ونظّف الـ snapshots والفيديوهات القديمة دورياً بـ `npm run cleanup-blobs -- --delete`.
+> **قبل الإنتاج:** فعّل [Vercel Spend Management](https://vercel.com/docs/accounts/spend-management)، وأضف مفاتيح **Clerk** (بدونها تُغلق المسارات المكلفة وميزات الحساب في الإنتاج برد 503)، ونظّف الـ snapshots والفيديوهات القديمة دورياً بـ `npm run cleanup-blobs -- --delete`.
 
 ## توثيق إضافي
 

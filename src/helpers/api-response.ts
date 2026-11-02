@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z, ZodType } from "zod";
+import { publicErrorMessage } from "../lib/user-facing-error";
 
 export type ApiResponse<Res> =
   | {
@@ -47,10 +48,11 @@ export const executeApi =
         data: data,
       });
     } catch (err) {
-      // رسائل المعالِجات عربية من صنعنا (نص ردود المزوّدين يُسجَّل في الخادم فقط)
+      // نعرض رسائل UserFacingError فقط؛ أي خطأ آخر (SDK، شبكة، Zod) رسالة عامة
+      // والتفاصيل في سجل الخادم وحده
       console.error("api: فشل المعالِج", (err as Error)?.message);
       return NextResponse.json(
-        { type: "error", message: (err as Error)?.message || "حدث خطأ غير متوقع." },
+        { type: "error", message: publicErrorMessage(err) },
         {
           status: 500,
         },
