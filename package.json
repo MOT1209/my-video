@@ -20,7 +20,7 @@
     "@upstash/redis": "^1.39.0",
     "@vercel/blob": "2.3.0",
     "@vercel/functions": "3.4.1",
-    "@vercel/sandbox": "1.6.0",
+    "@vercel/sandbox": "3.9.1",
     "cheerio": "^1.2.0",
     "clsx": "2.1.1",
     "drizzle-orm": "^0.45.4",
@@ -71,5 +71,10 @@
     "create-snapshot": "bun create-snapshot.ts",
     "cleanup-blobs": "bun scripts/cleanup-blobs.ts",
     "render": "remotion render"
+  },
+  "overrides": {
+    "@vercel/cli-config": {
+      "zod": "$zod"
+    }
   }
 }
