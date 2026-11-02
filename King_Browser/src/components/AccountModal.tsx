@@ -20,10 +20,12 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { syncService, KingSyncService, SyncStatus, SyncPreferences } from '../services/syncService';
+import { KingCloudAuthForm } from './KingCloudAuthForm';
 import { copyTextToClipboard } from '../utils/clipboard';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';
 import { useSafeTimeout } from '../hooks/useSafeTimeout';
 import { getLocale } from '../services/i18n';
+import { useTranslation } from '../services/i18n';
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -36,6 +38,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   onClose,
   onPerformSync
 }) => {
+  const { l } = useTranslation();
   const [inputSyncCode, setInputSyncCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -44,6 +47,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(syncService.getStatus());
   const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { setSafeTimeout } = useSafeTimeout();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -97,10 +101,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       });
 
       setGeneratedCode(code);
-      setSuccessMessage('Sync Code created! Enter this code on your other devices.');
+      setSuccessMessage(l({ en: 'Sync Code created! Enter this code on your other devices.', ar: 'تم إنشاء رمز المزامنة! أدخله على أجهزتك الأخرى.', de: 'Sync-Code erstellt! Geben Sie ihn auf Ihren anderen Geräten ein.' }));
       setSafeTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to generate sync code');
+      setErrorMessage(err.message || l({ en: 'Failed to generate sync code', ar: 'تعذّر إنشاء رمز المزامنة', de: 'Sync-Code konnte nicht erstellt werden' }));
     } finally {
       setIsLoading(false);
     }
@@ -113,11 +117,11 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     setIsLoading(true);
     try {
       await syncService.joinSyncChain(inputSyncCode);
-      setSuccessMessage('Device paired! Syncing all bookmarks, passwords, and data...');
+      setSuccessMessage(l({ en: 'Device paired! Syncing all bookmarks, passwords, and data...', ar: 'تم ربط الجهاز! جارٍ مزامنة الإشارات المرجعية وكلمات المرور والبيانات...', de: 'Gerät gekoppelt! Lesezeichen, Passwörter und Daten werden synchronisiert...' }));
       if (onPerformSync) await onPerformSync();
       setSafeTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Invalid or expired sync code');
+      setErrorMessage(err.message || l({ en: 'Invalid or expired sync code', ar: 'رمز المزامنة غير صالح أو منتهي', de: 'Ungültiger oder abgelaufener Sync-Code' }));
     } finally {
       setIsLoading(false);
     }
@@ -126,7 +130,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
   const handleCopyCode = async (code: string) => {
     setErrorMessage(null);
     if (!code) {
-      setErrorMessage('No sync code available to copy yet.');
+      setErrorMessage(l({ en: 'No sync code available to copy yet.', ar: 'لا يوجد رمز مزامنة للنسخ بعد.', de: 'Noch kein Sync-Code zum Kopieren vorhanden.' }));
       return;
     }
     // A sync code is a secret, so never report success on an unconfirmed write:
@@ -137,17 +141,25 @@ export const AccountModal: React.FC<AccountModalProps> = ({
       setCopiedCode(true);
       setSafeTimeout(() => setCopiedCode(false), 2500);
     } else {
-      setErrorMessage(`Copy failed. Copy this code manually: ${code}`);
+      setErrorMessage(l({ en: 'Copy failed. Copy this code manually: {code}', ar: 'فشل النسخ. انسخ هذا الرمز يدوياً: {code}', de: 'Kopieren fehlgeschlagen. Kopieren Sie diesen Code manuell: {code}' }, { code }));
     }
   };
 
-  const handleLeaveChain = () => {
-    // Device pairing is not implemented (syncService throws), so there is no
-    // chain to leave. This used to call logout(), which silently destroyed the
-    // user's real cloud session and every key derived from it.
-    setGeneratedCode(null);
-    setInputSyncCode('');
+  const handleLeaveChain = async () => {
+    if (isLoggingOut) return;
     setErrorMessage(null);
+    setIsLoggingOut(true);
+    try {
+      await syncService.logout();
+      setGeneratedCode(null);
+      setInputSyncCode('');
+      setSuccessMessage(l({ en: 'Signed out successfully.', ar: 'تم تسجيل الخروج بنجاح.', de: 'Erfolgreich abgemeldet.' }));
+      setSafeTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setErrorMessage(err?.message || l({ en: 'Sign out failed', ar: 'فشل تسجيل الخروج', de: 'Abmelden fehlgeschlagen' }));
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const handleTogglePreference = (key: keyof SyncPreferences) => {
@@ -161,20 +173,20 @@ export const AccountModal: React.FC<AccountModalProps> = ({
     setIsManualSyncing(true);
     try {
       if (onPerformSync) await onPerformSync();
-      setSuccessMessage('Sync completed successfully!');
+      setSuccessMessage(l({ en: 'Sync completed successfully!', ar: 'اكتملت المزامنة بنجاح!', de: 'Synchronisierung erfolgreich abgeschlossen!' }));
       setSafeTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Sync failed');
+      setErrorMessage(err.message || l({ en: 'Sync failed', ar: 'فشلت المزامنة', de: 'Synchronisierung fehlgeschlagen' }));
     } finally {
       setIsManualSyncing(false);
     }
   };
 
   const formatLastSync = (timestamp: number | null) => {
-    if (!timestamp) return 'Just now';
+    if (!timestamp) return l({ en: 'Just now', ar: 'الآن', de: 'Gerade eben' });
     const diff = Math.floor((Date.now() - timestamp) / 1000);
-    if (diff < 10) return 'Just now';
-    if (diff < 60) return `${diff} seconds ago`;
+    if (diff < 10) return l({ en: 'Just now', ar: 'الآن', de: 'Gerade eben' });
+    if (diff < 60) return l({ en: '{n} seconds ago', ar: 'قبل {n} ثانية', de: 'vor {n} Sekunden' }, { n: diff });
     const locale = getLocale();
     return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp));
   };
@@ -207,19 +219,19 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     King Sync
                     {syncStatus.isLoggedIn && (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        ● Active
+                        ● {l({ en: 'Active', ar: 'مفعّلة', de: 'Aktiv' })}
                       </span>
                     )}
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {syncStatus.isLoggedIn ? 'Your browser data is securely synced across devices' : 'Sign in with your King Cloud account to sync your browser data'}
+                    {syncStatus.isLoggedIn ? l({ en: 'Your browser data is securely synced across devices', ar: 'تتم مزامنة بيانات متصفحك بأمان بين أجهزتك', de: 'Ihre Browserdaten werden sicher zwischen Geräten synchronisiert' }) : l({ en: 'Sign in with your King Cloud account to sync your browser data', ar: 'سجّل الدخول بحساب King Cloud لمزامنة بيانات متصفحك', de: 'Melden Sie sich mit Ihrem King-Cloud-Konto an, um Ihre Browserdaten zu synchronisieren' })}
                   </p>
                 </div>
               </div>
               <button
                 onClick={onClose}
                 className="p-1.5 rounded-xl hover:bg-slate-200/80 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                title="Close"
+                title={l({ en: 'Close', ar: 'إغلاق', de: 'Schließen' })}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -250,7 +262,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                         <Link2 className="w-4 h-4 text-cyan-500" />
-                        Your Device Sync Code
+                        {l({ en: 'Your Device Sync Code', ar: 'رمز المزامنة لجهازك', de: 'Sync-Code Ihres Geräts' })}
                       </span>
                       <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                         E2EE Active
@@ -258,7 +270,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                     </div>
 
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Enter this code on your other laptop or computer to sync instantly:
+                      {l({ en: 'Enter this code on your other laptop or computer to sync instantly:', ar: 'أدخل هذا الرمز على حاسوبك الآخر للمزامنة فوراً:', de: 'Geben Sie diesen Code auf Ihrem anderen Computer ein, um sofort zu synchronisieren:' })}
                     </p>
 
                     <div className="flex items-center gap-2 pt-1">
@@ -270,7 +282,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                         className="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-xs"
                       >
                         {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                        <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+                        <span>{copiedCode ? l({ en: 'Copied', ar: 'تم النسخ', de: 'Kopiert' }) : l({ en: 'Copy', ar: 'نسخ', de: 'Kopieren' })}</span>
                       </button>
                     </div>
                   </div>
@@ -280,10 +292,10 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                   <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5 flex items-center justify-between">
                     <div>
                       <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                        Sync Status
+                        {l({ en: 'Sync Status', ar: 'حالة المزامنة', de: 'Sync-Status' })}
                       </span>
                       <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                        Last sync: {formatLastSync(syncStatus.lastSyncedAt)}
+                        {l({ en: 'Last sync: {time}', ar: 'آخر مزامنة: {time}', de: 'Letzte Synchronisierung: {time}' }, { time: formatLastSync(syncStatus.lastSyncedAt) })}
                       </span>
                     </div>
 
@@ -294,15 +306,16 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                         className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-cyan-500 hover:bg-cyan-600 text-white transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
                       >
                         <RefreshCw className={`w-3.5 h-3.5 ${isManualSyncing || syncStatus.isSyncing ? 'animate-spin' : ''}`} />
-                        <span>{isManualSyncing || syncStatus.isSyncing ? 'Syncing...' : 'Sync Now'}</span>
+                        <span>{isManualSyncing || syncStatus.isSyncing ? l({ en: 'Syncing...', ar: 'جارٍ المزامنة...', de: 'Wird synchronisiert...' }) : l({ en: 'Sync Now', ar: 'زامن الآن', de: 'Jetzt synchronisieren' })}</span>
                       </button>
 
                       <button
                         onClick={handleLeaveChain}
-                        className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
-                        title="Disconnect Sync"
+                        disabled={isLoggingOut}
+                        className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-50"
+                        title={l({ en: 'Disconnect Sync', ar: 'قطع المزامنة', de: 'Synchronisierung trennen' })}
                       >
-                        <LogOut className="w-4 h-4" />
+                        {isLoggingOut ? <RefreshCw className="w-4 h-4 animate-spin" /> : <LogOut className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
@@ -310,16 +323,16 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                   {/* Synced Categories Checklist */}
                   <div className="space-y-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 px-1">
-                      Synced Data
+                      {l({ en: 'Synced Data', ar: 'البيانات المتزامنة', de: 'Synchronisierte Daten' })}
                     </span>
 
                     <div className="space-y-1.5">
                       {[
-                        { key: 'syncBookmarks', label: 'Bookmarks & Folders', icon: Bookmark },
-                        { key: 'syncPasswords', label: 'Saved Passwords (E2EE)', icon: Key },
-                        { key: 'syncHistory', label: 'Browsing History', icon: Clock },
-                        { key: 'syncSettings', label: 'Settings & Themes', icon: Settings },
-                        { key: 'syncWorkspaces', label: 'Workspaces', icon: FolderTree },
+                        { key: 'syncBookmarks', label: l({ en: 'Bookmarks & Folders', ar: 'الإشارات المرجعية والمجلدات', de: 'Lesezeichen & Ordner' }), icon: Bookmark },
+                        { key: 'syncPasswords', label: l({ en: 'Saved Passwords (E2EE)', ar: 'كلمات المرور المحفوظة (تشفير تام)', de: 'Gespeicherte Passwörter (E2EE)' }), icon: Key },
+                        { key: 'syncHistory', label: l({ en: 'Browsing History', ar: 'سجل التصفح', de: 'Browserverlauf' }), icon: Clock },
+                        { key: 'syncSettings', label: l({ en: 'Settings & Themes', ar: 'الإعدادات والسمات', de: 'Einstellungen & Designs' }), icon: Settings },
+                        { key: 'syncWorkspaces', label: l({ en: 'Workspaces', ar: 'مساحات العمل', de: 'Arbeitsbereiche' }), icon: FolderTree },
                       ].map(item => {
                         const isEnabled = syncStatus.user?.syncPreferences[item.key as keyof SyncPreferences] ?? true;
                         const Icon = item.icon;
@@ -332,7 +345,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                             aria-checked={isEnabled}
                             aria-label={item.label}
                             onClick={() => handleTogglePreference(item.key as keyof SyncPreferences)}
-                            className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50/60 dark:bg-white/[0.02] hover:bg-slate-100/80 dark:hover:bg-white/[0.05] border border-slate-200/60 dark:border-white/5 transition-colors cursor-pointer text-left"
+                            className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-50/60 dark:bg-white/[0.02] hover:bg-slate-100/80 dark:hover:bg-white/[0.05] border border-slate-200/60 dark:border-white/5 transition-colors cursor-pointer text-start"
                           >
                             <div className="flex items-center gap-3">
                               <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
@@ -360,8 +373,8 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                         <Laptop className="w-4 h-4" />
                       </div>
                       <div>
-                        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">I have a Sync Code</h3>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">Enter the code from your other device to connect instantly:</p>
+                        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">{l({ en: 'I have a Sync Code', ar: 'لديّ رمز مزامنة', de: 'Ich habe einen Sync-Code' })}</h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{l({ en: 'Enter the code from your other device to connect instantly:', ar: 'أدخل الرمز من جهازك الآخر للاتصال فوراً:', de: 'Geben Sie den Code Ihres anderen Geräts ein, um sich sofort zu verbinden:' })}</p>
                       </div>
                     </div>
 
@@ -379,7 +392,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                         disabled={isLoading || !inputSyncCode.trim()}
                         className="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shrink-0"
                       >
-                        <span>Connect</span>
+                        <span>{l({ en: 'Connect', ar: 'اتصال', de: 'Verbinden' })}</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -392,8 +405,8 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                         <Sparkles className="w-4 h-4" />
                       </div>
                       <div>
-                        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">This is my primary device</h3>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">Generate a 1-click sync code to pair other laptops or desktops:</p>
+                        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100">{l({ en: 'This is my primary device', ar: 'هذا جهازي الرئيسي', de: 'Das ist mein Hauptgerät' })}</h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{l({ en: 'Generate a 1-click sync code to pair other laptops or desktops:', ar: 'أنشئ رمز مزامنة بنقرة واحدة لربط أجهزتك الأخرى:', de: 'Erstellen Sie mit einem Klick einen Sync-Code, um weitere Geräte zu koppeln:' })}</p>
                       </div>
                     </div>
 
@@ -408,11 +421,11 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                             className="px-3.5 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 shadow-xs"
                           >
                             {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+                            <span>{copiedCode ? l({ en: 'Copied', ar: 'تم النسخ', de: 'Kopiert' }) : l({ en: 'Copy', ar: 'نسخ', de: 'Kopieren' })}</span>
                           </button>
                         </div>
                         <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5" /> Ready! Enter this code on your other computer.
+                          <Check className="w-3.5 h-3.5" /> {l({ en: 'Ready! Enter this code on your other computer.', ar: 'جاهز! أدخل هذا الرمز على حاسوبك الآخر.', de: 'Fertig! Geben Sie diesen Code auf Ihrem anderen Computer ein.' })}
                         </p>
                       </div>
                     ) : (
@@ -423,7 +436,7 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                         className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                       >
                         <Sparkles className="w-3.5 h-3.5 text-cyan-400 dark:text-cyan-600" />
-                        <span>Generate Sync Code</span>
+                        <span>{l({ en: 'Generate Sync Code', ar: 'إنشاء رمز مزامنة', de: 'Sync-Code erstellen' })}</span>
                       </button>
                     )}
                   </div>
@@ -432,25 +445,23 @@ export const AccountModal: React.FC<AccountModalProps> = ({
                   <div className="p-3.5 rounded-2xl bg-cyan-500/5 border border-cyan-500/15 flex items-start gap-2.5">
                     <ShieldCheck className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5" />
                     <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                      <strong className="font-semibold text-cyan-600 dark:text-cyan-400">Zero-Knowledge Security:</strong> No email or password needed. All passwords and bookmarks are encrypted client-side using 256-bit AES-GCM.
+                      <strong className="font-semibold text-cyan-600 dark:text-cyan-400">{l({ en: 'Zero-Knowledge Security:', ar: 'أمان دون اطلاع أحد:', de: 'Zero-Knowledge-Sicherheit:' })}</strong> {l({ en: 'No email or password needed. All passwords and bookmarks are encrypted on your device using 256-bit AES-GCM.', ar: 'لا حاجة لبريد إلكتروني أو كلمة مرور. تُشفَّر كل كلمات المرور والإشارات المرجعية على جهازك بمعيار AES-GCM بطول 256 بت.', de: 'Keine E-Mail und kein Passwort nötig. Alle Passwörter und Lesezeichen werden auf Ihrem Gerät mit 256-Bit-AES-GCM verschlüsselt.' })}
                     </p>
                   </div>
                 </div>
               ) : (
                 /* Pairing is not built yet: say so instead of offering a code
-                   that can never be redeemed. */
-                <div className="p-5 rounded-2xl bg-slate-50/80 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/5 space-y-2.5 text-center">
-                  <div className="flex justify-center">
-                    <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400">
-                      <Laptop className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                    Sign in to sync this browser
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                    Your bookmarks, history, tabs and workspaces sync through your King Cloud
-                    account. Pairing a second device with a sync code is not available yet.
+                   that can never be redeemed, and give the user the route that
+                   actually works — a King Cloud (or local-vault) sign-in. */
+                <div className="space-y-3">
+                  <KingCloudAuthForm
+                    compact
+                    onAuthenticated={async () => {
+                      if (onPerformSync) await onPerformSync();
+                    }}
+                  />
+                  <p className="px-1 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed text-center">
+                    {l({ en: 'Sign in with your King Cloud account to sync bookmarks, history, tabs and workspaces. Pairing a second device with a sync code is not available yet.', ar: 'سجّل الدخول بحساب King Cloud لمزامنة الإشارات المرجعية والسجل والتبويبات ومساحات العمل. ربط جهاز ثانٍ برمز مزامنة غير متاح بعد.', de: 'Melden Sie sich mit Ihrem King-Cloud-Konto an, um Lesezeichen, Verlauf, Tabs und Arbeitsbereiche zu synchronisieren. Das Koppeln eines zweiten Geräts per Sync-Code ist noch nicht verfügbar.' })}
                   </p>
                 </div>
               )}

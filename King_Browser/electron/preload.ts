@@ -5,9 +5,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setTheme: (theme: 'light' | 'dark' | 'system') => ipcRenderer.send('set-theme', theme),
   setPrivacyShield: (enabled: boolean) => ipcRenderer.invoke('set-privacy-shield', enabled),
   setDoNotTrack: (enabled: boolean) => ipcRenderer.invoke('set-do-not-track', enabled),
+  setGoogleSigninCompat: (enabled: boolean) => ipcRenderer.invoke('set-google-signin-compat', enabled),
   getSuggestions: (query: string, engine?: string, locale?: string) => ipcRenderer.invoke('get-suggestions', query, engine, locale),
   fetchWallpaperPhotos: (query: string) => ipcRenderer.invoke('fetch-wallpaper-photos', query),
-  fetchUnsplashPhotos: (query: string) => ipcRenderer.invoke('fetch-unsplash-photos', query),
   fetchPageHtml: (url: string) => ipcRenderer.invoke('fetch-page-html', url),
   captureFullPage: (wcId: number) => ipcRenderer.invoke('capture-full-page', wcId),
   // Translation APIs
@@ -60,6 +60,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
    */
   checkAgentNavigationHost: (url: string) =>
     ipcRenderer.invoke('agent-navigation-host-check', url),
+  /** Reads or answers the JS dialog blocking a tab (status, accept, dismiss). */
+  agentPageDialog: (webContentsId: number, action: string, promptText?: string) =>
+    ipcRenderer.invoke('agent-page-dialog', webContentsId, action, promptText),
+  /** Attaches one local file to a file input of a tab; main validates the path. */
+  agentUploadFile: (webContentsId: number, selector: string, filePath: string) =>
+    ipcRenderer.invoke('agent-upload-file', webContentsId, selector, filePath),
+  /** Drags between two points (page coordinates) of a tab with real mouse input. */
+  agentDrag: (webContentsId: number, from: { x: number; y: number }, to: { x: number; y: number }) =>
+    ipcRenderer.invoke('agent-drag', webContentsId, from, to),
+  /** Accessibility-tree snapshot of a tab; stamps refs and returns the listing. */
+  agentAxSnapshot: (webContentsId: number) =>
+    ipcRenderer.invoke('agent-ax-snapshot', webContentsId),
   onUpdateDownloaded: (callback: (event: any, info: any) => void) => {
     const handler = (_event: any, info: any) => callback(null, info);
     ipcRenderer.on('update-downloaded', handler);
@@ -86,11 +98,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('mcp-status-changed', handler);
   },
   copyMcpToken: () => ipcRenderer.invoke('copy-mcp-token'),
-  copyMcpConfig: () => ipcRenderer.invoke('copy-mcp-config'),
+  copyMcpConfig: (kind?: 'generic' | 'opencode') => ipcRenderer.invoke('copy-mcp-config', kind),
   getMcpTokenStatus: () => ipcRenderer.invoke('get-mcp-token-status'),
   rotateMcpToken: () => ipcRenderer.invoke('rotate-mcp-token'),
+  getRecordingState: () => ipcRenderer.invoke('recording-state'),
+  startRecording: () => ipcRenderer.invoke('recording-start'),
+  stopRecording: (name?: string) => ipcRenderer.invoke('recording-stop', name),
+  deleteRecording: (id: string) => ipcRenderer.invoke('recording-delete', id),
+  replayRecording: (id: string) => ipcRenderer.invoke('recording-replay', id),
+  clearAgentProfile: () => ipcRenderer.invoke('clear-agent-profile'),
+  getMcpApprovalMode: () => ipcRenderer.invoke('get-mcp-approval-mode'),
+  setMcpApprovalMode: (mode: 'balanced' | 'strict') => ipcRenderer.invoke('set-mcp-approval-mode', mode),
+  getMcpSiteRules: () => ipcRenderer.invoke('get-mcp-site-rules'),
+  setMcpSiteRules: (rules: Array<{ domain: string; mode: 'ask' | 'block' }>) => ipcRenderer.invoke('set-mcp-site-rules', rules),
   getMcpToolSettings: () => ipcRenderer.invoke('get-mcp-tool-settings'),
   setMcpToolEnabled: (toolName: string, enabled: boolean) => ipcRenderer.invoke('set-mcp-tool-enabled', toolName, enabled),
+  // Tool Manager: user-defined MCP tools (validated and stored in the main process; credentials are write-only).
+  getMcpToolRegistry: () => ipcRenderer.invoke('mcp-tool-registry'),
+  createMcpCustomTool: (input: unknown, secret?: string) => ipcRenderer.invoke('mcp-custom-tool-create', input, secret),
+  updateMcpCustomTool: (id: string, input: unknown, options?: { secret?: string | null; confirmed?: boolean }) => ipcRenderer.invoke('mcp-custom-tool-update', id, input, options),
+  setMcpCustomToolEnabled: (id: string, enabled: boolean) => ipcRenderer.invoke('mcp-custom-tool-set-enabled', id, enabled),
+  deleteMcpCustomTool: (id: string) => ipcRenderer.invoke('mcp-custom-tool-delete', id),
+  testMcpCustomTool: (id: string, args: Record<string, unknown>) => ipcRenderer.invoke('mcp-custom-tool-test', id, args),
+  exportMcpCustomTools: () => ipcRenderer.invoke('mcp-custom-tools-export'),
+  previewMcpCustomToolImport: (text: string) => ipcRenderer.invoke('mcp-custom-tools-import-preview', text),
+  importMcpCustomTools: (text: string, renameDuplicates?: boolean) => ipcRenderer.invoke('mcp-custom-tools-import', text, renameDuplicates),
   // MCP action bridge: the main process asks this trusted app page to execute
   // a browser_* tool via IPC; results return on a sender-validated channel.
   // Must be ipcRenderer.send — the main side listens with ipcMain.on.
@@ -114,6 +146,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // live event stream forwarded by the main process ('mcp-engine-event').
   getEngineStatus: () => ipcRenderer.invoke('mcp-engine-status'),
   getEngineHistory: () => ipcRenderer.invoke('mcp-engine-history'),
+  exportEngineLog: (format?: 'json' | 'csv') => ipcRenderer.invoke('mcp-engine-export-log', format),
   sendEngineCommand: (command: string, payload?: unknown) => ipcRenderer.invoke('mcp-engine-command', command, payload),
   respondEngineApproval: (actionId: string, approved: boolean) => ipcRenderer.invoke('mcp-engine-approval', actionId, approved),
   onEngineEvent: (callback: (event: any) => void) => {
@@ -137,7 +170,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   modelCacheGet: (url: string) => ipcRenderer.invoke('model-cache-get', url),
   modelCacheSet: (url: string, data: ArrayBuffer | ArrayBufferView) => ipcRenderer.invoke('model-cache-set', url, data),
   // Password Manager: fire-and-forget send channel (not invoke)
-  savePassword: (data: { hostname: string; username: string; password: string }) => ipcRenderer.send('save-password', data),
   storeSet: (key: string, value: string) => ipcRenderer.invoke('store-set', key, value),
   storeGet: (key: string) => ipcRenderer.invoke('store-get', key),
   showConfirmDialog: (options: { title?: string; message: string; detail?: string; confirmLabel?: string; cancelLabel?: string }) =>
@@ -220,8 +252,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('blocked-site', handler);
   },
   setAppLanguage: (lang: string) => ipcRenderer.invoke('set-app-language', lang),
+  setShortcutBindings: (bindings: unknown) => ipcRenderer.invoke('set-shortcut-bindings', bindings),
   // Microphone & Permissions
   checkMicrophonePermission: () => ipcRenderer.invoke('check-microphone-permission'),
   requestMicrophonePermission: () => ipcRenderer.invoke('request-microphone-permission'),
   openSystemSettings: (pane?: string) => ipcRenderer.invoke('open-system-settings', pane),
+  openCrashLogsFolder: () => ipcRenderer.invoke('open-crash-logs-folder'),
 });

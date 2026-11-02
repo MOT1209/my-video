@@ -1,10 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, ShieldAlert, Globe, MapPin, Plus, Trash2, Check, X } from 'lucide-react';
+import { Shield, ShieldAlert, Globe, MapPin, Plus, Trash2 } from 'lucide-react';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';
 import { generateId } from '../utils/idGenerator';
 import { isValidProxyUrl, SECURE_PROXY_ERROR } from '../utils/proxyValidation';
-import { useTranslation } from '../services/i18n';
+import { useTranslation, l } from '../services/i18n';
 import { useDialogA11y } from '../hooks/useDialogA11y';
 
 export interface VpnLocation {
@@ -69,12 +69,12 @@ export const VpnPopover: React.FC<VpnPopoverProps> = ({
   const handleAddCustom = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customName.trim()) {
-      setError('Please provide a name');
+      setError(l({ en: 'Please provide a name', ar: 'يرجى إدخال اسم', de: 'Bitte geben Sie einen Namen ein' }));
       return;
     }
     const url = customUrl.trim();
     if (!url) {
-      setError('Please provide a proxy URL');
+      setError(l({ en: 'Please provide a proxy URL', ar: 'يرجى إدخال رابط الوكيل', de: 'Bitte geben Sie eine Proxy-URL ein' }));
       return;
     }
     if (!isValidProxyUrl(url)) {
@@ -204,7 +204,7 @@ export const VpnPopover: React.FC<VpnPopoverProps> = ({
                     >
                       <button
                         onClick={() => onSelectLocation(loc)}
-                        className="flex-1 flex items-center gap-2.5 text-left cursor-pointer"
+                        className="flex-1 flex items-center gap-2.5 text-start cursor-pointer"
                       >
                         {loc.type === 'custom' ? <MapPin className="w-3.5 h-3.5 text-purple-500 shrink-0" /> : <Globe className="w-3.5 h-3.5 text-cyan-500 shrink-0" />}
                         <div className="truncate">

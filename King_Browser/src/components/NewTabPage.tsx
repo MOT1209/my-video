@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Globe, ArrowRight, ShieldCheck, ShieldAlert, Plus, X, Edit2, Check, CheckSquare, Square, Trash2, ListTodo, VenetianMask, Camera, Shuffle, Compass } from 'lucide-react';
+import { Search, Globe, ArrowRight, ShieldCheck, ShieldAlert, Plus, X, Edit2, Check, CheckSquare, Trash2, ListTodo, VenetianMask, Shuffle, Compass } from 'lucide-react';
 import { formatSearchUrl, getSearchEngineName } from '../utils/searchEngine';
 import { isSafeNavigationUrl } from '../utils/safeNavigation';
 import { useLiveUnsplashPhoto } from '../utils/unsplash';
 import { UserSettings } from '../types/browser';
 import { getClientCachedSuggestions, setClientCachedSuggestions } from '../utils/suggestionCache';
 import { generateId } from '../utils/idGenerator';
-import { useTranslation, getLocale } from '../services/i18n';
+import { useTranslation, getLocale, l } from '../services/i18n';
 import { SpeedDialIcon, getCleanDomain, normalizeNavigationUrl } from './SpeedDialIcon';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';
 import { useSharedLocalStorageState } from '../hooks/useSharedLocalStorage';
-import { logger } from '../utils/logger';
+import '../utils/logger';
 
 interface Todo {
   id: string;
@@ -355,7 +355,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
     if (previewDomain) {
       return previewDomain.charAt(0).toUpperCase() + previewDomain.slice(1);
     }
-    return editingDial.id !== null ? 'Shortcut' : (language === 'tr' ? 'Kısayol Önizleme' : 'Shortcut Preview');
+    return editingDial.id !== null ? 'Shortcut' : (l({ en: 'Shortcut Preview', ar: 'معاينة الاختصار', de: 'Verknüpfungsvorschau' }));
   }, [editingDial.name, previewDomain, editingDial.id, language]);
 
   const [todos, setTodos] = useSharedLocalStorageState<Todo[]>(
@@ -504,18 +504,18 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
 
   const handleAddSpeedDial = () => {
     if (!editingDial.url || !editingDial.url.trim()) {
-      setUrlError(language === 'tr' ? 'Lütfen bir web adresi girin.' : 'Please enter a web address.');
+      setUrlError(l({ en: 'Please enter a web address.', ar: 'يرجى إدخال عنوان ويب.', de: 'Bitte gib eine Webadresse ein.' }));
       return;
     }
     const url = normalizeNavigationUrl(editingDial.url);
     if (!isSafeNavigationUrl(url)) {
-      setUrlError(language === 'tr' ? 'Geçerli ve güvenli bir web adresi girin.' : 'Please enter a valid, safe URL.');
+      setUrlError(l({ en: 'Please enter a valid, safe URL.', ar: 'يرجى إدخال عنوان صالح وآمن.', de: 'Bitte gib eine gültige, sichere URL ein.' }));
       return;
     }
     try {
       const domain = getCleanDomain(url);
       if (!domain) {
-        setUrlError(language === 'tr' ? 'Geçerli bir alan adı bulunamadı.' : 'Could not determine a valid domain.');
+        setUrlError(l({ en: 'Could not determine a valid domain.', ar: 'تعذّر تحديد نطاق صالح.', de: 'Es konnte keine gültige Domain ermittelt werden.' }));
         return;
       }
       const rawName = (editingDial.name || '').trim();
@@ -525,9 +525,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
         if (!updated) {
           // Another tab deleted the row while this editor was open. Say so
           // rather than appending a phantom shortcut under a stale position.
-          setUrlError(language === 'tr'
-            ? 'Bu kısayol başka bir sekmede silindi.'
-            : 'This shortcut was deleted in another tab.');
+          setUrlError(l({ en: 'This shortcut was deleted in another tab.', ar: 'حُذف هذا الاختصار في تبويب آخر.', de: 'Diese Verknüpfung wurde in einem anderen Tab gelöscht.' }));
           return;
         }
         setSpeedDials(updated);
@@ -535,7 +533,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
         setSpeedDials(addSpeedDial(speedDials, { name, url, domain }));
       }
     } catch (e) {
-      setUrlError(language === 'tr' ? 'Adres işlenirken bir hata oluştu.' : 'Failed to process address.');
+      setUrlError(l({ en: 'Failed to process address.', ar: 'تعذّرت معالجة العنوان.', de: 'Die Adresse konnte nicht verarbeitet werden.' }));
       return;
     }
 
@@ -680,7 +678,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
 
           <motion.div variants={shouldAnimate ? itemVariants : undefined} className="w-full relative group">
             <form onSubmit={handleSearch} className="w-full">
-              <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+              <div className="absolute inset-y-0 start-0 pl-5 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-slate-500" />
               </div>
               <input
@@ -688,12 +686,12 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t('newtab.incognitoPlaceholder')}
-                className="w-full block pl-14 pr-12 py-4.5 bg-slate-900/50 border border-slate-800 rounded-2xl text-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-700 focus:bg-slate-900 focus:border-slate-700 transition-colors duration-200 shadow-xl backdrop-blur-xl"
+                className="w-full block ps-14 pe-12 py-4.5 bg-slate-900/50 border border-slate-800 rounded-2xl text-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-700 focus:bg-slate-900 focus:border-slate-700 transition-colors duration-200 shadow-xl backdrop-blur-xl"
               />
               <button
                 type="submit"
                 aria-label={t('newtab.search')}
-                className="absolute inset-y-0 right-2 flex items-center justify-center w-10 my-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+                className="absolute inset-y-0 end-2 flex items-center justify-center w-10 my-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
               >
                 <ArrowRight className="h-5 w-5" />
               </button>
@@ -708,7 +706,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700 transition-all duration-200 text-sm font-medium shadow-lg hover:shadow-cyan-500/10 cursor-pointer"
               >
                 <Compass className="w-4 h-4 text-cyan-400" />
-                <span>{language === 'tr' ? 'Normal Sekmeye Geç' : 'Switch to Normal Tab'}</span>
+                <span>{l({ en: 'Switch to Normal Tab', ar: 'التبديل إلى تبويب عادي', de: 'Zu normalem Tab wechseln' })}</span>
               </button>
             </motion.div>
           )}
@@ -760,7 +758,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
               <button
                 type="button"
                 onClick={shuffleWallpaper}
-                className="ml-0.5 p-1 -mr-0.5 rounded-full text-white/40 hover:text-white hover:bg-white/15 active:scale-90 transition-all duration-200 flex items-center justify-center focus:outline-none group/btn"
+                className="ms-0.5 p-1 -me-0.5 rounded-full text-white/40 hover:text-white hover:bg-white/15 active:scale-90 transition-all duration-200 flex items-center justify-center focus:outline-none group/btn"
                 title={t('newtab.shuffleWallpaper')}
               >
                 <Shuffle className="w-3 h-3 group-hover/btn:rotate-180 transition-transform duration-500 ease-out" />
@@ -868,7 +866,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
               x: ['0%', '-33.33%', '0%'],
             } : false}
             transition={{ duration: 24, repeat: Infinity, ease: 'linear' }}
-            className={`absolute top-[-30%] bottom-[-30%] left-0 w-[300%] blur-[48px] ${isDarkTheme ? 'opacity-60' : 'opacity-30'}`}
+            className={`absolute top-[-30%] bottom-[-30%] start-0 w-[300%] blur-[48px] ${isDarkTheme ? 'opacity-60' : 'opacity-30'}`}
             style={{
               background: isDarkTheme
                 ? 'linear-gradient(-45deg, #4338ca, #ec4899, #7c3aed, #06b6d4, #4338ca)'
@@ -1176,7 +1174,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
                     buttons were focusable but stayed at opacity 0, so the controls
                     existed and could not be seen. group-focus-within reveals the
                     group as soon as focus lands inside it. */}
-                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1 bg-slate-900/80 rounded-lg p-0.5 z-10">
+                <div className="absolute top-1 end-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity flex gap-1 bg-slate-900/80 rounded-lg p-0.5 z-10">
                   <button
                     type="button"
                     aria-label={t('newtab.editSpeedDial', { name: dial.name })}
@@ -1248,7 +1246,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
             {todos.some(t => t.completed) && (
               <button
                 onClick={clearCompletedTodos}
-                className="text-xs font-semibold text-red-500 hover:text-red-400 transition-colors opacity-80 hover:opacity-100 ml-1 cursor-pointer"
+                className="text-xs font-semibold text-red-500 hover:text-red-400 transition-colors opacity-80 hover:opacity-100 ms-1 cursor-pointer"
                 title={t('newtab.clearTasksTitle')}
               >
                 {t('newtab.clearCompletedTasks')}
@@ -1377,8 +1375,8 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
                   </h3>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                     {editingDial.id !== null
-                      ? (language === 'tr' ? 'Kısayol bilgilerini güncelleyin' : 'Update shortcut details')
-                      : (language === 'tr' ? 'Hızlı erişim için yeni bir web sitesi ekleyin' : 'Add a new website for quick access')}
+                      ? (l({ en: 'Update shortcut details', ar: 'تحديث بيانات الاختصار', de: 'Verknüpfungsdetails aktualisieren' }))
+                      : (l({ en: 'Add a new website for quick access', ar: 'أضف موقعاً جديداً للوصول السريع', de: 'Neue Website für den Schnellzugriff hinzufügen' }))}
                   </p>
                 </div>
               </div>
@@ -1406,7 +1404,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
                 </div>
               </div>
               <span className="text-[10px] font-medium tracking-wide uppercase px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-white/10 text-slate-600 dark:text-slate-300">
-                {language === 'tr' ? 'Önizleme' : 'Preview'}
+                {l({ en: 'Preview', ar: 'معاينة', de: 'Vorschau' })}
               </span>
             </div>
 
@@ -1425,7 +1423,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
                     if (urlError) setUrlError('');
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddSpeedDial(); }}
-                  placeholder={language === 'tr' ? 'Örn. YouTube, GitHub...' : 'e.g. YouTube, GitHub...'}
+                  placeholder={l({ en: 'e.g. YouTube, GitHub...', ar: 'مثلاً YouTube أو GitHub...', de: 'z. B. YouTube, GitHub...' })}
                   className="w-full px-3.5 py-2.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/80 rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-cyan-500 dark:focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 dark:focus:ring-cyan-400/20 transition-all"
                 />
               </div>
@@ -1442,7 +1440,7 @@ export const NewTabPage: React.FC<NewTabPageProps> = React.memo(({
                     if (urlError) setUrlError('');
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddSpeedDial(); }}
-                  placeholder={language === 'tr' ? 'Örn. https://youtube.com veya youtube.com' : 'e.g. https://youtube.com or youtube.com'}
+                  placeholder={l({ en: 'e.g. https://youtube.com or youtube.com', ar: 'مثلاً https://youtube.com أو youtube.com', de: 'z. B. https://youtube.com oder youtube.com' })}
                   className={`w-full px-3.5 py-2.5 bg-slate-100/90 dark:bg-slate-800/90 border rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all ${
                     urlError
                       ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20'

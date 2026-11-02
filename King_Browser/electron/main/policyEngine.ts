@@ -9,7 +9,8 @@
  * §12 approval triggers implemented:
  *   send, purchase, delete, security_settings, publish, share_private,
  *   grant_permission, dangerous_download, plus sensitive_input and
- *   consequential_form for concrete form submissions.
+ *   consequential_form for concrete form submissions, and `login` for the
+ *   agent signing in with a saved account.
  *
  * Also provides:
  *   - domain extraction for the approval screen ("website domain")
@@ -38,7 +39,11 @@ export type ApprovalTrigger =
   | 'dangerous_download'
   | 'sensitive_input'
   | 'consequential_form'
-  | 'arbitrary_code';
+  | 'arbitrary_code'
+  | 'login'
+  | 'site_rule'
+  | 'prompt_injection'
+  | 'strict_mode';
 
 export interface PolicyInput {
   toolName: string;
@@ -65,6 +70,10 @@ export interface ApprovalSummary {
   domain: string;
   intendedAction: string;
   affectedResource?: string;
+  /** The page the action lands on (query string dropped so tokens in URLs are not shown). */
+  pageUrl?: string;
+  /** What the target element says about itself (label, text, type), shortened to one line. */
+  targetText?: string;
   details: Record<string, unknown>;
   consequences: string[];
   uncertainty: string[];
@@ -74,18 +83,21 @@ const READ_ONLY_TOOLS = new Set([
   'browser_status',
   'king_browser_info',
   'browser_read_page',
+  'browser_snapshot',
   'browser_screenshot',
-  'browser_full_page_screenshot',
   'browser_get_url',
   'browser_get_element_text',
   'browser_list_tabs',
-  'browser_find_element'
+  'browser_find_element',
+  'browser_console_messages',
+  'browser_element_screenshot'
 ]);
 
 const PASSIVE_ACTION_TOOLS = new Set([
   'browser_scroll',
   'browser_scroll_to_element',
   'browser_wait',
+  'browser_wait_for',
   'browser_hover',
   'browser_focus',
   'browser_zoom',
@@ -106,9 +118,22 @@ const ENGINE_CONTROL_TOOLS = new Set([
   'browser_stop'
 ]);
 
-const SENSITIVE_SELECTOR_PATTERNS = /pass(word|wd|phrase)?|passwd|\bpwd\b|\bpin\b|cvv|cvc|card.?number|credit.?card|cc.?number|ssn|social.?security|secret|token|api.?key|recovery|otp|one.?time|verification.?code|mfa|2fa/i;
+// Same pattern as src/utils/sensitiveField.ts (the cursor overlay masks with it).
+// Duplicated on purpose: this module must stay import-free; a test pins them equal.
+export const SENSITIVE_SELECTOR_PATTERNS = /pass(word|wd|phrase)?|passwd|\bpwd\b|\bpin\b|cvv|cvc|card.?number|credit.?card|cc.?number|ssn|social.?security|secret|token|api.?key|recovery|otp|one.?time|verification.?code|mfa|2fa/i;
 
 const REDACTED_VALUE = '••••••••';
+
+// Added to a control's description by the page-context script in
+// src/hooks/useBrowserAgentBridge.ts when the control submits a POST form.
+// Keyword matching on the label alone let "Submit order" through unapproved.
+// The markers avoid every keyword below ("post" would also read as publish).
+export const FORM_SUBMIT_MARKER = 'king:form-submission';
+// Added when the target is a field inside a POST form: Enter there submits it.
+export const FORM_FIELD_MARKER = 'king:field-in-data-form';
+
+const ENTER_KEYS = new Set(['enter', 'return']);
+const SPACE_KEYS = new Set(['space', 'spacebar', ' ']);
 
 const PURCHASE_TEXT = /(buy|purchase|pay\b|payment|checkout|place order|complete order|subscribe|donate|upgrade to|add to cart|شراء|اشتر|ادفع|الدفع|دفع|تبرع|اكمل الطلب|إتمام الطلب|اشترك)/i;
 const SEND_TEXT = /(\bsend\b|send now|submit (application|comment|reply|message)|post comment|post reply|dm |direct message|أرسل|إرسال|ارسال|انشر التعليق|رد)/i;
@@ -118,6 +143,24 @@ const PUBLISH_TEXT = /(publish|post\b|tweet|share publicly|make public|new post|
 const SHARE_PRIVATE_TEXT = /(share\b|share with|invite|send file|attach|forward|مشاركة|شارك|دعوة)/i;
 const PERMISSION_TEXT = /(allow|grant|authorize|authorise|permit|accept permissions|give access|السماح|اسمح|منح|تصريح|تفويض)/i;
 const DOWNLOAD_TEXT = /(download|install|save file|run installer|تحميل|نزّل|تثبيت)/i;
+
+// German and Turkish keywords. Kept apart from the Arabic/English patterns
+// above because `\b` is ASCII-only: these use a Unicode-aware start boundary
+// (stems may take suffixes) and `[iİıI]` because the `i` flag does not fold the
+// Turkish dotted capital İ.
+const i18n = (stems: string): RegExp => new RegExp(`(?<![\\p{L}])(?:${stems})`, 'iu');
+const PURCHASE_TEXT_I18N = i18n('kaufen|jetzt kaufen|bezahl|zahlung|zur kasse|kasse|bestellung abschlie|zahlungspflichtig|kostenpflichtig|spend|abonnier|satın al|öde|ödeme|sipariş|siparişi tamamla|bağış|abone ol');
+const SEND_TEXT_I18N = i18n('senden|absenden|abschicken|nachricht senden|antworten|gönder|yanıtla|mesaj gönder');
+const DELETE_TEXT_I18N = i18n('lösch|entfern|konto schlie|konto deaktiv|abo kündigen|kündig|s[iİıI]l(?![\\p{L}])|kald[iİıI]r|hesab[iİıI] kapat|hesab[iİıI] sil|abonel[iİıI]ği [iİıI]ptal|[iİıI]ptal et');
+const SECURITY_TEXT_I18N = i18n('passwort (ändern|zurücksetzen)|kennwort ändern|zwei.?faktor|sicherheitseinstellung|wiederherstellung|zugriff widerrufen|abmelden von allen|şifre(yi)? değiştir|parola(y[iİıI])? değiştir|[iİıI]ki ad[iİıI]ml[iİıI]|güvenlik ayarlar|kurtarma');
+const PUBLISH_TEXT_I18N = i18n('veröffentlich|posten|öffentlich teilen|yay[iİıI]nla|gönderi paylaş|herkese açık');
+const SHARE_PRIVATE_TEXT_I18N = i18n('teilen|einladen|weiterleiten|anhängen|paylaş|davet et|ilet(?![\\p{L}])|ekle(?![\\p{L}])');
+const PERMISSION_TEXT_I18N = i18n('erlauben|zulassen|zugriff gewähren|berechtigung|autorisieren|izin ver|eri[sş]im ver|yetkilendir|[iİıI]zin');
+const DOWNLOAD_TEXT_I18N = i18n('herunterladen|download|installieren|[iİıI]ndir|yükle(?![\\p{L}])|kur(?![\\p{L}])');
+
+function matchesAny(text: string, ...patterns: RegExp[]): boolean {
+  return patterns.some(pattern => pattern.test(text));
+}
 
 const PURCHASE_URL = /(checkout|\/pay(ment|ments)?\b|billing|\/purchase|\/cart|\/order|donat)/i;
 const SECURITY_URL = /(settings\/(security|privacy|password)|account\/security|\/recovery|two.?factor|2fa|\/permissions)/i;
@@ -142,7 +185,11 @@ export function extractDomain(url: string | undefined): string | undefined {
   }
 }
 
-export function redactArgs(toolName: string, args: Record<string, unknown>): Record<string, unknown> {
+export function redactArgs(
+  toolName: string,
+  args: Record<string, unknown>,
+  fieldDescription = ''
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(args)) {
     if (SENSITIVE_ARG_KEYS.test(key)) {
@@ -155,12 +202,42 @@ export function redactArgs(toolName: string, args: Record<string, unknown>): Rec
     }
     if (toolName === 'browser_type' && key === 'text' && typeof value === 'string') {
       const selector = typeof args.selector === 'string' ? args.selector : '';
-      out[key] = SENSITIVE_SELECTOR_PATTERNS.test(selector) ? REDACTED_VALUE : value;
+      // A password input addressed by a neutral selector ("#f1") only reveals
+      // itself through its description (type, autocomplete, label). Testing
+      // the selector alone let the typed secret reach the approval screen and
+      // the run history even though the action was classified sensitive.
+      const sensitive = SENSITIVE_SELECTOR_PATTERNS.test(selector) ||
+        SENSITIVE_SELECTOR_PATTERNS.test(fieldDescription);
+      out[key] = sensitive ? REDACTED_VALUE : value;
       continue;
     }
     out[key] = value;
   }
   return out;
+}
+
+/**
+ * Redaction for the persisted/exported activity log. Unlike the approval path,
+ * the log has no element description, so it cannot tell a neutral selector
+ * ("#f1") or an opaque snapshot ref ("[data-king-ref=\"e12\"]") from a password
+ * field. Fail closed: the log keeps the target and the action, never the typed
+ * value. The policy decision still uses redactArgs with the live description.
+ */
+export function redactArgsForLog(
+  toolName: string,
+  args: Record<string, unknown>
+): Record<string, unknown> {
+  const redacted = redactArgs(toolName, args);
+  // User-defined tools take arbitrary data (a message body, an ID, a query) that
+  // the history has no reason to keep: record which arguments were passed, not their values.
+  if (toolName.startsWith('custom_')) {
+    for (const key of Object.keys(redacted)) redacted[key] = REDACTED_VALUE;
+    return redacted;
+  }
+  if (toolName === 'browser_type' && typeof args.text === 'string' && args.text.length > 0) {
+    redacted.text = REDACTED_VALUE;
+  }
+  return redacted;
 }
 
 interface ClassificationContext {
@@ -218,18 +295,24 @@ function classifyActingTool(input: PolicyInput, context: ClassificationContext):
     if (PERMISSION_TEXT.test(text) || PERMISSION_TEXT.test(selector)) {
       addTrigger(context, 'grant_permission', 'Typing near what looks like a permission grant.');
     }
+    if (args.pressEnter === true && (input.elementText ?? '').includes(FORM_FIELD_MARKER)) {
+      addTrigger(context, 'consequential_form', 'Pressing Enter in this field submits a form that sends data to the site.');
+    }
     return;
   }
 
   if (toolName === 'browser_click') {
-    if (PURCHASE_TEXT.test(text)) addTrigger(context, 'purchase', `Button/link text suggests a purchase ("${text.slice(0, 60)}").`);
-    if (DELETE_TEXT.test(text)) addTrigger(context, 'delete', `Button/link text suggests deletion ("${text.slice(0, 60)}").`);
-    if (SECURITY_TEXT.test(text)) addTrigger(context, 'security_settings', `Button/link text suggests a security change ("${text.slice(0, 60)}").`);
-    if (PUBLISH_TEXT.test(text)) addTrigger(context, 'publish', `Button/link text suggests publishing ("${text.slice(0, 60)}").`);
-    else if (SEND_TEXT.test(text)) addTrigger(context, 'send', `Button/link text suggests sending ("${text.slice(0, 60)}").`);
-    if (SHARE_PRIVATE_TEXT.test(text)) addTrigger(context, 'share_private', `Button/link text suggests sharing ("${text.slice(0, 60)}").`);
-    if (PERMISSION_TEXT.test(text)) addTrigger(context, 'grant_permission', `Button/link text suggests granting access ("${text.slice(0, 60)}").`);
-    if (DOWNLOAD_TEXT.test(text)) addTrigger(context, 'dangerous_download', `Button/link text suggests a download ("${text.slice(0, 60)}").`);
+    if (text.includes(FORM_SUBMIT_MARKER)) {
+      addTrigger(context, 'consequential_form', 'This control submits a form that sends data to the site.');
+    }
+    if (matchesAny(text, PURCHASE_TEXT, PURCHASE_TEXT_I18N)) addTrigger(context, 'purchase', `Button/link text suggests a purchase ("${text.slice(0, 60)}").`);
+    if (matchesAny(text, DELETE_TEXT, DELETE_TEXT_I18N)) addTrigger(context, 'delete', `Button/link text suggests deletion ("${text.slice(0, 60)}").`);
+    if (matchesAny(text, SECURITY_TEXT, SECURITY_TEXT_I18N)) addTrigger(context, 'security_settings', `Button/link text suggests a security change ("${text.slice(0, 60)}").`);
+    if (matchesAny(text, PUBLISH_TEXT, PUBLISH_TEXT_I18N)) addTrigger(context, 'publish', `Button/link text suggests publishing ("${text.slice(0, 60)}").`);
+    else if (matchesAny(text, SEND_TEXT, SEND_TEXT_I18N)) addTrigger(context, 'send', `Button/link text suggests sending ("${text.slice(0, 60)}").`);
+    if (matchesAny(text, SHARE_PRIVATE_TEXT, SHARE_PRIVATE_TEXT_I18N)) addTrigger(context, 'share_private', `Button/link text suggests sharing ("${text.slice(0, 60)}").`);
+    if (matchesAny(text, PERMISSION_TEXT, PERMISSION_TEXT_I18N)) addTrigger(context, 'grant_permission', `Button/link text suggests granting access ("${text.slice(0, 60)}").`);
+    if (matchesAny(text, DOWNLOAD_TEXT, DOWNLOAD_TEXT_I18N)) addTrigger(context, 'dangerous_download', `Button/link text suggests a download ("${text.slice(0, 60)}").`);
 
     const href = typeof args.url === 'string' ? args.url : '';
     if (href && DANGEROUS_FILE_URL.test(href)) {
@@ -239,14 +322,24 @@ function classifyActingTool(input: PolicyInput, context: ClassificationContext):
   }
 
   if (toolName === 'browser_select_option') {
-    if (PURCHASE_TEXT.test(text) || PURCHASE_TEXT.test(selector)) {
+    if (matchesAny(text, PURCHASE_TEXT, PURCHASE_TEXT_I18N) || matchesAny(selector, PURCHASE_TEXT, PURCHASE_TEXT_I18N)) {
       addTrigger(context, 'purchase', 'Selecting an option inside what looks like a purchase flow.');
     }
     return;
   }
 
   if (toolName === 'browser_press_key') {
-    return; // context-only escalation happens in classifyUrlContext
+    // The focused element decides what a key does: Enter in a POST form field,
+    // or Enter/Space on its submit button, sends the form.
+    const rawKey = typeof args.key === 'string' ? args.key.toLowerCase() : '';
+    const key = rawKey.trim() || rawKey; // a literal " " is the space key
+    const described = input.elementText ?? '';
+    const submitsField = ENTER_KEYS.has(key) && described.includes(FORM_FIELD_MARKER);
+    const submitsButton = (ENTER_KEYS.has(key) || SPACE_KEYS.has(key)) && described.includes(FORM_SUBMIT_MARKER);
+    if (submitsField || submitsButton) {
+      addTrigger(context, 'consequential_form', 'This key submits a form that sends data to the site.');
+    }
+    return; // URL-based escalation happens in classifyUrlContext
   }
 }
 
@@ -259,7 +352,7 @@ export function classifyAction(input: PolicyInput): PolicyDecision {
   const { toolName, args } = input;
 
   const domain = extractDomain(typeof args.url === 'string' ? args.url : input.currentUrl);
-  const redactedArgs = redactArgs(toolName, args);
+  const redactedArgs = redactArgs(toolName, args, input.elementText ?? '');
 
   if (ENGINE_CONTROL_TOOLS.has(toolName)) {
     return { risk: 'safe', triggers: [], reasons: ['Engine control command.'], domain, redactedArgs };
@@ -281,6 +374,19 @@ export function classifyAction(input: PolicyInput): PolicyDecision {
     }
   } else if (toolName === 'browser_run_js') {
     addTrigger(context, 'arbitrary_code', 'Executing arbitrary JavaScript in the page context.');
+  } else if (toolName === 'browser_handle_dialog') {
+    // Reading a dialog or cancelling it commits to nothing. Accepting a
+    // confirm or prompt is the page's "yes" (delete, leave, pay), so a human decides.
+    if (args.action === 'status' || args.action === 'dismiss') {
+      return { risk: 'safe', triggers: [], reasons: ['Reading or dismissing a page dialog commits to nothing.'], domain, redactedArgs };
+    }
+    addTrigger(context, 'consequential_form', 'Accepting a page dialog answers "yes" to whatever the page asked.');
+  } else if (toolName === 'browser_drag') {
+    addTrigger(context, 'consequential_form', 'Dragging can move, reorder or delete items on the page.');
+  } else if (toolName === 'browser_upload_file') {
+    addTrigger(context, 'share_private', 'Attaching a local file sends its contents to this website.');
+  } else if (toolName === 'browser_login') {
+    addTrigger(context, 'login', 'Signing in to this site with a saved account.');
   } else if (toolName === 'browser_go_back' || toolName === 'browser_go_forward' || toolName === 'browser_reload') {
     return { risk: 'safe', triggers: [], reasons: ['History control is not an approval trigger.'], domain, redactedArgs };
   } else {
@@ -315,7 +421,11 @@ const TRIGGER_CONSEQUENCES: Record<ApprovalTrigger, string> = {
   dangerous_download: 'This downloads or executes a potentially dangerous file.',
   sensitive_input: 'This enters sensitive information such as a password, card number, or secret.',
   consequential_form: 'This submits a form or performs an action with lasting consequences.',
-  arbitrary_code: 'This executes arbitrary code inside the page with full page privileges.'
+  arbitrary_code: 'This executes arbitrary code inside the page with full page privileges.',
+  login: 'This signs in to the site with a saved account. The password is filled by the browser and is never shown to the agent.',
+  site_rule: 'You marked this site as "always ask", so every agent action on it needs your approval.',
+  strict_mode: 'Strict approval mode is on: every agent action needs your approval.',
+  prompt_injection: 'A page the agent read contains text that looks like instructions aimed at AI agents. Check that this action is what you asked for, not something the page told the agent to do.'
 };
 
 const TRIGGER_LABELS: Record<ApprovalTrigger, string> = {
@@ -329,8 +439,28 @@ const TRIGGER_LABELS: Record<ApprovalTrigger, string> = {
   dangerous_download: 'Download or execute a file',
   sensitive_input: 'Enter sensitive information',
   consequential_form: 'Consequential form submission',
-  arbitrary_code: 'Execute arbitrary code'
+  arbitrary_code: 'Execute arbitrary code',
+  login: 'Sign in with a saved account',
+  site_rule: 'Action on a site you marked "always ask"',
+  prompt_injection: 'Action after suspicious page text',
+  strict_mode: 'Action in strict approval mode'
 };
+
+function describePageUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`.slice(0, 160);
+  } catch {
+    return undefined;
+  }
+}
+
+function describeTargetText(text: string | undefined): string | undefined {
+  if (!text) return undefined;
+  const oneLine = text.replace(/\s+/g, ' ').trim();
+  return oneLine ? oneLine.slice(0, 120) : undefined;
+}
 
 export function buildApprovalSummary(input: PolicyInput, decision: PolicyDecision): ApprovalSummary {
   const domain = decision.domain ?? extractDomain(input.currentUrl) ?? 'unknown site';
@@ -344,6 +474,8 @@ export function buildApprovalSummary(input: PolicyInput, decision: PolicyDecisio
     domain,
     intendedAction: `${label}: ${input.toolName}${target ? ` → ${target.slice(0, 120)}` : ''}`,
     affectedResource: target,
+    pageUrl: describePageUrl(input.currentUrl),
+    targetText: describeTargetText(input.elementText),
     details: decision.redactedArgs,
     consequences: decision.triggers.map(t => TRIGGER_CONSEQUENCES[t]),
     uncertainty: [

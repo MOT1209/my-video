@@ -13,6 +13,8 @@ import './e2e/tier2_boundary_corner.test';
 import './e2e/tier3_cross_feature.test';
 // Verify the English-only interface policy and legacy setting compatibility.
 import './i18n_loading.test';
+import './i18n_coverage.test';
+import './css_class_usage.test';
 import './english_settings_migration.test';
 import './e2e/tier4_real_world.test';
 import './e2e/tier5_adversarial_stress.test';
@@ -33,6 +35,7 @@ import './extension_archive_extraction.test';
 import './update_integrity.test';
 import './agent_navigation_guard.test';
 import './sync_pairing_ui.test';
+import './king_cloud_auth.test';
 import './backup_tombstone.test';
 import './dialog_a11y.test';
 import './hover_only_controls.test';
@@ -45,6 +48,17 @@ import './link_preview_lru.test';
 import './workspace_state_management.test';
 import './adblock_filter_engine.test';
 import './keyboard_shortcuts.test';
+import './agent_pill_placement.test';
+import './rtl_overlay_regressions.test';
+import './rtl_logical_classes.test';
+import './agent_tab_marker.test';
+import './approval_attention.test';
+import './approval_details.test';
+import './engine_takeover.test';
+import './closed_tabs_persistence.test';
+import './folder_color.test';
+import './site_zoom.test';
+import './menu_accelerators.test';
 import './reader_mode_sanitization.test';
 import './session_isolation.test';
 import './history_bookmarks_search.test';
@@ -74,11 +88,18 @@ import './sync_state_remerge.test';
 import './sync_deletion_and_conflict.test';
 import './local_persistence_data_safety.test';
 import './format_bytes.test';
+import './agent_browser_tools.test';
 // Last on purpose: this one renders a component in jsdom and temporarily
 // installs window/document globals while it does.
 import './clipboard_qr_failure.test';
 import './download_open_policy.test';
 import './renderer_recovery.test';
+import './trusted_sender_policy.test';
+import './host_policy.test';
+import './window_open_policy.test';
+import './incognito_extensions.test';
+import './crash_log.test';
+import './sync_key_rotation.test';
 
 import './permission_boundary_regressions.test';
 import './mcp_lifecycle_regressions.test';
@@ -93,11 +114,68 @@ import './tab_download_lifecycle_regressions.test';
 
 import './execution_engine.test';
 import './policy_engine.test';
+import './activity_log.test';
+import './activity_store.test';
+import './site_rules.test';
+import './injection_detector.test';
+import './mcp_client_config.test';
+import './mcp_streamable_http.test';
+import './ai_agent_lazy_load.test';
+import './mcp_server_transports.test';
+import './mcp_rate_limit_auth.test';
+import './mcp_tool_catalog.test';
+import './mcp_tool_schemas.test';
+import './element_refs.test';
+import './page_dialogs.test';
+import './deep_query.test';
+import './upload_policy.test';
+import './drag_plan.test';
+import './ax_snapshot.test';
+import './url_redaction.test';
+import './trusted_input.test';
+import './approval_mode.test';
+import './injection_corpus.test';
+import './agent_profile_settings.test';
+import './recordings.test';
+import './translation_text.test';
+import './adblock_whitelist.test';
+import './agent_login.test';
 import './mcp_engine_wiring.test';
 import './mcp_single_approval_authority.test';
 import './assistant_approval_card.test';
+import './chat_markdown_image_exfiltration.test';
 import './engine_ipc.test';
 import './runtime_error_fixes.test';
 import './website_login_fixes.test';
 // Renders the §10 control panel in jsdom with its own window/document globals.
 import './agent_control_panel.test';
+// Static guards: every IPC handler under electron/, the shipped CSP, agent skills.
+import './ipc_sender_guard_coverage.test';
+import './csp_parity.test';
+import './fallback_crypto_shared.test';
+import './runall_registration.test';
+import './phishing_block_page.test';
+import './webview_policy.test';
+import './permission_store.test';
+import './translation_batch.test';
+import './native_tts.test';
+import './preview_fetch.test';
+import './custom_tools.test';
+import './tool_errors.test';
+import './mcp_custom_tools_integration.test';
+import './popup_and_guest_event_hardening.test';
+import './webview_partition_hardening_failure.test';
+import './linux_sandbox_fallback.test';
+import './agent_skills_integrity.test';
+import './agent_instructions_consistency.test';
+import './setup_agent_skills.test';
+import './release_nightly_cleanup.test';
+
+// Very last on purpose. This behaviour-level auth suite (register, login,
+// logout, restore and cross-account isolation driven through the real service
+// paths) is the longest PBKDF2-heavy suite in the tree and installs its own
+// window/localStorage globals. Placed after every other module body, this
+// import gets the final say on the shared globals, and the suite's own
+// reassertGlobals() calls defend each of its phases against suites that still
+// swap globals from running async mains.
+import './king_cloud_auth_behaviour.test';

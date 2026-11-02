@@ -4,8 +4,12 @@ import {
   extractDomain,
   redactArgs,
   buildApprovalSummary,
+  FORM_SUBMIT_MARKER,
+  FORM_FIELD_MARKER,
   type PolicyInput
 } from '../electron/main/policyEngine';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 console.log('\n--- Approval Policy Engine (§12) Test Suite ---');
 
@@ -299,7 +303,137 @@ async function run() {
     });
     assert.equal(d.risk, 'sensitive', 'typing into a described password field is sensitive');
     assert.ok(d.triggers.includes('sensitive_input'));
+    assert.equal(d.redactedArgs.text, REDACTED, 'typed value redacted when the field description identifies a password');
     console.log('[PASS] Policy — field description reveals sensitive input');
+  }
+
+  // German and Turkish button text is detected.
+  {
+    const cases: Array<[string, string]> = [
+      ['Jetzt kaufen', 'purchase'],
+      ['Zahlungspflichtig bestellen', 'purchase'],
+      ['Konto löschen', 'delete'],
+      ['Nachricht senden', 'send'],
+      ['Passwort ändern', 'security_settings'],
+      ['Beitrag veröffentlichen', 'publish'],
+      ['Satın al', 'purchase'],
+      ['HESABI SİL', 'delete'],
+      ['Mesaj gönder', 'send'],
+      ['Şifreyi değiştir', 'security_settings'],
+      ['İzin ver', 'grant_permission'],
+      ['Yayınla', 'publish']
+    ];
+    for (const [label, trigger] of cases) {
+      const d = classifyAction({
+        toolName: 'browser_click',
+        args: { selector: 'button.primary' },
+        currentUrl: 'https://example.com/page',
+        elementText: label
+      });
+      assert.ok(d.triggers.includes(trigger as never), `"${label}" should trigger ${trigger}, got ${d.triggers.join(',')}`);
+    }
+    const harmless = classifyAction({
+      toolName: 'browser_click',
+      args: { selector: 'a.nav' },
+      currentUrl: 'https://example.com/page',
+      elementText: 'Startseite Silvester Ana sayfa'
+    });
+    assert.equal(harmless.risk, 'safe', 'neutral German/Turkish text stays safe');
+    console.log('[PASS] Policy — German and Turkish text detected');
+  }
+
+  // Regression: a POST form was submitted with no approval because the button
+  // text ("Submit order") matched no purchase/send keyword and the classifier
+  // never looked at what the control does. The page-context script now tags
+  // submit controls of POST forms; the policy must treat that tag as a trigger
+  // whatever the button says, while GET (search) forms stay safe.
+  {
+    const post = classifyAction({
+      toolName: 'browser_click',
+      args: { selector: '[data-king-ref="e13"]' },
+      currentUrl: 'https://httpbin.org/forms/post',
+      elementText: `Submit order submit ${FORM_SUBMIT_MARKER}`
+    });
+    assert.equal(post.risk, 'sensitive', 'POST form submit button needs approval');
+    assert.ok(post.triggers.includes('consequential_form'), 'consequential_form trigger present');
+
+    const neutralLabel = classifyAction({
+      toolName: 'browser_click',
+      args: { selector: 'button' },
+      currentUrl: 'https://example.com/',
+      elementText: `Go ${FORM_SUBMIT_MARKER}`
+    });
+    assert.equal(neutralLabel.risk, 'sensitive', 'the label does not matter, the form method does');
+
+    const search = classifyAction({
+      toolName: 'browser_click',
+      args: { selector: 'button' },
+      currentUrl: 'https://example.com/',
+      elementText: 'Search submit'
+    });
+    assert.equal(search.risk, 'safe', 'a GET search button carries no marker and stays safe');
+    assert.ok(!post.triggers.includes('publish'), 'the marker itself must not read as "publish"');
+    console.log('[PASS] Policy — POST form submit needs approval regardless of label');
+  }
+
+  // Regression: agent typing now uses real keys, so Enter in a field submits
+  // the form natively. Enter in a POST form field (browser_type pressEnter or
+  // browser_press_key on the focused field) must be gated like the button.
+  {
+    const typeEnter = classifyAction({
+      toolName: 'browser_type',
+      args: { selector: '#name', text: 'King', pressEnter: true },
+      currentUrl: 'https://httpbin.org/forms/post',
+      elementText: `Customer name: custname ${FORM_FIELD_MARKER}`
+    });
+    assert.ok(typeEnter.triggers.includes('consequential_form'), 'type + Enter in a POST form needs approval');
+
+    const typeOnly = classifyAction({
+      toolName: 'browser_type',
+      args: { selector: '#name', text: 'King' },
+      currentUrl: 'https://httpbin.org/forms/post',
+      elementText: `Customer name: custname ${FORM_FIELD_MARKER}`
+    });
+    assert.equal(typeOnly.risk, 'safe', 'typing without Enter submits nothing');
+
+    const keyEnter = classifyAction({
+      toolName: 'browser_press_key',
+      args: { key: 'Enter' },
+      currentUrl: 'https://httpbin.org/forms/post',
+      elementText: `Customer name: custname ${FORM_FIELD_MARKER}`
+    });
+    assert.ok(keyEnter.triggers.includes('consequential_form'), 'press_key Enter on a POST form field needs approval');
+
+    const keySpaceOnSubmit = classifyAction({
+      toolName: 'browser_press_key',
+      args: { key: 'Space' },
+      currentUrl: 'https://example.com/',
+      elementText: `Submit order ${FORM_SUBMIT_MARKER}`
+    });
+    assert.ok(keySpaceOnSubmit.triggers.includes('consequential_form'), 'Space on a focused submit button submits too');
+
+    const getSearch = classifyAction({
+      toolName: 'browser_press_key',
+      args: { key: 'Enter' },
+      currentUrl: 'https://example.com/',
+      elementText: 'Search q'
+    });
+    assert.equal(getSearch.risk, 'safe', 'Enter in a GET search field stays safe');
+
+    const arrow = classifyAction({
+      toolName: 'browser_press_key',
+      args: { key: 'ArrowDown' },
+      currentUrl: 'https://httpbin.org/forms/post',
+      elementText: `Size ${FORM_FIELD_MARKER}`
+    });
+    assert.equal(arrow.risk, 'safe', 'other keys in a POST form submit nothing');
+
+    // policyEngine must stay import-free, so the renderer script repeats the
+    // markers as literals. Pin them equal.
+    const bridge = readFileSync(join(__dirname, '..', 'src', 'hooks', 'useBrowserAgentBridge.ts'), 'utf8');
+    assert.ok(bridge.includes(`'${FORM_SUBMIT_MARKER}'`), 'renderer uses the same submit marker');
+    assert.ok(bridge.includes(`'${FORM_FIELD_MARKER}'`), 'renderer uses the same field marker');
+    console.log('[PASS] Policy — Enter in a POST form needs approval, GET forms stay safe');
   }
 
   console.log('[PASS] Policy Engine suite complete');

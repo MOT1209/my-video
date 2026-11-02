@@ -1,0 +1,8 @@
+name: my-video CodeQL config
+
+# King_Browser/ is a mirror of the separate MOT1209/King_Browser repository,
+# which runs its own CodeQL (security-extended) on every pull request. Scanning
+# the mirror here only duplicates those results against code this repository
+# does not own; fixes belong upstream and arrive through the next sync.
+paths-ignore:
+  - King_Browser/**

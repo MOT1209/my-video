@@ -1,31 +1,26 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import {
-  Search,
-  Sparkles,
-  Star,
-  BookOpen,
-  Lock,
-  Unlock,
-  ShieldAlert,
-  HelpCircle,
-  Settings,
-  Clock,
-  Download,
-  Globe,
-  Languages,
-  VenetianMask
-} from 'lucide-react';
+import { Search, Star, BookOpen, Lock, Unlock, ShieldAlert, HelpCircle, Settings, Clock, Download, Globe, Languages, VenetianMask } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tab, Bookmark, UserSettings, PermissionRequest } from '../../types/browser';
 import { formatSearchUrl, getSearchEngineName, isValidUrlOrDomain } from '../../utils/searchEngine';
-import { getLanguage, getLocale, useTranslation } from '../../services/i18n';
+import { getLanguage, getLocale, useTranslation, displayTabTitle } from '../../services/i18n';
 import { getUrlSecurityInfo, formatDisplayUrl } from '../../utils/securityUtils';
 import { SiteInfoPopover } from '../SiteInfoPopover';
-import { PermissionPromptPopover } from '../PermissionPromptPopover';
-import { PageTranslatePopover } from '../PageTranslatePopover';
 import { getClientCachedSuggestions, setClientCachedSuggestions } from '../../utils/suggestionCache';
 import { getElectronAPI } from '../../utils/electronBridge';
 import { logger } from '../../utils/logger';
+
+// On-demand overlays stay out of the startup chunk. The permission bubble only
+// exists while a site is actually asking for a permission, and the translate
+// panel only mounts on a web page tab (never on the new-tab or king:// pages),
+// so neither has to be parsed before the first window paints. React.lazy loads
+// each one from disk the first time it is rendered.
+const PermissionPromptPopover = React.lazy(() =>
+  import('../PermissionPromptPopover').then((m) => ({ default: m.PermissionPromptPopover }))
+);
+const PageTranslatePopover = React.lazy(() =>
+  import('../PageTranslatePopover').then((m) => ({ default: m.PageTranslatePopover }))
+);
 
 export interface OmniboxBarProps {
   activeTab?: Tab;
@@ -72,7 +67,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
 
   // Reactive: the placeholder below is localised, so it has to repaint on
   // language change rather than only whenever some other prop changes.
-  const { t } = useTranslation();
+  const { t, l } = useTranslation();
 
   const relevantPermissionRequests = useMemo(() => {
     if (!permissionRequests || permissionRequests.length === 0) return [];
@@ -128,7 +123,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
         detail: { tabId: activeTab.id, targetLang: tLang, sourceLang: sLang || 'auto' }
       }));
     } catch (err: any) {
-      setTranslationError(err.message || 'Translation failed');
+      setTranslationError(err.message || l({ en: 'Translation failed', ar: 'فشلت الترجمة', de: 'Übersetzung fehlgeschlagen' }));
       setIsTranslating(false);
     }
   };
@@ -329,12 +324,14 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
               e.stopPropagation();
               setIsSiteInfoOpen(prev => !prev);
             }}
+            // Physical on purpose: the address bar reads left to right in every language and
+            // its input padding (pl-11, pr-24) is physical too, so the badge stays on the left.
             className="absolute left-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10 cursor-pointer h-7 px-1 rounded-md"
           >
             {isIncognito ? (
-              <div className="flex items-center gap-1.5 text-cyan-400 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-lg shadow-xs hover:bg-cyan-500/25 transition-colors" title="Private & Incognito Mode (Click for Site Info)">
+              <div className="flex items-center gap-1.5 text-cyan-400 bg-cyan-500/15 border border-cyan-500/30 px-2 py-0.5 rounded-lg shadow-xs hover:bg-cyan-500/25 transition-colors" title={l({ en: 'Private & Incognito Mode (Click for Site Info)', ar: 'وضع التصفح الخفي (انقر لمعلومات الموقع)', de: 'Privater Inkognito-Modus (für Website-Infos klicken)' })}>
                 <VenetianMask className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Incognito</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider">{l({ en: 'Incognito', ar: 'تصفح خفي', de: 'Inkognito' })}</span>
               </div>
             ) : (
               (() => {
@@ -367,18 +364,20 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
 
           {/* Chrome-Style Permission Prompt Bubble */}
           {!isPermissionPromptDismissed && relevantPermissionRequests.length > 0 && onRespondPermission && (
-            <PermissionPromptPopover
-              requests={relevantPermissionRequests}
-              onRespond={(requestId, allow, remember) => {
-                onRespondPermission(requestId, allow, remember);
-              }}
-              onDismiss={(requestId) => {
-                if (onDismissPermission) {
-                  onDismissPermission(requestId);
-                }
-                setIsPermissionPromptDismissed(true);
-              }}
-            />
+            <React.Suspense fallback={null}>
+              <PermissionPromptPopover
+                requests={relevantPermissionRequests}
+                onRespond={(requestId, allow, remember) => {
+                  onRespondPermission(requestId, allow, remember);
+                }}
+                onDismiss={(requestId) => {
+                  if (onDismissPermission) {
+                    onDismissPermission(requestId);
+                  }
+                  setIsPermissionPromptDismissed(true);
+                }}
+              />
+            </React.Suspense>
           )}
 
           {/* Chrome-Style Omnibox Permission Chip */}
@@ -391,16 +390,17 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
               }}              className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10 cursor-pointer bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/40 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-lg text-xs font-semibold shadow-xs ${
                 isIncognito ? 'left-28' : 'left-10'
               }`}
-              title="Site Permissions (Click to toggle)"
+              title={l({ en: 'Site Permissions (Click to toggle)', ar: 'أذونات الموقع (انقر للتبديل)', de: 'Website-Berechtigungen (zum Umschalten klicken)' })}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping shrink-0" />
-              <span className="text-[11px] font-semibold whitespace-nowrap">Permissions</span>
+              <span className="text-[11px] font-semibold whitespace-nowrap">{l({ en: 'Permissions', ar: 'الأذونات', de: 'Berechtigungen' })}</span>
             </div>
           )}
 
           <input
             type="text"
-            aria-label="Address and search bar"
+            dir="auto"
+            aria-label={l({ en: 'Address and search bar', ar: 'شريط العنوان والبحث', de: 'Adress- und Suchleiste' })}
             // Stable hook for the ⌘L / focus-url shortcut sites in App.tsx and
             // useAppIpc.ts. They must never match on placeholder text again:
             // the placeholder is now localised (and changes with the language
@@ -468,7 +468,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
                 : isIncognito ? 'pl-28' : 'pl-11'
             }`}>
               <span className="text-[12px] font-semibold truncate text-slate-800 dark:text-slate-200 leading-[14px]">
-                {activeTab?.title || 'New Tab'}
+                {displayTabTitle(activeTab)}
               </span>
               {activeTab?.url && activeTab.url !== 'king://newtab' && (
                 <span className="text-[10px] truncate text-slate-500 dark:text-slate-400 leading-[12px]">
@@ -494,8 +494,8 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
               <button
                 type="button"
                 onClick={onResetZoom}
-                className={`px-1.5 py-0.5 mr-1 rounded-md text-[10px] font-bold cursor-pointer select-none transition-colors hover:scale-105 active:scale-95 ${isIncognito ? 'bg-slate-700 hover:bg-slate-600 text-cyan-400' : 'bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-cyan-400'}`}
-                title="Zoom Level (Click to reset 100%)"
+                className={`px-1.5 py-0.5 me-1 rounded-md text-[10px] font-bold cursor-pointer select-none transition-colors hover:scale-105 active:scale-95 ${isIncognito ? 'bg-slate-700 hover:bg-slate-600 text-cyan-400' : 'bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-cyan-400'}`}
+                title={l({ en: 'Zoom Level (Click to reset 100%)', ar: 'مستوى التكبير (انقر للعودة إلى 100%)', de: 'Zoomstufe (klicken für 100 %)' })}
               >
                 {Math.round(activeTab.zoomFactor * 100)}%
               </button>
@@ -506,7 +506,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
                 type="button"
                 onClick={onToggleReaderMode}
                 className={`p-1.5 rounded-lg transition-colors ${isIncognito ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-200 dark:hover:bg-slate-700'}`}
-                title="Toggle Reader Mode"
+                title={l({ en: 'Toggle Reader Mode', ar: 'تبديل وضع القراءة', de: 'Lesemodus umschalten' })}
               >
                 <BookOpen className="w-4 h-4" />
               </button>
@@ -525,7 +525,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
                         ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700'
                         : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-200 dark:hover:bg-slate-700'
                   }`}
-                  title="Translate Page"
+                  title={l({ en: 'Translate Page', ar: 'ترجمة الصفحة', de: 'Seite übersetzen' })}
                 >
                   <Languages className="w-3.5 h-3.5" />
                   {activeTab.isTranslated && (
@@ -533,17 +533,19 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
                   )}
                 </button>
 
-                <PageTranslatePopover
-                  isOpen={isTranslateOpen}
-                  onClose={() => setIsTranslateOpen(false)}
-                  onTranslate={handleTranslatePage}
-                  onRestoreOriginal={handleRestoreOriginal}
-                  isTranslated={!!activeTab?.isTranslated}
-                  isLoading={isTranslating}
-                  currentSourceLang={sourceLang}
-                  currentTargetLang={targetLang}
-                  error={translationError}
-                />
+                <React.Suspense fallback={null}>
+                  <PageTranslatePopover
+                    isOpen={isTranslateOpen}
+                    onClose={() => setIsTranslateOpen(false)}
+                    onTranslate={handleTranslatePage}
+                    onRestoreOriginal={handleRestoreOriginal}
+                    isTranslated={!!activeTab?.isTranslated}
+                    isLoading={isTranslating}
+                    currentSourceLang={sourceLang}
+                    currentTargetLang={targetLang}
+                    error={translationError}
+                  />
+                </React.Suspense>
               </div>
             )}
 
@@ -551,7 +553,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
               type="button"
               onClick={() => onToggleBookmark?.(activeTab)}
               className={`p-1.5 rounded-lg transition-colors ${isIncognito ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200 dark:hover:text-slate-200 dark:hover:bg-slate-700'}`}
-              title="Bookmark Page"
+              title={l({ en: 'Bookmark Page', ar: 'إضافة الصفحة إلى الإشارات المرجعية', de: 'Seite als Lesezeichen speichern' })}
             >
               <Star className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-cyan-500 text-cyan-500' : ''}`} />
             </button>
@@ -579,7 +581,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
                     onNavigate(formatSearchUrl(searchValue, searchEngine, getLanguage()));
                     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors group ${
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-start transition-colors group ${
                     selectedIndex === -1
                       ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-semibold'
                       : isIncognito
@@ -590,7 +592,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
                 {isValidUrlOrDomain(searchValue) ? (
                   <>
                     <Globe className="w-4 h-4 shrink-0 text-cyan-500" />
-                    <span className="truncate font-medium text-cyan-600 dark:text-cyan-400">Go to: <span className="underline">{searchValue}</span></span>
+                    <span className="truncate font-medium text-cyan-600 dark:text-cyan-400">{l({ en: 'Go to:', ar: 'الانتقال إلى:', de: 'Gehe zu:' })} <span className="underline" dir="auto">{searchValue}</span></span>
                   </>
                 ) : (
                   <>
@@ -602,9 +604,9 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
 
               {/* Search Suggestions (Index 0 to suggestions.length - 1) */}
               {suggestions.length > 0 && (
-                <div className="py-1" role="listbox" aria-label="Search suggestions">
+                <div className="py-1" role="listbox" aria-label={l({ en: 'Search suggestions', ar: 'اقتراحات البحث', de: 'Suchvorschläge' })}>
                   <div className="px-4 pt-2 pb-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                    Search Suggestions
+                    {l({ en: 'Search Suggestions', ar: 'اقتراحات البحث', de: 'Suchvorschläge' })}
                   </div>
 
                   {suggestions.map((suggestion, idx) => (
@@ -620,7 +622,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
                           onNavigate(formatSearchUrl(suggestion, searchEngine, getLanguage()));
                           if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                         }}
-                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors ${
+                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-start transition-colors ${
                           selectedIndex === idx
                             ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-medium'
                             : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-200'
@@ -653,7 +655,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
                             onNavigate(bookmark.url);
                             if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                           }}
-                          className={`w-full flex items-center justify-between px-4 py-2 text-sm text-left transition-colors ${
+                          className={`w-full flex items-center justify-between px-4 py-2 text-sm text-start transition-colors ${
                             selectedIndex === bookmarkIdx
                               ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-medium'
                               : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-200'
@@ -661,7 +663,7 @@ export const OmniboxBar: React.FC<OmniboxBarProps> = React.memo(({
                         >
                           <div className="flex items-center gap-3 overflow-hidden">
                             <Star className={`w-3.5 h-3.5 shrink-0 ${selectedIndex === bookmarkIdx ? 'text-cyan-500 fill-cyan-500' : 'text-amber-400 fill-amber-400'}`} />
-                            <span className="truncate font-medium">{bookmark.title}</span>
+                            <span dir="auto" className="truncate font-medium">{bookmark.title}</span>
                           </div>
                           <span className="text-xs text-slate-400 truncate max-w-[150px]">{bookmark.url}</span>
                         </button>

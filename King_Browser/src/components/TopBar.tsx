@@ -3,68 +3,28 @@ import { createPortal } from 'react-dom';
 import { DownloadsPopover } from './DownloadsPopover';
 import { TabContextMenu, TabContextMenuState } from './TabContextMenu';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import {
-  ArrowLeft,
-  ArrowRight,
-  RotateCw,
-  Home,
-  Search,
-  Plus,
-  Star,
-  Globe,
-  X,
-  Menu,
-  BookOpen,
-  Clock,
-  Download,
-  Columns,
-  Columns2,
-  Pin,
-  PinOff,
-  Volume2,
-  VolumeX,
-  Share2,
-  CopyPlus,
-  ShieldOff,
-  Shield,
-  ZoomIn,
-  ZoomOut,
-  Settings,
-  Camera,
-  Sparkles,
-  Puzzle,
-  ShieldCheck,
-  Cpu,
-  Lock,
-  Unlock,
-  ShieldAlert,
-  HelpCircle,
-  Network,
-  MonitorSmartphone,
-  ScanSearch,
-  VenetianMask,
-  Moon,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  User,
-  Compass,
-  Cloud,
-  Languages
-} from 'lucide-react';
+import { ArrowLeft, ArrowRight, RotateCw, Home, Search, Plus, Globe, X, Menu, Clock, Download, Columns, Columns2, Volume2, VolumeX, Share2, ShieldOff, Shield, ZoomIn, ZoomOut, Settings, Camera, Puzzle, Cpu, HelpCircle, Network, VenetianMask, Moon, ChevronLeft, ChevronRight, User, Compass, Cloud } from 'lucide-react';
 import { Tab, Bookmark, Workspace, PermissionRequest, Extension, UserSettings, DownloadItem } from '../types/browser';
-import { formatSearchUrl, getSearchEngineName, isValidUrlOrDomain } from '../utils/searchEngine';
-import { getLanguage, getLocale } from '../services/i18n';
-import { AdBlockerPopover } from './AdBlockerPopover';
+import '../utils/searchEngine';
+import { useTranslation, displayTabTitle, displayWorkspaceName } from '../services/i18n';
+import { ADBLOCK_WHITELIST_EVENT } from '../utils/adblockWhitelist';
 import { KingAssistantIcon } from './ui/KingAssistantIcon';
+import { AgentTabMarker } from './ui/AgentTabMarker';
+import { useAgentTabId } from '../services/agentTabStore';
 import { logger } from '../utils/logger';
 import { syncService, SyncStatus } from '../services/syncService';
-import { getClientCachedSuggestions, setClientCachedSuggestions } from '../utils/suggestionCache';
+import '../utils/suggestionCache';
 import { TabHoverPreview } from './TabHoverPreview';
 import { getElectronAPI } from '../utils/electronBridge';
 import { OmniboxBar } from './topbar/OmniboxBar';
 import { useTitlebarInsets } from '../hooks/useTitlebarInsets';
 export { OmniboxBar };
+
+// The ad-blocker panel is only mounted after the toolbar shield is clicked, so
+// it does not belong in the startup chunk. React.lazy fetches it on first open.
+const AdBlockerPopover = React.lazy(() =>
+  import('./AdBlockerPopover').then((m) => ({ default: m.AdBlockerPopover }))
+);
 
 /** Stable identity handed to the downloads popover while it is closed. */
 const EMPTY_DOWNLOADS: DownloadItem[] = [];
@@ -171,8 +131,10 @@ const MemoizedTabItem = React.memo(
     wasJustUnsplit,
     onTabDragStart, onTabDrag, onTabDragEnd, onDropToSplitScreen,
     onSelectTab, onCloseSplit, onToggleMuteTab, onTogglePip, onCloseTab,
-    tabsLength, onUpdateGhost, onOpenContextMenu, onTabHover, onTabLeave
+    tabsLength, onUpdateGhost, onOpenContextMenu, onTabHover, onTabLeave,
+    isAgentTab
   }: any, ref: any) => {
+    const { l } = useTranslation();
   // No early return before the first hook. A `isSplitChild` bail-out used to sit
   // here; it is gone because nothing ever passed the prop and `visibleTabs`
   // already drops a split partner, so the branch could only ever have been a
@@ -336,6 +298,9 @@ const MemoizedTabItem = React.memo(
 
   return (
     <Reorder.Item
+      // The group renders as a div, so the default <li> would be a list item
+      // with no list parent (axe `listitem`, reported by tests/electron).
+      as="div"
       ref={ref}
       key={tab.id}
       value={tab}
@@ -360,7 +325,7 @@ const MemoizedTabItem = React.memo(
         onTabDrag?.(info.point.y, info.point.x);
         // Only show ghost indicator if dragged completely clear of the TopBar header (> 110px)
         if (info.point.y > 110) {
-          onUpdateGhost?.(tab.title || 'Drop to Split Screen', info.point.x, info.point.y);
+          onUpdateGhost?.(tab.title || l({ en: 'Drop to Split Screen', ar: 'أفلت لتقسيم الشاشة', de: 'Für geteilten Bildschirm ablegen' }), info.point.x, info.point.y);
         } else {
           onUpdateGhost?.(null);
         }
@@ -397,7 +362,7 @@ const MemoizedTabItem = React.memo(
         onOpenContextMenu?.(tab, index, e);
       }}
       data-tab-id={tab.id}
-      title={isPinned ? `${tab.title || 'Pinned Tab'} (Pinned)` : tab.title}
+      title={isPinned ? l({ en: '{title} (Pinned)', ar: '{title} (مثبّت)', de: '{title} (angeheftet)' }, { title: tab.title || l({ en: 'Pinned Tab', ar: 'تبويب مثبّت', de: 'Angehefteter Tab' }) }) : tab.title}
       style={{
         flex: '0 0 auto',
         width: targetWidth,
@@ -433,8 +398,8 @@ const MemoizedTabItem = React.memo(
           {tab.isPlayingAudio && (
             <button
               onClick={(e) => { e.stopPropagation(); onToggleMuteTab(tab.id, e); }}
-              className="absolute -top-1 -right-1 p-0.5 bg-blue-500 text-white rounded-full shadow-xs"
-              title="Mute Tab"
+              className="absolute -top-1 -end-1 p-0.5 bg-blue-500 text-white rounded-full shadow-xs"
+              title={l({ en: 'Mute Tab', ar: 'كتم صوت التبويب', de: 'Tab stummschalten' })}
             >
               <Volume2 className="w-2.5 h-2.5 animate-pulse" />
             </button>
@@ -480,10 +445,10 @@ const MemoizedTabItem = React.memo(
             ) : (
               <Globe className="w-3.5 h-3.5 opacity-70 shrink-0" />
             )}
-            <span className="truncate text-[12px] flex-1">{tab.title || tab.url || 'New Tab'}</span>
+            <span dir="auto" className="truncate text-[12px] flex-1">{displayTabTitle(tab)}</span>
 
             <button
-              aria-label="Close Left Tab"
+              aria-label={l({ en: 'Close Left Tab', ar: 'إغلاق التبويب الأيسر', de: 'Linken Tab schließen' })}
               onClick={(e) => {
                 e.stopPropagation();
                 onTabLeave?.();
@@ -491,7 +456,7 @@ const MemoizedTabItem = React.memo(
               }}
               onKeyDown={(e) => { e.stopPropagation(); }}
               className="opacity-0 group-hover/split-left:opacity-100 p-0.5 rounded-sm hover:bg-red-500/20 text-slate-400 hover:text-red-500 shrink-0 transition-opacity cursor-pointer"
-              title="Close Left Tab"
+              title={l({ en: 'Close Left Tab', ar: 'إغلاق التبويب الأيسر', de: 'Linken Tab schließen' })}
             >
               <X className="w-3 h-3" />
             </button>
@@ -500,14 +465,14 @@ const MemoizedTabItem = React.memo(
           {/* Unsplit / Separate Tabs Button */}
           <div className="flex items-center px-0.5 shrink-0">
             <button
-              aria-label="Separate Tabs"
+              aria-label={l({ en: 'Separate Tabs', ar: 'فصل التبويبين', de: 'Tabs trennen' })}
               onClick={(e) => {
                 e.stopPropagation();
                 onTabLeave?.();
                 onCloseSplit?.(tab.id, splitTab.id);
               }}
               className="p-0.5 rounded hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer group/unsplit"
-              title="Separate Tabs"
+              title={l({ en: 'Separate Tabs', ar: 'فصل التبويبين', de: 'Tabs trennen' })}
             >
               <div className="w-[1px] h-3.5 bg-slate-300/80 dark:bg-slate-600/80 group-hover/unsplit:hidden" />
               <Columns2 className="w-3 h-3 hidden group-hover/unsplit:block text-slate-500 dark:text-slate-300" />
@@ -552,10 +517,10 @@ const MemoizedTabItem = React.memo(
             ) : (
               <Globe className="w-3.5 h-3.5 opacity-70 shrink-0" />
             )}
-            <span className="truncate text-[12px] flex-1">{splitTab.title || splitTab.url || 'New Tab'}</span>
+            <span dir="auto" className="truncate text-[12px] flex-1">{displayTabTitle(splitTab)}</span>
 
             <button
-              aria-label="Close Right Tab"
+              aria-label={l({ en: 'Close Right Tab', ar: 'إغلاق التبويب الأيمن', de: 'Rechten Tab schließen' })}
               onClick={(e) => {
                 e.stopPropagation();
                 onTabLeave?.();
@@ -563,7 +528,7 @@ const MemoizedTabItem = React.memo(
               }}
               onKeyDown={(e) => { e.stopPropagation(); }}
               className="opacity-0 group-hover/split-right:opacity-100 p-0.5 rounded-sm hover:bg-red-500/20 text-slate-400 hover:text-red-500 shrink-0 transition-opacity cursor-pointer"
-              title="Close Right Tab"
+              title={l({ en: 'Close Right Tab', ar: 'إغلاق التبويب الأيمن', de: 'Rechten Tab schließen' })}
             >
               <X className="w-3 h-3" />
             </button>
@@ -587,15 +552,15 @@ const MemoizedTabItem = React.memo(
             ) : (
               <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             )}
-            <span className="truncate">{tab.title || tab.url || 'New Tab'}</span>
+            <span dir="auto" className="truncate">{displayTabTitle(tab)}</span>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0 ml-1">
+          <div className="flex items-center gap-1 shrink-0 ms-1">
             {tab.isMuted ? (
               <button
                 onClick={(e) => onToggleMuteTab(tab.id, e)}
                 className="p-0.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-700 dark:hover:bg-slate-700 transition-colors shrink-0"
-                title="Unmute Tab"
+                title={l({ en: 'Unmute Tab', ar: 'إلغاء كتم صوت التبويب', de: 'Stummschaltung aufheben' })}
               >
                 <VolumeX className="w-3.5 h-3.5 text-red-500" />
               </button>
@@ -605,7 +570,7 @@ const MemoizedTabItem = React.memo(
                   <button
                     onClick={(e) => { e.stopPropagation(); onTogglePip(tab.id); }}
                     className="p-0.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-blue-500 dark:hover:bg-slate-700 transition-colors shrink-0"
-                    title="Picture in Picture"
+                    title={l({ en: 'Picture in Picture', ar: 'صورة داخل صورة', de: 'Bild im Bild' })}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-picture-in-picture-2"><path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"/><rect width="10" height="7" x="12" y="13" rx="2"/></svg>
                   </button>
@@ -613,7 +578,7 @@ const MemoizedTabItem = React.memo(
                 <button
                   onClick={(e) => onToggleMuteTab(tab.id, e)}
                   className="p-0.5 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-700 dark:hover:bg-slate-700 transition-colors shrink-0"
-                  title="Mute Tab"
+                  title={l({ en: 'Mute Tab', ar: 'كتم صوت التبويب', de: 'Tab stummschalten' })}
                 >
                   <Volume2 className="w-3.5 h-3.5 text-blue-500 animate-pulse" />
                 </button>
@@ -621,7 +586,7 @@ const MemoizedTabItem = React.memo(
             ) : null}
 
             {tab.isSuspended && (
-              <span className="p-0.5 text-indigo-400 shrink-0" title="Suspended Tab (Memory Saver)">
+              <span className="p-0.5 text-indigo-400 shrink-0" title={l({ en: 'Suspended Tab (Memory Saver)', ar: 'تبويب معلّق (توفير الذاكرة)', de: 'Pausierter Tab (Speichersparmodus)' })}>
                 <Moon className="w-3.5 h-3.5 opacity-80" />
               </span>
             )}
@@ -638,7 +603,7 @@ const MemoizedTabItem = React.memo(
                     ? 'hover:bg-slate-200 text-slate-500 hover:text-red-500 dark:hover:bg-slate-700 dark:text-slate-400'
                     : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:bg-slate-300 text-slate-500 hover:text-red-500 dark:hover:bg-slate-700 dark:text-slate-400'
                 }`}
-                title="Close Tab"
+                title={l({ en: 'Close Tab', ar: 'إغلاق التبويب', de: 'Tab schließen' })}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -654,6 +619,7 @@ const MemoizedTabItem = React.memo(
           className={`absolute -bottom-px left-0 right-0 h-px z-20 ${isIncognito ? 'bg-slate-800' : 'bg-white dark:bg-slate-800'}`}
         />
       )}
+      {isAgentTab && <AgentTabMarker compact={isPinned} />}
     </Reorder.Item>
   );
   }), (prevProps: any, nextProps: any) => {
@@ -661,6 +627,7 @@ const MemoizedTabItem = React.memo(
     prevProps.index === nextProps.index &&
     prevProps.wasJustUnsplit === nextProps.wasJustUnsplit &&
     prevProps.isActive === nextProps.isActive &&
+    prevProps.isAgentTab === nextProps.isAgentTab &&
     // For non-split tabs, activeTabId doesn't affect rendering because isActive captures whether this tab is active.
     // For split tabs, we only care whether this tab or the split partner is the active one.
     (
@@ -762,6 +729,9 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
   onRespondPermission,
   onDismissPermission
 }) => {
+  const { l, t } = useTranslation();
+  const tabIds = useMemo(() => tabs.map(tab => tab.id), [tabs]);
+  const agentTabId = useAgentTabId(tabIds);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(syncService.getStatus());
 
   useEffect(() => {
@@ -1027,6 +997,9 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
       }
     };
     fetchWhitelist();
+    // Settings > Privacy edits the same list.
+    window.addEventListener(ADBLOCK_WHITELIST_EVENT, fetchWhitelist);
+    return () => window.removeEventListener(ADBLOCK_WHITELIST_EVENT, fetchWhitelist);
   }, []);
 
   // Fetch MCP status on mount and listen for client changes
@@ -1117,6 +1090,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
     setAdblockWhitelist(newWhitelist);
     if (getElectronAPI()?.storeSet) {
       await getElectronAPI()?.storeSet('adblocker_whitelist', JSON.stringify(newWhitelist));
+      window.dispatchEvent(new CustomEvent(ADBLOCK_WHITELIST_EVENT));
     }
     onReload();
   };
@@ -1161,10 +1135,10 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
             <div className="relative no-drag mb-1">
               <button
                 onClick={() => setIsWorkspaceDropdownOpen(!isWorkspaceDropdownOpen)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold bg-slate-200/50 hover:bg-slate-300/50 text-slate-700 dark:bg-slate-800/50 dark:hover:bg-slate-700/50 dark:text-slate-300 transition-colors mr-1"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-semibold bg-slate-200/50 hover:bg-slate-300/50 text-slate-700 dark:bg-slate-800/50 dark:hover:bg-slate-700/50 dark:text-slate-300 transition-colors me-1"
               >
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: WORKSPACE_COLORS[activeWorkspace.color] || '#64748b' }} />
-                <span>{activeWorkspace.name}</span>
+                <span>{displayWorkspaceName(activeWorkspace)}</span>
               </button>
               <AnimatePresence>
               {isWorkspaceDropdownOpen && (
@@ -1175,7 +1149,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-1 z-50">
+                    className="absolute top-full start-0 mt-1 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 py-1 z-50">
                     {workspaces.map(w => (
                       <button
                         key={w.id}
@@ -1183,10 +1157,10 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                           onSelectWorkspace(w.id);
                           setIsWorkspaceDropdownOpen(false);
                         }}
-                        className="w-full text-left px-3 py-1.5 text-sm flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        className="w-full text-start px-3 py-1.5 text-sm flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700"
                       >
                         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: WORKSPACE_COLORS[w.color] || '#64748b' }} />
-                        <span className={w.id === activeWorkspaceId ? 'font-medium text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'}>{w.name}</span>
+                        <span className={w.id === activeWorkspaceId ? 'font-medium text-slate-900 dark:text-slate-100' : 'text-slate-600 dark:text-slate-400'}>{displayWorkspaceName(w)}</span>
                       </button>
                     ))}
                     <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
@@ -1195,10 +1169,10 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                         setIsWorkspaceDropdownOpen(false);
                         window.dispatchEvent(new CustomEvent('open-workspace-manager'));
                       }}
-                      className="w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 font-medium"
+                      className="w-full text-start px-3 py-2 text-sm flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400 font-medium"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Manage Workspaces</span>
+                      <span>{l({ en: 'Manage Workspaces', ar: 'إدارة مساحات العمل', de: 'Arbeitsbereiche verwalten' })}</span>
                     </button>
                   </motion.div>
                 </>
@@ -1219,10 +1193,10 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => scrollTabs('left')}
-                className={`absolute left-0 z-30 p-1 rounded-r-lg shadow-md no-drag transition-colors ${
+                className={`absolute start-0 z-30 p-1 rounded-r-lg shadow-md no-drag transition-colors ${
                   isIncognito ? 'bg-slate-800/90 text-slate-200 hover:bg-slate-700' : 'bg-white/90 text-slate-700 hover:bg-slate-100 dark:bg-slate-800/90 dark:text-slate-200 dark:hover:bg-slate-700'
                 }`}
-                title="Scroll Left"
+                title={l({ en: 'Scroll Left', ar: 'التمرير يساراً', de: 'Nach links scrollen' })}
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </motion.button>
@@ -1292,6 +1266,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                   onTogglePip={onTogglePip}
                   onCloseTab={onCloseTab}
                   tabsLength={tabs.length}
+                  isAgentTab={agentTabId !== null && (agentTabId === tab.id || agentTabId === splitTab?.id)}
                   onUpdateGhost={handleUpdateGhost}
                   onTabHover={handleTabHover}
                   onTabLeave={handleTabLeave}
@@ -1329,7 +1304,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                     ? 'text-slate-400 hover:bg-slate-700/80 hover:text-slate-200'
                     : 'text-slate-500 hover:bg-slate-200/80 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/80 dark:hover:text-slate-200'
                 }`}
-                title={isMac ? "New Tab (⌘T)" : "New Tab (Ctrl+T)"}
+                title={t('tabs.newTabWithShortcut', { shortcut: isMac ? 'Cmd+T' : 'Ctrl+T' })}
               >
                 <Plus className="w-4 h-4" />
               </motion.button>
@@ -1365,10 +1340,10 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => scrollTabs('right')}
-                className={`absolute right-0 z-30 p-1 rounded-l-lg shadow-md no-drag transition-colors ${
+                className={`absolute end-0 z-30 p-1 rounded-l-lg shadow-md no-drag transition-colors ${
                   isIncognito ? 'bg-slate-800/90 text-slate-200 hover:bg-slate-700' : 'bg-white/90 text-slate-700 hover:bg-slate-100 dark:bg-slate-800/90 dark:text-slate-200 dark:hover:bg-slate-700'
                 }`}
-                title="Scroll Right"
+                title={l({ en: 'Scroll Right', ar: 'التمرير يميناً', de: 'Nach rechts scrollen' })}
               >
                 <ChevronRight className="w-3.5 h-3.5" />
               </motion.button>
@@ -1406,16 +1381,16 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
       >
         {/* Navigation Buttons */}
         <div className="flex items-center gap-1">
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onGoBack} disabled={!activeTab?.canGoBack} className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`} title="Go Back">
-            <ArrowLeft className="w-4 h-4" />
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onGoBack} disabled={!activeTab?.canGoBack} className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`} title={l({ en: 'Go Back', ar: 'رجوع', de: 'Zurück' })}>
+            <ArrowLeft className="w-4 h-4 rtl:-scale-x-100" />
           </motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onGoForward} disabled={!activeTab?.canGoForward} className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`} title="Go Forward">
-            <ArrowRight className="w-4 h-4" />
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onGoForward} disabled={!activeTab?.canGoForward} className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`} title={l({ en: 'Go Forward', ar: 'تقدّم', de: 'Vorwärts' })}>
+            <ArrowRight className="w-4 h-4 rtl:-scale-x-100" />
           </motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onReload} className={`p-1.5 rounded-lg transition-colors ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`} title="Reload Page">
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onReload} className={`p-1.5 rounded-lg transition-colors ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`} title={l({ en: 'Reload Page', ar: 'إعادة تحميل الصفحة', de: 'Seite neu laden' })}>
             <RotateCw className={`w-4 h-4 transition-transform duration-500 active:rotate-180 ${activeTab?.isLoading ? 'animate-spin' : ''}`} />
           </motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onNavigate('king://newtab')} className={`p-1.5 rounded-lg transition-colors ml-0.5 ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`} title="New Tab Page">
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onNavigate('king://newtab')} className={`p-1.5 rounded-lg transition-colors ms-0.5 ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-600 dark:text-slate-300 dark:hover:bg-slate-700'}`} title={l({ en: 'New Tab Page', ar: 'صفحة التبويب الجديد', de: 'Neuer Tab' })}>
             <Home className="w-4 h-4" />
           </motion.button>
         </div>
@@ -1438,7 +1413,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
         />
 
         {/* Extensions / Action Controls / More Menu */}
-        <div className="flex items-center gap-1.5 ml-auto relative shrink-0">
+        <div className="flex items-center gap-1.5 ms-auto relative shrink-0">
           {/* Assistant toggle */}
           <motion.button
             whileHover={{ scale: 1 }}
@@ -1451,7 +1426,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                 ? 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/20 hover:border-cyan-400/40'
                 : 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-500 dark:text-cyan-400 border border-cyan-500/20 hover:border-cyan-400/40 shadow-xs'
             }`}
-            title={isMac ? "King AI Assistant (⌘I)" : "King AI Assistant (Ctrl+I)"}
+            title={l({ en: 'King AI Assistant ({key})', ar: 'مساعد King الذكي ({key})', de: 'King-KI-Assistent ({key})' }, { key: isMac ? '⌘I' : 'Ctrl+I' })}
           >
             <KingAssistantIcon size={15} active={isAIAssistantOpen} />
             <span className="font-medium text-[11px]">
@@ -1512,24 +1487,26 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
               ref={adBlockerBtnRef}
               onClick={() => setIsAdBlockerOpen(!isAdBlockerOpen)}
               className={`p-1.5 rounded-lg transition-colors relative ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'}`}
-              title="Privacy & Ad Shield"
+              title={l({ en: 'Privacy & Ad Shield', ar: 'درع الخصوصية والإعلانات', de: 'Datenschutz- und Werbeschild' })}
             >
               {isWhitelisted ? <ShieldOff className="w-4 h-4 text-slate-400" /> : <Shield className="w-4 h-4 text-cyan-400" />}
               {(!isWhitelisted && (activeTab?.blockedAdsCount || 0) > 0) && (
-                <span className="absolute -top-1 -right-1 bg-cyan-500 text-slate-950 text-[9px] font-bold px-1 min-w-[14px] h-[14px] rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -end-1 bg-cyan-500 text-slate-950 text-[9px] font-bold px-1 min-w-[14px] h-[14px] rounded-full flex items-center justify-center">
                   {activeTab?.blockedAdsCount ?? 0}
                 </span>
               )}
             </button>
             {isAdBlockerOpen && (
-              <AdBlockerPopover
-                blockedCount={activeTab?.blockedAdsCount || 0}
-                isWhitelisted={isWhitelisted}
-                onToggleWhitelist={handleToggleWhitelist}
-                onClose={() => setIsAdBlockerOpen(false)}
-                hostname={currentHostname}
-                buttonRef={adBlockerBtnRef}
-              />
+              <React.Suspense fallback={null}>
+                <AdBlockerPopover
+                  blockedCount={activeTab?.blockedAdsCount || 0}
+                  isWhitelisted={isWhitelisted}
+                  onToggleWhitelist={handleToggleWhitelist}
+                  onClose={() => setIsAdBlockerOpen(false)}
+                  hostname={currentHostname}
+                  buttonRef={adBlockerBtnRef}
+                />
+              </React.Suspense>
             )}
           </div>
 
@@ -1545,11 +1522,11 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                     ? 'hover:bg-slate-700 text-slate-300'
                     : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'
               }`}
-              title="Downloads"
+              title={l({ en: 'Downloads', ar: 'التنزيلات', de: 'Downloads' })}
             >
               <Download className={`w-4 h-4 ${(activeDownloadsCount || 0) > 0 ? 'text-cyan-500' : ''}`} />
               {(activeDownloadsCount || 0) > 0 && (
-                <span className="absolute -top-1 -right-1 bg-cyan-500 text-slate-950 text-[9px] font-bold px-1 min-w-[14px] h-[14px] rounded-full flex items-center justify-center shadow-xs animate-pulse">
+                <span className="absolute -top-1 -end-1 bg-cyan-500 text-slate-950 text-[9px] font-bold px-1 min-w-[14px] h-[14px] rounded-full flex items-center justify-center shadow-xs animate-pulse">
                   {activeDownloadsCount}
                 </span>
               )}
@@ -1603,7 +1580,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                   ? 'hover:bg-slate-700 text-slate-300'
                   : 'hover:bg-slate-100 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'
               }`}
-              title={`${ext.name}${ext.popupUrl ? ' (Click to open popup)' : ''}`}
+              title={ext.popupUrl ? l({ en: '{name} (click to open popup)', ar: '{name} (انقر لفتح النافذة)', de: '{name} (zum Öffnen des Popups klicken)' }, { name: ext.name }) : ext.name}
             >
               {ext.iconData ? (
                 <img src={ext.iconData} alt={ext.name} className="w-4 h-4 object-contain rounded-xs" />
@@ -1619,7 +1596,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
           <button
             onClick={onOpenExtensions}
             className={`p-1.5 rounded-lg transition-colors ${isIncognito ? 'hover:bg-slate-700 text-slate-300' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'}`}
-            title="Extensions (Beta)"
+            title={l({ en: 'Extensions (Beta)', ar: 'الإضافات (تجريبي)', de: 'Erweiterungen (Beta)' })}
           >
             <Puzzle className="w-4 h-4" />
           </button>
@@ -1635,7 +1612,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                     ? 'hover:bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
                     : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'
               }`}
-              title={syncStatus.isLoggedIn ? `King Account (${syncStatus.user?.displayName || syncStatus.user?.email})` : 'Sign In to King Sync'}
+              title={syncStatus.isLoggedIn ? l({ en: 'King Account ({name})', ar: 'حساب King ({name})', de: 'King-Konto ({name})' }, { name: syncStatus.user?.displayName || syncStatus.user?.email || '' }) : l({ en: 'Sign In to King Sync', ar: 'تسجيل الدخول إلى King Sync', de: 'Bei King Sync anmelden' })}
             >
               {syncStatus.isLoggedIn && syncStatus.user ? (
                 <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 text-white font-bold text-[10px] flex items-center justify-center shadow-xs uppercase">
@@ -1659,7 +1636,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                   ? 'bg-slate-200 dark:bg-slate-700 text-cyan-500'
                   : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
               }`}
-              title="More Options"
+              title={l({ en: 'More Options', ar: 'خيارات أخرى', de: 'Weitere Optionen' })}
             >
               <Menu className="w-4 h-4" />
             </button>
@@ -1673,14 +1650,14 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -4, scale: 0.96 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-1.5 w-72 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/80 dark:border-white/10 z-50 flex flex-col p-1.5 divide-y divide-slate-100 dark:divide-white/5"
+                    className="absolute end-0 top-full mt-1.5 w-72 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/80 dark:border-white/10 z-50 flex flex-col p-1.5 divide-y divide-slate-100 dark:divide-white/5"
                   >
                     {/* King Account Header inside menu */}
                     {onOpenAccount && (
                       <div className="p-1">
                         <button
                           onClick={() => { onOpenAccount(); setIsMoreMenuOpen(false); }}
-                          className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 hover:from-cyan-500/15 hover:to-blue-500/15 text-slate-800 dark:text-slate-100 rounded-xl transition-colors text-left"
+                          className="w-full flex items-center justify-between px-3 py-2 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 hover:from-cyan-500/15 hover:to-blue-500/15 text-slate-800 dark:text-slate-100 rounded-xl transition-colors text-start"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             {syncStatus.isLoggedIn && syncStatus.user ? (
@@ -1697,14 +1674,14 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                                 {syncStatus.isLoggedIn ? (syncStatus.syncCode || 'King Sync') : 'King Sync'}
                               </span>
                               <span className="text-[10px] text-slate-400 truncate block">
-                                {syncStatus.isLoggedIn ? 'Encrypted Sync Active' : 'Sign in to sync across devices'}
+                                {syncStatus.isLoggedIn ? l({ en: 'Encrypted Sync Active', ar: 'المزامنة المشفّرة مفعّلة', de: 'Verschlüsselte Synchronisierung aktiv' }) : l({ en: 'Sign in to sync across devices', ar: 'سجّل الدخول للمزامنة بين أجهزتك', de: 'Anmelden, um Geräte zu synchronisieren' })}
                               </span>
                             </div>
                           </div>
                           {syncStatus.isLoggedIn ? (
                             <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                           ) : (
-                            <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full shrink-0">Sync</span>
+                            <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full shrink-0">{l({ en: 'Sync', ar: 'مزامنة', de: 'Sync' })}</span>
                           )}
                         </button>
                       </div>
@@ -1718,9 +1695,9 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                       >
                         <div className="flex items-center gap-2.5">
                           <Columns className="w-4 h-4 text-cyan-400" />
-                          <span>Split View (Side-by-Side)</span>
+                          <span>{l({ en: 'Split View (Side-by-Side)', ar: 'عرض مقسوم (جنباً إلى جنب)', de: 'Geteilte Ansicht (nebeneinander)' })}</span>
                         </div>
-                        {isSplitView && <span className="text-[10px] font-bold bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded">ON</span>}
+                        {isSplitView && <span className="text-[10px] font-bold bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded">{l({ en: 'ON', ar: 'مفعّل', de: 'AN' })}</span>}
                       </button>
 
                       {onToggleVpn && (
@@ -1730,12 +1707,12 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                         >
                           <div className="flex items-center gap-2.5">
                             <Network className="w-4 h-4 text-cyan-400" />
-                            <span>VPN (Secure Proxy)</span>
+                            <span>{l({ en: 'VPN (Secure Proxy)', ar: 'VPN (وكيل آمن)', de: 'VPN (sicherer Proxy)' })}</span>
                           </div>
                           {isVpnEnabled ? (
-                            <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded">ACTIVE</span>
+                            <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded">{l({ en: 'ACTIVE', ar: 'مفعّل', de: 'AKTIV' })}</span>
                           ) : (
-                            <span className="text-[10px] text-slate-400">OFF</span>
+                            <span className="text-[10px] text-slate-400">{l({ en: 'OFF', ar: 'متوقف', de: 'AUS' })}</span>
                           )}
                         </button>
                       )}
@@ -1746,15 +1723,15 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                       >
                         <div className="flex items-center gap-2.5">
                           <Cpu className="w-4 h-4 text-cyan-400" />
-                          <span>MCP AI Tools Server</span>
+                          <span>{l({ en: 'MCP AI Tools Server', ar: 'خادم أدوات الذكاء الاصطناعي MCP', de: 'MCP-Server für KI-Werkzeuge' })}</span>
                         </div>
                         {mcpRunning ? (
                           <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            ONLINE
+                            {l({ en: 'ONLINE', ar: 'متصل', de: 'ONLINE' })}
                           </span>
                         ) : (
-                          <span className="text-[10px] text-slate-400">OFFLINE</span>
+                          <span className="text-[10px] text-slate-400">{l({ en: 'OFFLINE', ar: 'غير متصل', de: 'OFFLINE' })}</span>
                         )}
                       </button>
                     </div>
@@ -1762,45 +1739,45 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                     {/* Tools Section */}
                     <div className="py-1">
                       <div className="flex items-center justify-between px-3 py-1.5">
-                        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Zoom</span>
+                        <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{l({ en: 'Zoom', ar: 'التكبير', de: 'Zoom' })}</span>
                         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200/50 dark:border-white/5">
-                          <button onClick={onZoomOut} className="p-1 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300" title="Zoom Out"><ZoomOut className="w-3.5 h-3.5" /></button>
+                          <button onClick={onZoomOut} className="p-1 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300" title={l({ en: 'Zoom Out', ar: 'تصغير', de: 'Verkleinern' })}><ZoomOut className="w-3.5 h-3.5" /></button>
                           <span className="text-[11px] font-bold px-1.5 text-slate-700 dark:text-slate-200">{Math.round((activeTab?.zoomFactor || 1) * 100)}%</span>
-                          <button onClick={onZoomIn} className="p-1 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300" title="Zoom In"><ZoomIn className="w-3.5 h-3.5" /></button>
+                          <button onClick={onZoomIn} className="p-1 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300" title={l({ en: 'Zoom In', ar: 'تكبير', de: 'Vergrößern' })}><ZoomIn className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                       {onTakeScreenshot && (
-                        <button onClick={() => { onTakeScreenshot(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-left">
-                          <Camera className="w-4 h-4 text-slate-400" /> Screenshot
+                        <button onClick={() => { onTakeScreenshot(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-start">
+                          <Camera className="w-4 h-4 text-slate-400" /> {l({ en: 'Screenshot', ar: 'لقطة شاشة', de: 'Screenshot' })}
                         </button>
                       )}
                       {onOpenShare && (
-                        <button onClick={() => { onOpenShare(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-left">
-                          <Share2 className="w-4 h-4 text-slate-400" /> Share Link
+                        <button onClick={() => { onOpenShare(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-start">
+                          <Share2 className="w-4 h-4 text-slate-400" /> {l({ en: 'Share Link', ar: 'مشاركة الرابط', de: 'Link teilen' })}
                         </button>
                       )}
-                      <button onClick={() => { onOpenFindInPage(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-left">
-                        <Search className="w-4 h-4 text-slate-400" /> Find in Page
+                      <button onClick={() => { onOpenFindInPage(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-start">
+                        <Search className="w-4 h-4 text-slate-400" /> {l({ en: 'Find in Page', ar: 'البحث في الصفحة', de: 'Auf Seite suchen' })}
                       </button>
                     </div>
 
                     {/* Navigation / Library */}
                     <div className="py-1">
-                      <button onClick={() => { onOpenDownloads(); setIsMoreMenuOpen(false); }} className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-left">
+                      <button onClick={() => { onOpenDownloads(); setIsMoreMenuOpen(false); }} className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-start">
                         <div className="flex items-center gap-2.5">
-                          <Download className="w-4 h-4 text-slate-400" /> Downloads
+                          <Download className="w-4 h-4 text-slate-400" /> {l({ en: 'Downloads', ar: 'التنزيلات', de: 'Downloads' })}
                         </div>
                         {(activeDownloadsCount || 0) > 0 && <span className="bg-cyan-500 text-slate-950 text-[10px] px-1.5 py-0.5 rounded-full font-bold">{activeDownloadsCount}</span>}
                       </button>
-                      <button onClick={() => { onOpenHistory(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-left">
-                        <Clock className="w-4 h-4 text-slate-400" /> History
+                      <button onClick={() => { onOpenHistory(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-start">
+                        <Clock className="w-4 h-4 text-slate-400" /> {l({ en: 'History', ar: 'السجل', de: 'Verlauf' })}
                       </button>
-                      <button onClick={() => { onOpenSettings(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-left">
-                        <Settings className="w-4 h-4 text-slate-400" /> Settings
+                      <button onClick={() => { onOpenSettings(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-start">
+                        <Settings className="w-4 h-4 text-slate-400" /> {l({ en: 'Settings', ar: 'الإعدادات', de: 'Einstellungen' })}
                       </button>
                       {onOpenHelp && (
-                        <button onClick={() => { onOpenHelp(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-left">
-                          <HelpCircle className="w-4 h-4 text-slate-400" /> Help & Support
+                        <button onClick={() => { onOpenHelp(); setIsMoreMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 text-xs font-medium rounded-xl transition-colors text-start">
+                          <HelpCircle className="w-4 h-4 text-slate-400" /> {l({ en: 'Help & Support', ar: 'المساعدة والدعم', de: 'Hilfe & Support' })}
                         </button>
                       )}
                     </div>
@@ -1854,12 +1831,12 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
                 ) : (
                   <Globe className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors" />
                 )}
-                <span className="truncate font-medium">{bookmark.title}</span>
+                <span dir="auto" className="truncate font-medium">{bookmark.title}</span>
               </button>
             ))
           ) : (
             <span className="text-[11px] text-slate-400 dark:text-slate-500 italic px-2 py-0.5 select-none">
-              Bookmarks will appear here. Press {isMac ? '⌘D' : 'Ctrl+D'} to bookmark the current page.
+              {l({ en: 'Bookmarks will appear here. Press {key} to bookmark the current page.', ar: 'ستظهر الإشارات المرجعية هنا. اضغط {key} لإضافة الصفحة الحالية.', de: 'Lesezeichen erscheinen hier. Drücken Sie {key}, um die aktuelle Seite zu speichern.' }, { key: isMac ? '⌘D' : 'Ctrl+D' })}
             </span>
           )}
         </div>
@@ -1870,7 +1847,7 @@ export const TopBar: React.FC<TopBarProps> = React.memo(({
     {createPortal(
       <div
         ref={ghostElRef}
-        className="fixed top-0 left-0 pointer-events-none z-[999999] opacity-90 transition-none"
+        className="fixed top-0 start-0 pointer-events-none z-[999999] opacity-90 transition-none"
         style={{ display: 'none', willChange: 'transform' }}
       >
         <div className={`flex items-center gap-2 px-3 py-2 rounded-xl shadow-2xl border backdrop-blur-md ${

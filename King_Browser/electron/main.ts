@@ -1,21 +1,29 @@
-import { app, BrowserWindow, ipcMain, session, dialog, webContents, shell, nativeTheme, safeStorage, Menu, MenuItem, clipboard, systemPreferences } from 'electron';
+import { Notification, app, BrowserWindow, ipcMain, session, dialog, webContents, shell, nativeTheme, safeStorage, Menu, MenuItem, clipboard, systemPreferences } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createTrustedSenderPolicy } from './security/trustedSender';
+import { appendCrashLog as writeCrashLog } from './main/crashLog';
+import { isLocalOrIntranetHost } from './main/hostPolicy';
+import { isExtensionAllowedInIncognito, setExtensionIncognitoAccess, hasExtensionIncognitoAccess } from './main/incognitoExtensions';
+import { openPageSourceViewer as createPageSourceViewer } from './windows/sourceViewer';
+import { isSafeSubframeNavigation } from './main/windowOpenPolicy';
+import { buildPhishingBlockScript } from './main/phishingBlockPage';
+import { isAllowedWebviewPartition, evaluateWebviewSrc } from './main/webviewPolicy';
+import { PERMISSION_TTL_MS, appMicrophoneDecision, permissionKeys, permissionOriginFor, rememberedDecision, parseRememberedPermissions, writeRememberedPermissions, purgeExpiredPermissions, type PermissionDecisions } from './main/permissionStore';
 import fetch from 'cross-fetch';
 import dns from 'dns';
-import http from 'http';
-import https from 'https';
 import { promisify } from 'util';
-import { once } from 'events';
+
 import fs from 'fs';
 import createDOMPurify from 'dompurify';
 import { checkPhishingDomain, matchesExtensionHostPermission } from '../src/utils/securityUtils.js';
-import { isValidSecureProxy, normalizeProxyForChromium, getMachineSalt, encryptDataWithFallback, decryptDataWithFallback } from './main/proxySecurity';
+import { isValidSecureProxy, normalizeProxyForChromium, getMachineSalt, encryptDataWithFallback, decryptDataWithFallback, isWeakSafeStorageBackend } from './main/proxySecurity';
 export { isValidSecureProxy, normalizeProxyForChromium, getMachineSalt };
+export { isSafeSubframeNavigation } from './main/windowOpenPolicy';
+export { isExtensionAllowedInIncognito } from './main/incognitoExtensions';
 
 console.log('Main process starting...');
 
-const MAX_CRASH_LOG_BYTES = 1024 * 1024; // 1 MB cap to prevent disk exhaustion
 // Registered once at module scope on purpose: createWindow runs again on every
 // macOS activate, so an app-level listener added there would accumulate.
 // NOTE: render-process-gone fires on `app`, not on webContents.
@@ -38,36 +46,19 @@ app.on('render-process-gone', (_event, contents, details) => {
 });
 
 function appendCrashLog(entry: string): void {
+  // Before app startup, userData may not be available yet; use a private app-owned
+  // directory rather than a shared temporary directory.
+  let crashDir: string;
   try {
-    // Avoid shared os.tmpdir() to prevent insecure temporary file / symlink attacks.
-    let crashDir: string;
-    try {
-      crashDir = app.isReady() ? app.getPath('userData') : path.join(require('os').homedir(), '.king-browser');
-    } catch {
-      crashDir = path.join(require('os').homedir(), '.king-browser');
-    }
-    try {
-      fs.mkdirSync(crashDir, { recursive: true, mode: 0o700 });
-    } catch {}
-    const logPath = path.join(crashDir, 'crash.log');
-    let fd: number | null = null;
-    try {
-      fd = fs.openSync(logPath, 'a+', 0o600);
-      const stats = fs.fstatSync(fd);
-      if (stats.size > MAX_CRASH_LOG_BYTES) {
-        const readLen = Math.min(100 * 1024, stats.size);
-        const buf = Buffer.alloc(readLen);
-        fs.readSync(fd, buf, 0, readLen, stats.size - readLen);
-        fs.ftruncateSync(fd, 0);
-        fs.writeSync(fd, buf, 0, readLen, 0);
-      }
-      fs.writeSync(fd, Buffer.from(entry, 'utf8'));
-    } finally {
-      if (fd !== null) {
-        try { fs.closeSync(fd); } catch {}
-      }
-    }
-  } catch {}
+    crashDir = app.isReady() ? app.getPath('userData') : path.join(os.homedir(), '.king-browser');
+  } catch {
+    crashDir = path.join(os.homedir(), '.king-browser');
+  }
+  try {
+    writeCrashLog(path.join(crashDir, 'crash.log'), entry);
+  } catch (error) {
+    console.error('[CrashLog] Unable to append local crash log:', error);
+  }
 }
 
 // Process-level crash guards: log errors safely to prevent full browser shutdown DoS
@@ -132,27 +123,32 @@ if (!gotSingleInstanceLock) {
 import child_process from 'child_process';
 import crypto from 'crypto';
 import os from 'os';
-import { isIP } from 'net';
-import {
-  initAdBlocker as initAdBlockerEngine,
-  updateAdblockWhitelist,
-  applyAdBlockerToSession,
-  applyAdBlockerToAllSessions,
-  getBlocker
-} from './main/adblockManager.js';
+
+import { initAdBlocker as initAdBlockerEngine, updateAdblockWhitelist, applyAdBlockerToSession, applyAdBlockerToAllSessions, getBlocker } from './main/adblockManager.js';
 import { BrowserMCPServer } from './mcpServer.js';
 import { registerEngineIpc } from './main/engineIpc.js';
+import { decideLinuxSandbox, readLinuxSandboxInput } from './main/linuxSandbox.js';
+import { translateBatch, detectLanguage, type TranslationDeps } from './main/translation';
+import { NativeTts, type SayProcess } from './main/nativeTts';
+import { validatePreviewUrl as validatePreviewUrlWith, readResponseTextWithLimit, fetchPageHtml, type PreviewValidationDeps } from './main/previewFetch';
+import { buildMcpClientConfig, type McpClientKind } from './main/mcpClientConfig.js';
 import { initMcpBridge } from './main/mcpBridge.js';
-import { canOpenInSystemBrowser, isGoogleEmbeddedSigninRejection, pickSystemBrowserUrl } from './main/googleSigninFallback.js';
+import { canOpenInSystemBrowser, getGoogleSigninCompatUserAgent, isGoogleAccountsUrl, isGoogleEmbeddedSigninRejection, pickSystemBrowserUrl } from './main/googleSigninFallback.js';
 import { isStorageAccessPermission, shouldOpenAsPopupWindow } from './main/windowOpenPolicy.js';
-import { initDownloads, markNextDownloadAsSaveAs, registerDownloadsManager, registerKnownDownloadPath, isSafeDownloadUrl, sanitizeDownloadFilename } from './main/downloads.js';
+import { approvalNotificationStrings, contextMenuLabels, googleSigninDialogStrings, normalizeUiLanguage, type UiLanguage } from './main/uiStrings.js';
+import { createApprovalAttention } from './main/approvalAttention.js';
+import { resolveMenuAccelerators, sanitizeMenuBindings, type ShortcutBinding as MenuShortcutBinding } from './main/shortcutAccelerators.js';
+import { initDownloads, markNextDownloadAsSaveAs, registerDownloadsManager } from './main/downloads.js';
 import { initSuggestions } from './main/suggestions.js';
 import { installFromWebstore, parseExtensionPermissions, formatPermissionsForDisplay } from './main/crxInstaller.js';
 import { autoUpdater } from 'electron-updater';
 import { isPrivateIP } from './main/ipAddress.js';
+export { isLocalOrIntranetHost } from './main/hostPolicy';
 import { enforceModelCacheBudget, MAX_MODEL_CACHE_FILE_BYTES } from './main/modelCacheQuota.js';
 import { isAgentNavigationHostPublic } from './main/agentNavigationGuard.js';
+import { registerAgentCdpHandlers, watchPageDialogs } from './main/agentCdp.js';
 import { shouldReloadAfterRendererGone, markQuitting } from './main/rendererRecovery.js';
+import { assessUpdateIntegrity } from './main/updateIntegrity.js';
 
 /**
  * Validates URLs for context-menu media saving and address copying.
@@ -185,24 +181,7 @@ function isSafeMediaDownloadUrl(urlStr: string, allowedTypes: ('image' | 'video'
   }
 }
 
-// Reusable helper: check if hostname belongs to localhost, intranet, or private networks
-export function isLocalOrIntranetHost(hostname: string): boolean {
-  if (!hostname) return false;
-  const host = hostname.toLowerCase().replace(/\.+$/, '');
-  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal') || host.endsWith('.lan')) {
-    return true;
-  }
-  if (host === '127.0.0.1' || host.startsWith('127.') || host === '0.0.0.0' || host === '::1' || host === '[::1]') {
-    return true;
-  }
-  // K-1: isPrivateIP fails closed for unknown values (isIP === 0). If host is a domain
-  // (e.g. google.com), isIP is 0, so calling isPrivateIP returned true, breaking HTTPS upgrade!
-  const bareV6 = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
-  if (isIP(bareV6) !== 0) {
-    return isPrivateIP(bareV6);
-  }
-  return false;
-}
+
 
 
 
@@ -304,26 +283,22 @@ if (process.platform === 'win32') {
 if (process.platform === 'linux') {
   // Prevent blurry fonts and rendering under Wayland (GNOME / KDE)
   app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
-  if (typeof process.getuid === 'function' && process.getuid() === 0) {
-    console.warn('[Security] Running as root. Linux sandboxing disabled. User will be notified after window ready.');
+  // Sandbox fallback only where Chromium cannot sandbox at all; with user
+  // namespaces disabled, a root-owned setuid chrome-sandbox still sandboxes.
+  const sandbox = decideLinuxSandbox(readLinuxSandboxInput(process.execPath));
+  if (sandbox.reason === 'setuid-helper') {
+    console.warn('[Security] Linux unprivileged user namespaces disabled in kernel. Using the setuid sandbox helper.');
+  }
+  if (sandbox.disableSandbox) {
+    console.warn(sandbox.reason === 'root'
+      ? '[Security] Running as root. Linux sandboxing disabled. User will be notified after window ready.'
+      : '[Security] Linux unprivileged user namespaces disabled in kernel and no usable setuid chrome-sandbox. Falling back to un-sandboxed mode. User will be notified after window ready.');
     app.commandLine.appendSwitch('no-sandbox');
     app.commandLine.appendSwitch('disable-setuid-sandbox');
+    // Flag sandbox warning to be shown after the main window is fully ready.
+    // dialog cannot be used before app.whenReady() resolves.
     (global as any).__sandboxDisabledWarning = true;
   }
-  // Safe sandbox fallback: If unprivileged user namespaces are disabled in kernel
-  try {
-    if (fs.existsSync('/proc/sys/kernel/unprivileged_userns_clone')) {
-      const userns = fs.readFileSync('/proc/sys/kernel/unprivileged_userns_clone', 'utf-8').trim();
-      if (userns === '0') {
-        console.warn('[Security] Linux unprivileged user namespaces disabled in kernel. Falling back to un-sandboxed mode. User will be notified after window ready.');
-        app.commandLine.appendSwitch('no-sandbox');
-        app.commandLine.appendSwitch('disable-setuid-sandbox');
-        // Flag sandbox warning to be shown after the main window is fully ready.
-        // dialog cannot be used before app.whenReady() resolves.
-        (global as any).__sandboxDisabledWarning = true;
-      }
-    }
-  } catch (_) {}
 }
 
 // Increase v8 memory limit if doing heavy Local AI tasks in WebWorkers
@@ -357,80 +332,35 @@ nativeTheme.on('updated', () => {
 });
 
 
-function getAcceptLanguagesForLocale(_localeOrLang?: string): string {
+/**
+ * Maps an interface language (or a system locale) to an Accept-Language
+ * header. English stays the fallback so sites without Arabic or German
+ * translations still resolve predictably.
+ */
+function getAcceptLanguagesForLocale(localeOrLang?: string): string {
+  const base = String(localeOrLang || 'en').trim().toLowerCase().split(/[-_]/)[0];
+  if (base === 'ar') return 'ar,ar-SA;q=0.9,en-US;q=0.8,en;q=0.7';
+  if (base === 'de') return 'de,de-DE;q=0.9,en-US;q=0.8,en;q=0.7';
   return 'en-US,en;q=0.9';
 }
 
+/** Interface language reported by the renderer; drives the context menu and native dialogs. */
+let currentUiLanguage: UiLanguage = normalizeUiLanguage(app.getLocale());
+
 let currentAcceptLanguages = getAcceptLanguagesForLocale(app.getLocale());
 
-// Safely send IPC to the main window; accessing .webContents on a destroyed window throws.
-function sendToMainWindow(channel: string, payload?: unknown) {
-  try {
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload);
-  } catch (e) { /* window gone */ }
-}
-
-// Security: Validate that IPC messages originate strictly from our trusted main UI window and main frame
-function isTrustedSender(event: Electron.IpcMainInvokeEvent | Electron.IpcMainEvent): boolean {
-  if (!mainWindow || mainWindow.isDestroyed()) return false;
-  if (event.sender.id !== mainWindow.webContents.id) return false;
-  // Electron supplies senderFrame for renderer IPC. Treat a missing frame as
-  // untrusted instead of accepting an ambiguous sender context.
-  if (!event.senderFrame || !mainWindow.webContents.mainFrame || event.senderFrame !== mainWindow.webContents.mainFrame) {
-    return false;
-  }
-  const frameUrl = event.senderFrame.url;
-  if (!frameUrl || !isTrustedAppOrigin(frameUrl)) {
-    return false;
-  }
-  return true;
-}
+const { sendToMainWindow, isTrustedSender, isTrustedAppOrigin } = createTrustedSenderPolicy(() => mainWindow);
 
 // Security: MCP browser_* tools are forwarded to the renderer over an
 // 'mcp-action-request' IPC and awaited on a channel gated by isTrustedSender()
 // below — never executed as injected JS in the privileged UI context.
 initMcpBridge(isTrustedSender);
 
-// Security: Validate dev server and app internal page origins strictly
-function isTrustedAppOrigin(urlStr: string): boolean {
-  if (!urlStr || typeof urlStr !== 'string') return false;
-  try {
-    const parsed = new URL(urlStr);
-    // Internal tab URLs are rendered by the trusted React shell, not loaded by
-    // the privileged main window. Never treat arbitrary king:/devtools: URLs as
-    // an app origin; doing so would let a crafted URL inherit app privileges.
-    if (parsed.protocol === 'king:') {
-      const allowedHost = ['newtab', 'settings', 'history', 'downloads', 'changelog', 'whats-new'].includes(parsed.hostname);
-      const allowedSettingsHash = parsed.hostname === 'settings' &&
-        (!parsed.hash || ['#extensions', '#mcp'].includes(parsed.hash));
-      return allowedHost && !parsed.pathname && !parsed.search &&
-        !parsed.username && !parsed.password &&
-        (parsed.hostname !== 'settings' ? !parsed.hash : allowedSettingsHash);
-    }
-    if (parsed.protocol === 'devtools:') return false;
-    // Security: The Vite dev server is only trusted in unpackaged dev builds.
-    if (!app.isPackaged && parsed.origin === 'http://localhost:5173') return true;
-    if (parsed.protocol === 'file:') {
-      const allowedPath = path.resolve(path.join(__dirname, '../dist/index.html'));
-      try {
-        const navPath = fileURLToPath(urlStr);
-        const resolvedNav = path.resolve(navPath);
-        return process.platform === 'win32'
-          ? resolvedNav.toLowerCase() === allowedPath.toLowerCase()
-          : resolvedNav === allowedPath;
-      } catch {
-        return false;
-      }
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
-
 
 let isPrivacyShieldEnabled = true;
 let isDoNotTrackEnabled = true;
+/** Opt-in: present a Firefox user agent on accounts.google.com (googleSigninFallback.ts). */
+let isGoogleSigninCompatEnabled = false;
 let mcpServer: BrowserMCPServer | null = null;
 
 // Reusable getter for all active electron sessions (default + incognito partitions)
@@ -448,6 +378,10 @@ export { updateAdblockWhitelist };
 
 // Tracks which per-tab incognito partitions have already been hardened to avoid stacking listeners.
 const hardenedIncognitoPartitions = new Set<string>();
+/** Shared in-memory partition for agent tabs (isolated agent profile); cleared when the window closes. */
+const AGENT_PARTITION = 'incognito-king-agent';
+/** On-disk partition for the opt-in persistent agent profile; kept across restarts until the user clears it. */
+const AGENT_PERSIST_PARTITION = 'persist:king-agent';
 
 // Active Chromium proxy rules applied across default and all per-tab incognito sessions
 let activeChromiumProxyRules = 'direct://';
@@ -479,6 +413,16 @@ async function applyProxyToAllSessions(rules: string): Promise<void> {
   };
   proxyMutex = proxyMutex.then(op, op);
   return proxyMutex;
+}
+
+/** Replaces a webview's content with the phishing block page (see phishingBlockPage.ts). */
+function showPhishingBlockPage(contents: Electron.WebContents, blockedUrl: string): void {
+  if (contents.isDestroyed()) return;
+  contents.loadURL('about:blank').then(() => {
+    if (!contents.isDestroyed()) {
+      contents.executeJavaScript(buildPhishingBlockScript(blockedUrl)).catch(() => {});
+    }
+  }).catch(() => {});
 }
 
 function hardenIncognitoPartition(partitionName: string): boolean {
@@ -658,9 +602,17 @@ function createWindow() {
     // each later privacy/VPN/language/purge call walks all of them.
     for (const partName of Array.from(hardenedIncognitoPartitions)) {
       hardenedIncognitoPartitions.delete(partName);
+      // The persistent agent profile is the one partition that must survive.
+      if (partName === AGENT_PERSIST_PARTITION) continue;
+      // clearStorageData() rejects asynchronously, so a try/catch alone never
+      // saw a failed wipe; private-tab data could survive with no trace.
       try {
-        session.fromPartition(partName, { cache: false }).clearStorageData();
-      } catch (_) {}
+        session.fromPartition(partName, { cache: false }).clearStorageData().catch((err: unknown) => {
+          console.error(`[Privacy] Failed to wipe private partition ${partName}:`, err);
+        });
+      } catch (err) {
+        console.error(`[Privacy] Failed to wipe private partition ${partName}:`, err);
+      }
     }
   });
 
@@ -734,6 +686,18 @@ function createWindow() {
             .replace(/,\s*"Electron";v="[^"]*"/gi, '')
             .replace(/"Electron";v="[^"]*",?\s*/gi, '')
             .trim();
+        }
+
+        // Google sign-in compatibility: Firefox sends no client hints, so a
+        // Firefox user agent must not arrive next to Chromium sec-ch-ua headers.
+        // The second test covers subresources of a page that applyGoogleSigninCompat
+        // switched to the Firefox user agent.
+        const compatUa = getGoogleSigninCompatUserAgent();
+        if (isGoogleSigninCompatEnabled && (isGoogleAccountsUrl(details.url) || requestHeaders['User-Agent'] === compatUa)) {
+          for (const name of Object.keys(requestHeaders)) {
+            if (name.toLowerCase() === 'user-agent' || name.toLowerCase().startsWith('sec-ch-ua')) delete requestHeaders[name];
+          }
+          requestHeaders['User-Agent'] = compatUa;
         }
       }
 
@@ -817,8 +781,8 @@ function createWindow() {
         //    kept here only so the two prod copies stay byte-identical.
         responseHeaders['Content-Security-Policy'] = [
           isDev
-            ? `default-src 'self' http://localhost:*; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: http://localhost:*; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https: http:; connect-src 'self' http://localhost:* ws://localhost:* https://*.supabase.co wss://*.supabase.co https://huggingface.co https://*.huggingface.co https://hf.co https://*.hf.co https://fonts.googleapis.com; font-src 'self' data: https: https://fonts.gstatic.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';`
-            : `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://huggingface.co https://*.huggingface.co https://hf.co https://*.hf.co https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`
+            ? `default-src 'self' http://localhost:*; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: http://localhost:*; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https: http:; connect-src 'self' http://localhost:* ws://localhost:* https://*.supabase.co wss://*.supabase.co https://huggingface.co https://*.huggingface.co https://hf.co https://*.hf.co https://fonts.googleapis.com https://www.bing.com; font-src 'self' data: https: https://fonts.gstatic.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none';`
+            : `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://huggingface.co https://*.huggingface.co https://hf.co https://*.hf.co https://fonts.googleapis.com https://www.bing.com; font-src 'self' data: https://fonts.gstatic.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`
         ];
         responseHeaders['X-Content-Type-Options'] = ['nosniff'];
       }
@@ -979,8 +943,13 @@ function hasUpgradedUrl(url: string): boolean {
   return true;
 }
 
+// Bindings the user changed in Settings > Shortcuts (validated); the menu is
+// rebuilt when they change so the menu keys match the configured ones.
+let menuShortcutBindings: Record<string, MenuShortcutBinding> = {};
+
 function setupApplicationMenu() {
   const isMac = process.platform === 'darwin';
+  const menuAccelerators = resolveMenuAccelerators(menuShortcutBindings);
 
   if (isMac) {
     try {
@@ -1047,7 +1016,7 @@ function setupApplicationMenu() {
       submenu: [
         {
           label: 'New Tab',
-          accelerator: 'CmdOrCtrl+T',
+          accelerator: menuAccelerators.newTab || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'new-tab');
           }
@@ -1061,14 +1030,14 @@ function setupApplicationMenu() {
         },
         {
           label: 'New Incognito Tab',
-          accelerator: 'Shift+CmdOrCtrl+N',
+          accelerator: menuAccelerators.newIncognito || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'new-incognito');
           }
         },
         {
           label: 'Open Location / Search...',
-          accelerator: 'CmdOrCtrl+L',
+          accelerator: menuAccelerators.focusAddress || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'focus-url');
           }
@@ -1076,14 +1045,14 @@ function setupApplicationMenu() {
         { type: 'separator' as const },
         {
           label: 'Close Tab',
-          accelerator: 'CmdOrCtrl+W',
+          accelerator: menuAccelerators.closeTab || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'close-tab');
           }
         },
         {
           label: 'Reopen Closed Tab',
-          accelerator: 'Shift+CmdOrCtrl+T',
+          accelerator: menuAccelerators.reopenTab || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'reopen-tab');
           }
@@ -1091,7 +1060,7 @@ function setupApplicationMenu() {
         { type: 'separator' as const },
         {
           label: 'Print...',
-          accelerator: 'CmdOrCtrl+P',
+          accelerator: menuAccelerators.print || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'print');
           }
@@ -1115,7 +1084,7 @@ function setupApplicationMenu() {
         { type: 'separator' as const },
         {
           label: 'Find in Page...',
-          accelerator: 'CmdOrCtrl+F',
+          accelerator: menuAccelerators.findInPage || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'find');
           }
@@ -1128,7 +1097,7 @@ function setupApplicationMenu() {
       submenu: [
         {
           label: 'Reload This Page',
-          accelerator: 'CmdOrCtrl+R',
+          accelerator: menuAccelerators.reload || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'reload');
           }
@@ -1143,21 +1112,21 @@ function setupApplicationMenu() {
         { type: 'separator' as const },
         {
           label: 'Actual Size (100%)',
-          accelerator: 'CmdOrCtrl+0',
+          accelerator: menuAccelerators.resetZoom || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'zoom-reset');
           }
         },
         {
           label: 'Zoom In',
-          accelerator: 'CmdOrCtrl+Plus',
+          accelerator: menuAccelerators.zoomIn || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'zoom-in');
           }
         },
         {
           label: 'Zoom Out',
-          accelerator: 'CmdOrCtrl+-',
+          accelerator: menuAccelerators.zoomOut || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'zoom-out');
           }
@@ -1179,14 +1148,14 @@ function setupApplicationMenu() {
       submenu: [
         {
           label: 'Back',
-          accelerator: 'CmdOrCtrl+[',
+          accelerator: menuAccelerators.goBack || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'go-back');
           }
         },
         {
           label: 'Forward',
-          accelerator: 'CmdOrCtrl+]',
+          accelerator: menuAccelerators.goForward || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'go-forward');
           }
@@ -1194,14 +1163,14 @@ function setupApplicationMenu() {
         { type: 'separator' as const },
         {
           label: 'Show Full History',
-          accelerator: 'CmdOrCtrl+Y',
+          accelerator: menuAccelerators.history || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'history');
           }
         },
         {
           label: 'Show Downloads',
-          accelerator: 'Shift+CmdOrCtrl+J',
+          accelerator: menuAccelerators.downloads || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'downloads');
           }
@@ -1214,7 +1183,7 @@ function setupApplicationMenu() {
       submenu: [
         {
           label: 'Bookmark This Tab...',
-          accelerator: 'CmdOrCtrl+D',
+          accelerator: menuAccelerators.bookmark || undefined,
           click: () => {
             sendToMainWindow('shortcut', 'bookmark');
           }
@@ -1544,6 +1513,10 @@ function cleanStaleUpdateArtifacts(): void {
 
 app.whenReady().then(async () => {
   console.log('App is ready, creating window...');
+  if (isWeakSafeStorageBackend(safeStorage)) {
+    // Linux without a keyring: safeStorage reports itself available but protects nothing.
+    console.warn('[Security] safeStorage is using the basic_text backend (no OS keyring). Stored secrets are only obfuscated on this system.');
+  }
   loadExtensionDiagnostics();
   await loadPersistentExtensions();
   createWindow();
@@ -1560,7 +1533,7 @@ app.whenReady().then(async () => {
     const vpnConfigPath = path.join(app.getPath('userData'), 'vpn_proxy.json');
     if (fs.existsSync(vpnConfigPath)) {
       if (process.platform !== 'win32') {
-        try { fs.chmodSync(vpnConfigPath, 0o600); } catch (_) {}
+        try { fs.chmodSync(vpnConfigPath, 0o600); } catch (err) { console.warn('[Security] Could not restrict permissions on a private file; it may be readable by other users:', err); }
       }
       const raw = fs.readFileSync(vpnConfigPath);
       let savedVpn: any = null;
@@ -1598,78 +1571,22 @@ app.whenReady().then(async () => {
 
   const MAX_PENDING_PERMISSIONS = 20;
   const pendingPermissions = new Map<string, PendingPermission>();
-  // Origin -> (Permission -> { allow, ts }) — TTL: 30 days
-  const PERMISSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-  const rememberedPermissions = new Map<string, Map<string, { allow: boolean; ts: number }>>();
+  // Origin -> (Permission -> { allow, ts }); answers live PERMISSION_TTL_MS (permissionStore.ts)
+  const rememberedPermissions: PermissionDecisions = new Map();
   // Origin -> Rate limit record (max 5 requests per 10s)
   const permissionRateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
   const PERMISSIONS_FILE = path.join(app.getPath('userData'), 'remembered_permissions.json');
 
-  // Camera and microphone are separate capabilities. Old `media` records do
-  // not identify what was approved and deliberately require a fresh prompt.
-  function permissionKeys(permission: string, mediaTypes?: unknown): string[] | null {
-    if (permission !== 'media') return [permission];
-    if (!Array.isArray(mediaTypes) || mediaTypes.length === 0 ||
-        mediaTypes.some(type => type !== 'audio' && type !== 'video')) return null;
-    return [...new Set(mediaTypes as string[])].map(type => `media:${type}`);
-  }
-
   function permissionOrigin(url: string): string {
-    if (isTrustedAppOrigin(url)) return 'app';
-    try {
-      const parsed = new URL(url);
-      if (parsed.username || parsed.password) return '';
-      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.origin;
-      // WHATWG URL.origin serializes every extension as "null". Keep each
-      // installed extension's identity separate; opaque origins get no grants.
-      if (parsed.protocol === 'chrome-extension:' && /^[a-p]{32}$/.test(parsed.hostname)) {
-        return `chrome-extension://${parsed.hostname}`;
-      }
-    } catch (_) {}
-    return '';
-  }
-
-  function rememberedDecision(
-    decisions: typeof rememberedPermissions, origin: string, keys: string[]
-  ): boolean | undefined {
-    const entries = decisions.get(origin);
-    if (!entries) return undefined;
-    const now = Date.now();
-    const values = keys.map(key => {
-      const entry = entries.get(key);
-      if (!entry) return undefined;
-      if (!Number.isFinite(entry.ts) || entry.ts > now || now - entry.ts >= PERMISSION_TTL_MS) {
-        entries.delete(key);
-        return undefined;
-      }
-      return entry.allow;
-    });
-    if (entries.size === 0) decisions.delete(origin);
-    if (values.some(value => value === false)) return false;
-    return values.every(value => value === true) ? true : undefined;
+    return permissionOriginFor(url, isTrustedAppOrigin);
   }
 
   function loadRememberedPermissionsFromDisk(): void {
     try {
       if (fs.existsSync(PERMISSIONS_FILE)) {
-        const raw = fs.readFileSync(PERMISSIONS_FILE, 'utf8');
-        const data = JSON.parse(raw);
-        if (data && typeof data === 'object') {
-          const cutoff = Date.now() - PERMISSION_TTL_MS;
-          for (const [origin, perms] of Object.entries(data)) {
-            if (typeof origin === 'string' && perms && typeof perms === 'object') {
-              const permMap = new Map<string, { allow: boolean; ts: number }>();
-              for (const [perm, entry] of Object.entries(perms as Record<string, any>)) {
-                if (entry && typeof entry.allow === 'boolean' && typeof entry.ts === 'number' && entry.ts >= cutoff) {
-                  permMap.set(perm, { allow: entry.allow, ts: entry.ts });
-                }
-              }
-              if (permMap.size > 0) {
-                rememberedPermissions.set(origin, permMap);
-              }
-            }
-          }
+        for (const [origin, perms] of parseRememberedPermissions(fs.readFileSync(PERMISSIONS_FILE, 'utf8'))) {
+          rememberedPermissions.set(origin, perms);
         }
       }
     } catch (err) {
@@ -1679,31 +1596,7 @@ app.whenReady().then(async () => {
 
   function saveRememberedPermissionsToDisk(): void {
     try {
-      const obj: Record<string, Record<string, { allow: boolean; ts: number }>> = {};
-      for (const [origin, perms] of rememberedPermissions.entries()) {
-        obj[origin] = {};
-        for (const [perm, entry] of perms.entries()) {
-          obj[origin][perm] = entry;
-        }
-      }
-      // Write to a sibling temp file, then rename. A crash or ENOSPC mid-write
-      // used to leave a truncated PERMISSIONS_FILE: the next JSON.parse throws,
-      // the load catch swallows it, and every remembered permission decision is
-      // silently forgotten (users get re-prompted for mic/camera/geolocation).
-      // rename is atomic on the same volume, so the file holds either the old
-      // contents or the new ones, never a half-written prefix. The mode is forced
-      // because writeFileSync's `mode` only applies when it CREATES the file — and
-      // this file enumerates which origins were granted camera/microphone/
-      // geolocation, so it must never be left world-readable.
-      const tmpFile = PERMISSIONS_FILE + '.tmp';
-      try {
-        fs.writeFileSync(tmpFile, JSON.stringify(obj, null, 2), { encoding: 'utf8', mode: 0o600 });
-        try { fs.chmodSync(tmpFile, 0o600); } catch (_) {}
-        fs.renameSync(tmpFile, PERMISSIONS_FILE);
-      } catch (writeErr) {
-        try { fs.unlinkSync(tmpFile); } catch (_) {}
-        throw writeErr;
-      }
+      writeRememberedPermissions(PERMISSIONS_FILE, rememberedPermissions);
     } catch (err) {
       console.warn('[Permissions] Failed to save permissions to disk:', err);
     }
@@ -1713,13 +1606,7 @@ app.whenReady().then(async () => {
 
   /** Purge all remembered permission entries older than PERMISSION_TTL_MS. */
   function purgeExpiredRememberedPermissions(): void {
-    const cutoff = Date.now() - PERMISSION_TTL_MS;
-    for (const [origin, perms] of rememberedPermissions) {
-      for (const [perm, entry] of perms) {
-        if (entry.ts < cutoff) perms.delete(perm);
-      }
-      if (perms.size === 0) rememberedPermissions.delete(origin);
-    }
+    purgeExpiredPermissions(rememberedPermissions);
   }
 
   ipcMain.handle('permission-response', async (_event, payload: unknown) => {
@@ -1774,6 +1661,17 @@ app.whenReady().then(async () => {
       const url = details.requestingUrl || webContents.getURL() || '';
       const keys = permissionKeys(permission, (details as any)?.mediaTypes);
       if (!keys) return callback(false);
+
+      // Embedded sign-in frames also *request* storage access, not just check
+      // it. This browser already sends third-party cookies (there is no
+      // blocking policy to uphold), so the grant adds no capability the frame
+      // did not have; only the prompt did harm. Answering the prompt instead
+      // blocked the widget, so grant silently and let Chromium enforce the
+      // rest of its rules. An allowlist here bought no privacy and broke every
+      // identity provider it did not name.
+      if (isStorageAccessPermission(permission) && !isTrustedAppOrigin(url)) {
+        return callback(true);
+      }
 
       // Internal app pages: Allow microphone (audio) only with explicit user confirmation/remember.
       // Other permissions (camera, location, clipboard, openExternal, etc.) remain strictly denied.
@@ -1870,7 +1768,9 @@ app.whenReady().then(async () => {
         'clipboard-read': 'Read Clipboard',
         'clipboard-sanitized-write': 'Write Clipboard',
         'display-capture': 'Screen Sharing',
-        'window-management': 'Window Management'
+        'window-management': 'Window Management',
+        'storage-access': 'Storage Access (embedded sign-in)',
+        'top-level-storage-access': 'Storage Access (top-level)'
       };
 
       let permissionName = permissionNames[permission] || permission;
@@ -1933,8 +1833,8 @@ app.whenReady().then(async () => {
       if (!keys) return false;
 
       // Embedded sign-in frames call document.hasStorageAccess(). Third-party
-      // cookies already work in this browser, so answering "no" here only broke
-      // those widgets; Chromium still enforces its own rules for the request.
+      // cookies are already enabled, so reporting "no" only pushed those
+      // widgets into a permission prompt that could not be answered usefully.
       if (isStorageAccessPermission(permission) && !isTrustedAppOrigin(requestingOrigin)) return true;
 
       // Fail-closed permission checking:
@@ -2009,9 +1909,12 @@ app.whenReady().then(async () => {
         return { status: 'denied', canAsk: false, platform: 'darwin' };
       }
     }
-    const appPerm = rememberedPermissions.get('app')?.get('media');
-    if (appPerm && appPerm.allow) {
+    const micDecision = appMicrophoneDecision(rememberedPermissions);
+    if (micDecision === true) {
       return { status: 'granted', canAsk: false, platform: process.platform };
+    }
+    if (micDecision === false) {
+      return { status: 'denied', canAsk: false, platform: process.platform };
     }
     return { status: 'not-determined', canAsk: true, platform: process.platform };
   });
@@ -2035,9 +1938,9 @@ app.whenReady().then(async () => {
         return { granted: false, status: 'denied', platform: 'darwin' };
       }
     }
-    const appPerm = rememberedPermissions.get('app')?.get('media');
-    if (appPerm) {
-      return { granted: appPerm.allow, status: appPerm.allow ? 'granted' : 'denied', platform: process.platform };
+    const micDecision = appMicrophoneDecision(rememberedPermissions);
+    if (micDecision !== undefined) {
+      return { granted: micDecision, status: micDecision ? 'granted' : 'denied', platform: process.platform };
     }
     return { granted: false, status: 'not-determined', platform: process.platform };
   });
@@ -2092,6 +1995,32 @@ app.whenReady().then(async () => {
   // §11/§12: forwarded agent actions go through the policy classifier and the
   // execution engine (approval dialog for sensitive decisions, STOP NOW support).
   mcpServer.setPolicyEnforcement(true);
+  // Custom (user-defined) tools reuse the preview fetch's SSRF validation and DNS pinning.
+  mcpServer.setCustomToolNetwork({ validate: validatePreviewUrl, fetch: (target, init) => fetch(target, init) });
+  mcpServer.setUiLanguageProvider(() => currentUiLanguage);
+  // Approvals requested while King is in the background notify the human and
+  // flash the taskbar entry, so an unseen dialog does not silently time out.
+  const approvalAttention = createApprovalAttention({
+    isWindowFocused: () => Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()),
+    flashWindow: (on) => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.flashFrame(on);
+    },
+    focusWindow: () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    },
+    showNotification: (title, body, onClick) => {
+      if (!Notification.isSupported()) return;
+      const notification = new Notification({ title, body });
+      notification.on('click', onClick);
+      notification.show();
+    },
+    strings: () => approvalNotificationStrings(currentUiLanguage)
+  });
+  mcpServer.setEngineEventObserver((event) => approvalAttention.handleEngineEvent(event));
+  mainWindow?.on('focus', () => approvalAttention.handleWindowFocus());
   // §10: expose the engine to the renderer control panel (status, controls,
   // STOP NOW, approvals). Renderer-facing channel names live in engineIpc.ts.
   registerEngineIpc({
@@ -2099,6 +2028,7 @@ app.whenReady().then(async () => {
       ipcMain.handle(channel, listener as (event: Electron.IpcMainInvokeEvent, ...args: any[]) => unknown);
     },
     getEngine: () => (mcpServer ? mcpServer.getExecutionEngine() : null),
+    getStoredHistory: () => (mcpServer ? mcpServer.getStoredHistory() : []),
     isTrustedSender: (event) => isTrustedSender(event as Electron.IpcMainInvokeEvent)
   });
 
@@ -2225,54 +2155,6 @@ app.whenReady().then(async () => {
     return assets.find((a: any) => typeof a.name === 'string' && !a.name.endsWith('.blockmap') && !a.name.endsWith('.yml')) || assets[0];
   }
 
-  const SHA256_HEX_RE = /^[a-f0-9]{64}$/;
-
-  /**
-   * The expected SHA-256 for a release asset, in order of trust:
-   *
-   * 1. `asset.digest` — GitHub's own per-asset metadata ("sha256:<64 hex>"),
-   *    served by the Releases API. This is the source to use: it is structured,
-   *    per-asset, and cannot be accidentally altered by pasting free text.
-   * 2. The release body text, for releases published before digests existed.
-   *    This is a weak fallback and only an exact asset-name match is accepted:
-   *    a King release carries ~18 assets and a checksums block, so a loose
-   *    "64 hex characters" match can easily pick up a DIFFERENT asset's hash
-   *    and then fail a perfectly good download.
-   *
-   * Returns undefined only when no usable digest exists at all. Callers must
-   * treat that as "unverified" rather than "verified" - see the download path.
-   */
-  function extractExpectedSha256(release: any, assetName: string): string | undefined {
-    if (!release) return undefined;
-
-    // 1. GitHub's structured per-asset digest.
-    if (assetName && Array.isArray(release.assets)) {
-      const asset = release.assets.find(
-        (a: any) => a && typeof a.name === 'string' && a.name === assetName
-      );
-      const digest = asset?.digest;
-      if (typeof digest === 'string') {
-        const match = /^sha256:([a-fA-F0-9]{64})$/.exec(digest.trim());
-        if (match) return match[1].toLowerCase();
-        // A digest we cannot parse is a hard signal, not something to guess at.
-        console.warn(`[Updater] Ignoring unrecognised digest format for ${assetName}: ${digest.slice(0, 32)}`);
-      }
-    }
-
-    // 2. Release body fallback, exact asset-name match only.
-    if (typeof release.body === 'string' && assetName) {
-      const escapedName = assetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const p1 = new RegExp(`([a-fA-F0-9]{64})\\s+[*]?${escapedName}(?![^\\n]*[a-fA-F0-9])`, 'i');
-      const m1 = release.body.match(p1);
-      if (m1 && SHA256_HEX_RE.test(m1[1].toLowerCase())) return m1[1].toLowerCase();
-
-      const p2 = new RegExp(`${escapedName}[^a-fA-F0-9\\n]*([a-fA-F0-9]{64})`, 'i');
-      const m2 = release.body.match(p2);
-      if (m2 && SHA256_HEX_RE.test(m2[1].toLowerCase())) return m2[1].toLowerCase();
-    }
-    return undefined;
-  }
-
   // Auto Updater Configuration
   autoUpdater.autoDownload = false;
   autoUpdater.allowPrerelease = false;
@@ -2286,394 +2168,8 @@ app.whenReady().then(async () => {
     releaseNotes?: string;
     releaseName?: string;
     publishedAt?: string;
-    expectedSha256?: string;
   } | null = null;
-  const downloadedUpdateFilePath: string | null = null;
   let isDownloadingUpdate = false;
-
-  async function performSelfUpdateAndRelaunch(filePath: string): Promise<{ success: boolean; error?: string }> {
-    const platform = process.platform;
-    const currentPid = process.pid;
-
-    const resolvedFilePath = path.resolve(filePath);
-    if (!fs.existsSync(resolvedFilePath)) {
-      return { success: false, error: 'Update package does not exist on disk' };
-    }
-
-    console.log('[Updater] Starting self-update and relaunch with package:', resolvedFilePath);
-    updateInstallInProgress = true;
-    markQuitting();
-
-    if (mcpServer && mcpServer.isRunning()) {
-      try { mcpServer.stop(); } catch (_) {}
-    }
-
-    // 1. macOS (darwin)
-    if (platform === 'darwin') {
-      const isDmg = resolvedFilePath.toLowerCase().endsWith('.dmg');
-      const isZip = resolvedFilePath.toLowerCase().endsWith('.zip');
-
-      if (isDmg || isZip) {
-        let destinationApp = '/Applications/King Browser.app';
-        try {
-          const exePath = app.getPath('exe');
-          const appMatch = exePath.match(/^(.*?\.app)\/Contents\/MacOS\//);
-          if (appMatch && appMatch[1]) {
-            destinationApp = appMatch[1];
-          }
-        } catch (_) {}
-
-        const backupToken = crypto.randomBytes(16).toString('hex');
-        const tempDir = path.join(app.getPath('temp'), `king_update_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`);
-        fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 });
-        if (process.platform !== 'win32') {
-          try { fs.chmodSync(tempDir, 0o700); } catch (_) {}
-        }
-        const scriptPath = path.join(tempDir, 'update_and_relaunch.sh');
-
-        let scriptBody = '';
-        if (isDmg) {
-          const mountPoint = path.join(tempDir, 'mount');
-          fs.mkdirSync(mountPoint, { recursive: true, mode: 0o700 });
-          scriptBody = `#!/bin/bash
-FILE_PATH="$1"
-DEST_APP="$2"
-TARGET_PID="$3"
-TEMP_DIR="$4"
-BACKUP_TOKEN="$5"
-DEST_PARENT="$(dirname "\${DEST_APP}")"
-MOUNT_POINT="\${TEMP_DIR}/mount"
-STAGING_DIR="\${TEMP_DIR}/staging"
-STAGING_APP="\${STAGING_DIR}/King Browser.app"
-BACKUP_APP="\${DEST_PARENT}/.king_backup_\${BACKUP_TOKEN}"
-
-cleanup_mount() {
-  hdiutil detach "\${MOUNT_POINT}" -force -quiet 2>/dev/null
-  rm -rf "\${TEMP_DIR}" 2>/dev/null
-}
-
-mkdir -p "\${STAGING_DIR}" 2>/dev/null
-
-hdiutil attach "\${FILE_PATH}" -mountpoint "\${MOUNT_POINT}" -nobrowse -quiet -noautoopen
-SOURCE_APP=$(find "\${MOUNT_POINT}" -maxdepth 2 -name "*.app" | head -n 1)
-if [ -z "$SOURCE_APP" ]; then
-  cleanup_mount
-  open "\${FILE_PATH}"
-  exit 1
-fi
-
-# Bundle integrity & signature verification
-if [ ! -f "$SOURCE_APP/Contents/Info.plist" ] || [ ! -d "$SOURCE_APP/Contents/MacOS" ]; then
-  cleanup_mount
-  open "\${FILE_PATH}"
-  exit 1
-fi
-
-# Stage app cleanly inside isolated temp directory (never in /Applications)
-rm -rf "\${STAGING_APP}" 2>/dev/null
-if ! ditto "$SOURCE_APP" "\${STAGING_APP}" 2>/dev/null; then
-  cleanup_mount
-  open "\${FILE_PATH}"
-  exit 1
-fi
-
-if [ ! -f "\${STAGING_APP}/Contents/Info.plist" ] || [ ! -d "\${STAGING_APP}/Contents/MacOS" ]; then
-  cleanup_mount
-  open "\${FILE_PATH}"
-  exit 1
-fi
-
-if command -v codesign >/dev/null 2>&1; then
-  if ! codesign -v --deep "\${STAGING_APP}" 2>/dev/null; then
-    cleanup_mount
-    exit 1
-  fi
-fi
-
-while kill -0 "\${TARGET_PID}" 2>/dev/null; do
-  sleep 0.3
-done
-
-# Atomically backup old app to hidden directory without .app extension so LaunchServices ignores it
-if [ -d "\${DEST_APP}" ]; then
-  mv "\${DEST_APP}" "\${BACKUP_APP}" 2>/dev/null
-fi
-
-if ditto "\${STAGING_APP}" "\${DEST_APP}" 2>/dev/null && [ -f "\${DEST_APP}/Contents/Info.plist" ]; then
-  rm -rf "\${BACKUP_APP}" 2>/dev/null
-  rm -f "\${FILE_PATH}" 2>/dev/null
-  cleanup_mount
-  LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-  if [ -x "$LSREGISTER" ]; then
-    "$LSREGISTER" -f "\${DEST_APP}" 2>/dev/null
-  fi
-  open -a "\${DEST_APP}"
-else
-  rm -rf "\${DEST_APP}" 2>/dev/null
-  if [ -d "\${BACKUP_APP}" ]; then
-    mv "\${BACKUP_APP}" "\${DEST_APP}" 2>/dev/null
-  fi
-  cleanup_mount
-  open "\${FILE_PATH}"
-fi
-`;
-        } else {
-          const extractDir = path.join(tempDir, 'extracted');
-          fs.mkdirSync(extractDir, { recursive: true, mode: 0o700 });
-          scriptBody = `#!/bin/bash
-FILE_PATH="$1"
-DEST_APP="$2"
-TARGET_PID="$3"
-TEMP_DIR="$4"
-BACKUP_TOKEN="$5"
-DEST_PARENT="$(dirname "\${DEST_APP}")"
-EXTRACT_DIR="\${TEMP_DIR}/extracted"
-BACKUP_APP="\${DEST_PARENT}/.king_backup_\${BACKUP_TOKEN}"
-
-ditto -xk "\${FILE_PATH}" "\${EXTRACT_DIR}"
-SOURCE_APP=$(find "\${EXTRACT_DIR}" -maxdepth 2 -name "*.app" | head -n 1)
-if [ -z "$SOURCE_APP" ]; then
-  rm -rf "\${TEMP_DIR}" 2>/dev/null
-  exit 1
-fi
-
-# Bundle integrity & signature verification
-if [ ! -f "$SOURCE_APP/Contents/Info.plist" ] || [ ! -d "$SOURCE_APP/Contents/MacOS" ]; then
-  rm -rf "\${TEMP_DIR}" 2>/dev/null
-  exit 1
-fi
-if command -v codesign >/dev/null 2>&1; then
-  if ! codesign -v --deep "$SOURCE_APP" 2>/dev/null; then
-    rm -rf "\${TEMP_DIR}" 2>/dev/null
-    exit 1
-  fi
-fi
-
-while kill -0 "\${TARGET_PID}" 2>/dev/null; do
-  sleep 0.3
-done
-
-# Atomically backup old app to hidden directory without .app extension so LaunchServices ignores it
-if [ -d "\${DEST_APP}" ]; then
-  mv "\${DEST_APP}" "\${BACKUP_APP}" 2>/dev/null
-fi
-
-if ditto "$SOURCE_APP" "\${DEST_APP}" 2>/dev/null && [ -f "\${DEST_APP}/Contents/Info.plist" ]; then
-  rm -rf "\${BACKUP_APP}" 2>/dev/null
-  rm -f "\${FILE_PATH}" 2>/dev/null
-  rm -rf "\${TEMP_DIR}" 2>/dev/null
-  LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-  if [ -x "$LSREGISTER" ]; then
-    "$LSREGISTER" -f "\${DEST_APP}" 2>/dev/null
-  fi
-  open -a "\${DEST_APP}"
-else
-  rm -rf "\${DEST_APP}" 2>/dev/null
-  if [ -d "\${BACKUP_APP}" ]; then
-    mv "\${BACKUP_APP}" "\${DEST_APP}" 2>/dev/null
-  fi
-  rm -rf "\${TEMP_DIR}" 2>/dev/null
-  open "\${DEST_APP}" 2>/dev/null || open -a "King Browser"
-fi
-`;
-        }
-
-        try {
-          fs.writeFileSync(scriptPath, scriptBody, { mode: 0o755 });
-          const runner = child_process.spawn('/bin/bash', [scriptPath, resolvedFilePath, destinationApp, String(currentPid), tempDir, backupToken], {
-            detached: true,
-            stdio: 'ignore'
-          });
-          runner.unref();
-
-          const allWindows = BrowserWindow.getAllWindows();
-          for (const win of allWindows) {
-            try { win.destroy(); } catch (_) {}
-          }
-          setTimeout(() => {
-            try { app.quit(); } catch (_) { app.exit(0); }
-          }, 300);
-
-          return { success: true };
-        } catch (scriptErr: any) {
-          console.warn('[Updater] Failed to launch bash updater script:', scriptErr);
-        }
-      }
-    }
-
-    // 2. Windows (win32)
-    if (platform === 'win32') {
-      if (resolvedFilePath.toLowerCase().endsWith('.exe')) {
-        const tempDir = app.getPath('temp');
-        const randomSuffix = crypto.randomBytes(8).toString('hex');
-        const updateDir = path.join(tempDir, `king_update_${Date.now()}_${randomSuffix}`);
-        fs.mkdirSync(updateDir, { recursive: true });
-        const batPath = path.join(updateDir, 'update.bat');
-        const destinationExe = app.getPath('exe');
-        // The batch reads its arguments from the environment (FILE_PATH /
-        // TARGET_PID / DEST_EXE) instead of %~1..%~3. `cmd` re-parses the whole
-        // string after /c with its own quote rules: with a username containing a
-        // space the OS temp path gets quoted, and because the command line then
-        // holds more than two quote characters cmd falls back to "strip the first
-        // quote, drop the last quote" — truncating the batch path. The batch never
-        // runs, yet `cmd.exe` itself started, so the caller still calls app.quit()
-        // and the browser disappears with no relaunch and no error. The
-        // environment is not parsed by cmd's command-line rules, so paths with
-        // spaces, quotes or metacharacters survive intact.
-        // `setlocal` below must therefore stay plain: enabling delayed expansion
-        // makes cmd expand every `!` in the inherited environment as it parses,
-        // so an install path containing one (C:\Users\Bob!\...) is silently
-        // mangled in %FILE_PATH% / %DEST_EXE% — the installer is not found, not
-        // deleted and the app does not relaunch, i.e. the same "browser
-        // disappears" symptom the env-variable change fixed, for a different
-        // username. No `!`-delayed read exists in the script to justify it.
-        const batContent = `@echo off
-rem Delayed expansion MUST stay disabled: with it enabled cmd consumes every
-rem "!" in the inherited environment while parsing, so an install path holding
-rem one (C:\\Users\\Bob!\\...) is silently mangled in %FILE_PATH% / %DEST_EXE%.
-rem Nothing in this script reads a "!"-delayed variable, so keep it off.
-setlocal
-set "UPDATE_DIR=%~dp0"
-
-:wait_loop
-if not "%TARGET_PID%"=="" (
-  tasklist /FI "PID eq %TARGET_PID%" 2>nul | findstr /i "%TARGET_PID%" >nul
-  if not errorlevel 1 (
-    ping 127.0.0.1 -n 2 >nul 2>&1
-    goto wait_loop
-  )
-)
-
-start /wait "" "%FILE_PATH%" /S
-del /f /q "%FILE_PATH%" 2>nul
-
-if not "%DEST_EXE%"=="" (
-  if exist "%DEST_EXE%" (
-    start "" "%DEST_EXE%"
-  ) else (
-    start "" "%LOCALAPPDATA%\\Programs\\King Browser\\King Browser.exe" 2>nul
-  )
-)
-
-cd /d "%TEMP%"
-rmdir /s /q "%UPDATE_DIR%" 2>nul
-exit
-`;
-        try {
-          fs.writeFileSync(batPath, batContent);
-          // Only the batch path is passed on the command line. A single argv entry
-          // makes libuv quote it as one token, so cmd's "exactly two quotes" rule
-          // preserves the path verbatim even when it contains spaces; every
-          // payload that used to travel as an argument now travels in the env.
-          const runner = child_process.spawn('cmd.exe', ['/c', batPath], {
-            detached: true,
-            stdio: 'ignore',
-            env: { ...process.env, FILE_PATH: resolvedFilePath, TARGET_PID: String(currentPid), DEST_EXE: destinationExe }
-          });
-          runner.unref();
-
-          const allWindows = BrowserWindow.getAllWindows();
-          for (const win of allWindows) {
-            try { win.destroy(); } catch (_) {}
-          }
-          setTimeout(() => {
-            try { app.quit(); } catch (_) { app.exit(0); }
-          }, 300);
-
-          return { success: true };
-        } catch (batErr: any) {
-          console.warn('[Updater] Failed to run bat installer:', batErr);
-        }
-      }
-    }
-
-    // 3. Linux
-    if (platform === 'linux') {
-      const isAppImage = resolvedFilePath.toLowerCase().endsWith('.appimage');
-      const isDeb = resolvedFilePath.toLowerCase().endsWith('.deb');
-
-      if (isAppImage) {
-        try {
-          fs.chmodSync(resolvedFilePath, 0o755);
-          const currentAppImage = process.env.APPIMAGE || '';
-          const tempDir = path.join(app.getPath('temp'), `king_update_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`);
-          fs.mkdirSync(tempDir, { recursive: true, mode: 0o700 });
-          try { fs.chmodSync(tempDir, 0o700); } catch (_) {}
-          const scriptPath = path.join(tempDir, 'update_and_relaunch.sh');
-          const scriptContent = `#!/bin/bash
-FILE_PATH="$1"
-TARGET_PID="$2"
-TEMP_DIR="$3"
-CURRENT_APPIMAGE="$4"
-
-while kill -0 "\${TARGET_PID}" 2>/dev/null; do
-  sleep 0.3
-done
-
-chmod +x "\${FILE_PATH}" 2>/dev/null
-
-if [ -n "\${CURRENT_APPIMAGE}" ] && [ -f "\${CURRENT_APPIMAGE}" ]; then
-  BACKUP_APPIMAGE="\${CURRENT_APPIMAGE}.old"
-  mv "\${CURRENT_APPIMAGE}" "\${BACKUP_APPIMAGE}" 2>/dev/null
-  if cp "\${FILE_PATH}" "\${CURRENT_APPIMAGE}" 2>/dev/null || mv "\${FILE_PATH}" "\${CURRENT_APPIMAGE}" 2>/dev/null; then
-    chmod +x "\${CURRENT_APPIMAGE}" 2>/dev/null
-    rm -f "\${BACKUP_APPIMAGE}" 2>/dev/null
-    rm -rf "\${TEMP_DIR}" 2>/dev/null
-    "\${CURRENT_APPIMAGE}" &
-  else
-    if [ -f "\${BACKUP_APPIMAGE}" ]; then
-      mv "\${BACKUP_APPIMAGE}" "\${CURRENT_APPIMAGE}" 2>/dev/null
-    fi
-    rm -rf "\${TEMP_DIR}" 2>/dev/null
-    "\${CURRENT_APPIMAGE}" &
-  fi
-else
-  TARGET_RUN="\${FILE_PATH}"
-  "\${TARGET_RUN}" &
-fi
-`;
-          fs.writeFileSync(scriptPath, scriptContent, { mode: 0o755 });
-          const runner = child_process.spawn('/bin/bash', [scriptPath, resolvedFilePath, String(currentPid), tempDir, currentAppImage], {
-            detached: true,
-            stdio: 'ignore'
-          });
-          runner.unref();
-
-          const allWindows = BrowserWindow.getAllWindows();
-          for (const win of allWindows) {
-            try { win.destroy(); } catch (_) {}
-          }
-          setTimeout(() => {
-            try { app.quit(); } catch (_) { app.exit(0); }
-          }, 300);
-
-          return { success: true };
-        } catch (linuxErr) {
-          console.warn('[Updater] Failed to launch Linux updater script:', linuxErr);
-        }
-      } else if (isDeb) {
-        try {
-          shell.openPath(resolvedFilePath);
-          setTimeout(() => {
-            try { app.quit(); } catch (_) { app.exit(0); }
-          }, 1000);
-          return { success: true };
-        } catch (debErr) {
-          console.warn('[Updater] Failed to open Linux .deb package:', debErr);
-        }
-      }
-    }
-
-    // Fallback: show item, open with default handler and exit
-    try {
-      shell.showItemInFolder(resolvedFilePath);
-    } catch (_) {}
-    const openRes = await shell.openPath(resolvedFilePath);
-    setTimeout(() => {
-      try { app.quit(); } catch (_) { app.exit(0); }
-    }, 1200);
-    return { success: !openRes, error: openRes || undefined };
-  }
 
   type UpdateCheckResult = { success: boolean; version?: string; isAvailable?: boolean; error?: string };
   // In-flight update check, mirroring the isDownloadingUpdate lock lifecycle
@@ -2725,15 +2221,13 @@ fi
             const currentVersion = app.getVersion();
             if (latestTag && isNewerVersion(latestTag, currentVersion)) {
               const platformAsset = getPlatformAsset(latestRelease.assets || []);
-              const expectedSha = extractExpectedSha256(latestRelease, platformAsset?.name || '');
               latestReleaseDownloadInfo = {
                 version: latestTag,
                 downloadUrl: platformAsset?.browser_download_url || latestRelease.html_url,
                 assetName: platformAsset?.name || '',
                 releaseNotes: latestRelease.body || '',
                 releaseName: latestRelease.name || `v${latestTag}`,
-                publishedAt: latestRelease.published_at || new Date().toISOString(),
-                expectedSha256: expectedSha
+                publishedAt: latestRelease.published_at || new Date().toISOString()
               };
               sendToMainWindow('update-available', {
                 version: latestTag,
@@ -2773,15 +2267,13 @@ fi
             const currentVersion = app.getVersion();
             if (latestTag && isNewerVersion(latestTag, currentVersion)) {
               const platformAsset = getPlatformAsset(latestRelease.assets || []);
-              const expectedSha = extractExpectedSha256(latestRelease, platformAsset?.name || '');
               latestReleaseDownloadInfo = {
                 version: latestTag,
                 downloadUrl: platformAsset?.browser_download_url || latestRelease.html_url,
                 assetName: platformAsset?.name || '',
                 releaseNotes: latestRelease.body || '',
                 releaseName: latestRelease.name || `v${latestTag}`,
-                publishedAt: latestRelease.published_at || new Date().toISOString(),
-                expectedSha256: expectedSha
+                publishedAt: latestRelease.published_at || new Date().toISOString()
               };
               sendToMainWindow('update-available', {
                 version: latestTag,
@@ -2842,11 +2334,18 @@ fi
 
   autoUpdater.on('update-downloaded', (info) => {
     isUpdateDownloaded = true;
-    console.log('Update downloaded:', info.version);
+    // electron-updater checks the download against the digest in the release
+    // metadata, but only when the metadata has one. Report what actually
+    // happened, and never install a package that was not checked behind the
+    // user's back when the app quits: it then needs the explicit Install click,
+    // next to the warning the update widget shows.
+    const integrity = assessUpdateIntegrity(info);
+    autoUpdater.autoInstallOnAppQuit = integrity.verified;
+    console.log('Update downloaded:', info.version, integrity.verified ? `(${integrity.algorithm} checked)` : '(no digest to check against)');
     sendToMainWindow('update-downloaded', {
       version: info.version,
       releaseDate: info.releaseDate,
-      integrityVerified: true
+      integrityVerified: integrity.verified
     });
   });
 
@@ -2887,7 +2386,6 @@ fi
     let targetUrl = (typeof customUrl === 'string' && customUrl.trim()) ? customUrl.trim() : latestReleaseDownloadInfo?.downloadUrl;
     let targetVersion = latestReleaseDownloadInfo?.version || '';
     let assetName = latestReleaseDownloadInfo?.assetName || '';
-    let targetExpectedSha = latestReleaseDownloadInfo?.expectedSha256;
 
     // If no URL stored yet, query GitHub releases API directly
     if (!targetUrl) {
@@ -2904,9 +2402,6 @@ fi
             const platformAsset = getPlatformAsset(latestRelease.assets || []);
             targetUrl = platformAsset?.browser_download_url || latestRelease.html_url;
             assetName = platformAsset?.name || '';
-            if (!targetExpectedSha) {
-              targetExpectedSha = extractExpectedSha256(latestRelease, assetName);
-            }
           }
         }
       } catch (fetchErr: any) {
@@ -2988,10 +2483,6 @@ fi
     try {
       updateInstallInProgress = true;
       markQuitting();
-      if (downloadedUpdateFilePath && fs.existsSync(downloadedUpdateFilePath)) {
-        return await performSelfUpdateAndRelaunch(downloadedUpdateFilePath);
-      }
-
       if (mcpServer && mcpServer.isRunning()) {
         try { mcpServer.stop(); } catch (_) {}
       }
@@ -3163,8 +2654,12 @@ fi
         // Security: Block dangerous file extensions that could execute on the host OS,
         // unless it is an official release package from the verified King repository.
         const pathname = parsed.pathname.toLowerCase();
-        const isOfficialRelease = (parsed.hostname === 'github.com' || parsed.hostname === 'www.github.com' || parsed.hostname === 'objects.githubusercontent.com') &&
-          (pathname.startsWith('/MOT1209/King_Browser/releases') || pathname.includes('/MOT1209/King_Browser/releases/'));
+        // pathname is lowercased, so the repository prefix must be too; the
+        // mixed-case literal never matched and every release link was blocked.
+        // Release asset CDN paths do not carry the repository name, so only
+        // github.com release URLs qualify (GitHub redirects them to the CDN).
+        const isOfficialRelease = (parsed.hostname === 'github.com' || parsed.hostname === 'www.github.com') &&
+          pathname.startsWith('/mot1209/king_browser/releases/');
 
         const DANGEROUS_EXT_REGEX = /\.(exe|msi|bat|cmd|sh|app|bin|vbs|ps1|command|dmg|deb|pkg|rpm|iso)($|\?|#)/i;
         const queryHasDangerousExt = Array.from(parsed.searchParams.values()).some(val => DANGEROUS_EXT_REGEX.test(val.toLowerCase())) ||
@@ -3383,21 +2878,6 @@ fi
   // Cmd+F is covered by the Edit menu accelerator ("Find in Page...").
 });
 
-/**
- * Restricts subframe navigation strictly to safe schemes: http:, https:, and about:blank.
- */
-export function isSafeSubframeNavigation(url: string): boolean {
-  if (!url || typeof url !== 'string') return false;
-  try {
-    const parsed = new URL(url);
-    const isSafeHttp = (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !parsed.username && !parsed.password;
-    const isSafeAboutBlank = parsed.protocol === 'about:' && (parsed.pathname === 'blank' || parsed.href === 'about:blank');
-    return isSafeHttp || isSafeAboutBlank;
-  } catch {
-    return false;
-  }
-}
-
 app.on('web-contents-created', (_event, contents) => {
   // Security: Force secure webPreferences for any <webview> tags
   contents.on('will-attach-webview', (event, webPreferences, params) => {
@@ -3415,13 +2895,18 @@ app.on('web-contents-created', (_event, contents) => {
     // Security: Validate partition to prevent unauthorized partitions (e.g. persist:admin)
     const part = (webPreferences as any).partition || (params as any).partition;
     if (part && typeof part === 'string') {
-      if (part !== '' && !/^incognito-[a-zA-Z0-9_-]+$/.test(part)) {
+      if (!isAllowedWebviewPartition(part, AGENT_PERSIST_PARTITION)) {
         console.warn(`[Security] Blocked unauthorized webview partition: ${part}`);
         event.preventDefault();
         return;
       }
-      if (part.startsWith('incognito-')) {
-        hardenIncognitoPartition(part);
+      if (part.startsWith('incognito-') || part === AGENT_PERSIST_PARTITION) {
+        if (!hardenIncognitoPartition(part)) {
+          // Fail closed: an unhardened session has no permission handlers.
+          console.warn(`[Security] Blocked webview attach: could not harden partition ${part}`);
+          event.preventDefault();
+          return;
+        }
       }
     }
 
@@ -3431,33 +2916,17 @@ app.on('web-contents-created', (_event, contents) => {
     // or valid chrome-extension. Block file:, javascript:, data:, vbscript:, blob:, etc.
     let isAuthorizedWebstore = false;
     if (params.src) {
-      try {
-        const parsed = new URL(params.src);
-        const allowedProtocols = ['http:', 'https:'];
-        const isAllowedAboutBlank = parsed.protocol === 'about:' && (parsed.pathname === 'blank' || parsed.href === 'about:blank');
-        // An extension-shaped id is not enough: a page can window.open any
-        // chrome-extension://<id> and this accepted it, so the isInstalled gate
-        // the other two entry points enforce was skipped. Shape AND existence.
-        const isAllowedExtension = parsed.protocol === 'chrome-extension:' &&
-          /^[a-zA-Z0-9_-]+$/.test(parsed.hostname) &&
-          (loadedExtensions.some(ext => ext.id === parsed.hostname) ||
-            Boolean(session.defaultSession.getExtension(parsed.hostname)));
-
-        if ((!allowedProtocols.includes(parsed.protocol) && !isAllowedAboutBlank && !isAllowedExtension) ||
-            parsed.username || parsed.password) {
-          console.warn(`[Security] Blocked unauthorized webview scheme in src: ${params.src}`);
-          event.preventDefault();
-          return;
-        }
-
-        if (parsed.protocol === 'https:' && (parsed.hostname === 'chromewebstore.google.com' || parsed.hostname === 'chrome.google.com') && (parsed.hostname === 'chromewebstore.google.com' || parsed.pathname.startsWith('/webstore/'))) {
-          isAuthorizedWebstore = true;
-        }
-      } catch {
-        console.warn(`[Security] Blocked malformed webview src: ${params.src}`);
+      // An extension-shaped id is not enough: a page can window.open any
+      // chrome-extension://<id>, so existence is checked too (the isInstalled
+      // gate the other two entry points enforce).
+      const srcVerdict = evaluateWebviewSrc(params.src, (id) =>
+        loadedExtensions.some(ext => ext.id === id) || Boolean(session.defaultSession.getExtension(id)));
+      if (!srcVerdict.allowed) {
+        console.warn(`[Security] Blocked unauthorized webview src: ${params.src}`);
         event.preventDefault();
         return;
       }
+      isAuthorizedWebstore = srcVerdict.isWebstore;
     }
 
     if (isAuthorizedWebstore) {
@@ -3502,7 +2971,12 @@ app.on('web-contents-created', (_event, contents) => {
               nodeIntegration: false,
               contextIsolation: true,
               sandbox: true,
-              webSecurity: true
+              webSecurity: true,
+              // An override REPLACES the inherited webPreferences, so without
+              // this the popup is built on the default session. An incognito
+              // page's OAuth popup then ran with the normal profile's cookies.
+              // Electron treats `session` as authoritative over `partition`.
+              session: contents.session
             }
           }
         };
@@ -3515,6 +2989,40 @@ app.on('web-contents-created', (_event, contents) => {
       }
     } catch {}
     return { action: 'deny' };
+  });
+
+  // Security: the popup that was just allowed must stay in the same session as
+  // the page that opened it (defence in depth for the `session` above) and must
+  // not open further windows of its own — popup chains are a phishing and
+  // flood vector, and a sign-in popup has no legitimate reason to spawn one.
+  contents.on('did-create-window', (child) => {
+    try {
+      if (child.isDestroyed()) return;
+      if (child.webContents.session !== contents.session) {
+        console.error('[Security] Closing a sign-in popup that did not inherit its opener session');
+        child.destroy();
+        return;
+      }
+      child.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+      // Same navigation policy as webviews: web schemes only, no credentials in
+      // the URL, and no known phishing host, for both direct and redirected loads.
+      const guardPopupNavigation = (event: { preventDefault: () => void }, destUrl: string) => {
+        if (!isSafeSubframeNavigation(destUrl)) {
+          event.preventDefault();
+          console.warn('[Security] Blocked sign-in popup navigation to a forbidden URL:', destUrl.slice(0, 200));
+          return;
+        }
+        if (checkPhishingDomain(destUrl)) {
+          event.preventDefault();
+          console.warn('[Security] Blocked sign-in popup navigation to a phishing domain:', destUrl.slice(0, 200));
+          if (!child.isDestroyed()) child.destroy();
+        }
+      };
+      child.webContents.on('will-navigate', (event, destUrl) => guardPopupNavigation(event, destUrl));
+      child.webContents.on('will-redirect', (event, destUrl) => guardPopupNavigation(event, destUrl));
+    } catch (err) {
+      console.error('[Security] Failed to harden a sign-in popup:', err);
+    }
   });
 
   if (contents.getType() === 'webview') {
@@ -3589,28 +3097,7 @@ app.on('web-contents-created', (_event, contents) => {
       if (checkPhishingDomain(navigationUrl)) {
         e.preventDefault();
         sendToMainWindow('blocked-site', { url: navigationUrl, reason: 'phishing' });
-        const escapedUrl = navigationUrl.substring(0, 500);
-        const safeUrlJson = JSON.stringify(escapedUrl);
-        if (!contents.isDestroyed()) {
-          contents.loadURL('about:blank').then(() => {
-            if (!contents.isDestroyed()) {
-              contents.executeJavaScript(`
-                (() => {
-                  document.title = 'Dangerous Site Blocked';
-                  document.body.style.cssText = 'font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:50px;color:#ef4444;background:#fef2f2;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;margin:0;box-sizing:border-box;';
-                  const h1 = document.createElement('h1');
-                  h1.textContent = 'Dangerous Site Blocked';
-                  h1.style.cssText = 'font-size:24px;font-weight:700;margin-bottom:12px;color:#b91c1c;';
-                  const p = document.createElement('p');
-                  p.textContent = 'This site (' + ${safeUrlJson} + ') has been identified as containing phishing or malicious software and was blocked for your safety.';
-                  p.style.cssText = 'font-size:14px;color:#7f1d1d;max-width:600px;word-break:break-all;line-height:1.5;';
-                  document.body.appendChild(h1);
-                  document.body.appendChild(p);
-                })()
-              `).catch(() => {});
-            }
-          }).catch(() => {});
-        }
+        showPhishingBlockPage(contents, navigationUrl);
         return;
       }
 
@@ -3661,28 +3148,7 @@ app.on('web-contents-created', (_event, contents) => {
       if (checkPhishingDomain(redirectUrl)) {
         e.preventDefault();
         sendToMainWindow('blocked-site', { url: redirectUrl, reason: 'phishing' });
-        const escapedUrl = redirectUrl.substring(0, 500);
-        const safeUrlJson = JSON.stringify(escapedUrl);
-        if (!contents.isDestroyed()) {
-          contents.loadURL('about:blank').then(() => {
-            if (!contents.isDestroyed()) {
-              contents.executeJavaScript(`
-                (() => {
-                  document.title = 'Dangerous Site Blocked';
-                  document.body.style.cssText = 'font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:50px;color:#ef4444;background:#fef2f2;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;margin:0;box-sizing:border-box;';
-                  const h1 = document.createElement('h1');
-                  h1.textContent = 'Dangerous Site Blocked';
-                  h1.style.cssText = 'font-size:24px;font-weight:700;margin-bottom:12px;color:#b91c1c;';
-                  const p = document.createElement('p');
-                  p.textContent = 'This site (' + ${safeUrlJson} + ') has been identified as containing phishing or malicious software and was blocked for your safety.';
-                  p.style.cssText = 'font-size:14px;color:#7f1d1d;max-width:600px;word-break:break-all;line-height:1.5;';
-                  document.body.appendChild(h1);
-                  document.body.appendChild(p);
-                })()
-              `).catch(() => {});
-            }
-          }).catch(() => {});
-        }
+        showPhishingBlockPage(contents, redirectUrl);
         return;
       }
 
@@ -3794,11 +3260,32 @@ ipcMain.handle('set-do-not-track', (event, enabled: boolean) => {
   isDoNotTrackEnabled = Boolean(enabled);
 });
 
+ipcMain.handle('set-google-signin-compat', (event, enabled: unknown) => {
+  if (!isTrustedSender(event)) return false;
+  isGoogleSigninCompatEnabled = enabled === true;
+  return isGoogleSigninCompatEnabled;
+});
+
 // IPC Handler to dynamically update Accept-Language across all Electron sessions
+// Settings > Shortcuts reports the bindings the user changed; the menu is
+// rebuilt so its accelerators follow them. Validated in shortcutAccelerators.
+ipcMain.handle('set-shortcut-bindings', (event, bindings: unknown) => {
+  if (!isTrustedSender(event)) return { success: false, error: 'Unauthorized' };
+  menuShortcutBindings = sanitizeMenuBindings(bindings);
+  try {
+    setupApplicationMenu();
+  } catch (e) {
+    console.error('[Menu] Failed to rebuild menu after shortcut change:', e);
+    return { success: false, error: 'Menu rebuild failed' };
+  }
+  return { success: true };
+});
+
 ipcMain.handle('set-app-language', async (event, lang: unknown) => {
   if (!isTrustedSender(event)) return { success: false, error: 'Unauthorized' };
   if (typeof lang !== 'string' || !lang.trim()) return { success: false, error: 'Invalid language' };
   const cleanLang = lang.trim().toLowerCase();
+  currentUiLanguage = normalizeUiLanguage(cleanLang);
   currentAcceptLanguages = getAcceptLanguagesForLocale(cleanLang);
 
   try {
@@ -3935,12 +3422,6 @@ ipcMain.handle('fetch-wallpaper-photos', async (event) => {
   return results;
 });
 
-// Legacy alias for compatibility
-ipcMain.handle('fetch-unsplash-photos', async (event, query: string) => {
-  if (!isTrustedSender(event)) return [];
-  return [];
-});
-
 // Set theme source for dark mode rendering on pages
 ipcMain.on('set-theme', (event, theme: 'light' | 'dark' | 'system') => {
   if (!isTrustedSender(event)) return;
@@ -4058,93 +3539,14 @@ ipcMain.handle('capture-full-page', async (event, webContentsId: number) => {
   }
 });
 
-/**
- * Opens a dedicated sandboxed window to safely view page source without
- * routing dangerous view-source: schemes through renderer navigation.
- */
 export async function openPageSourceViewer(currentUrl: string, wc?: any): Promise<BrowserWindow | null> {
-  if (!currentUrl || typeof currentUrl !== 'string') return null;
-
-  let isInternalPage = false;
-  let isViewSource = false;
-  try {
-    const parsed = new URL(currentUrl);
-    isInternalPage = parsed.protocol.startsWith('king');
-    isViewSource = parsed.protocol === 'view-source:';
-  } catch {
-    isInternalPage = currentUrl.toLowerCase().startsWith('king');
-    isViewSource = currentUrl.toLowerCase().startsWith('view-source:');
-  }
-
-  if (isInternalPage || isViewSource) return null;
-
-  let htmlSource = '';
-  if (wc && !wc.isDestroyed() && typeof wc.executeJavaScript === 'function') {
-    try {
-      htmlSource = await wc.executeJavaScript('document.documentElement.outerHTML');
-    } catch {}
-  }
-
-  if (!htmlSource && (currentUrl.startsWith('http://') || currentUrl.startsWith('https://'))) {
-    try {
-      const validated = await validatePreviewUrl(currentUrl);
-      if (!('error' in validated)) {
-        const { url: parsedUrl, pinnedIp } = validated;
-        const isHttps = parsedUrl.protocol === 'https:';
-        const agentOptions = {
-          lookup: (_hostname: string, _opts: any, cb: any) => {
-            cb(null, pinnedIp, pinnedIp.includes(':') ? 6 : 4);
-          }
-        };
-        const agent = isHttps ? new https.Agent(agentOptions) : new http.Agent(agentOptions);
-        const resp = await fetch(currentUrl, {
-          agent,
-          signal: AbortSignal.timeout(8000),
-          headers: {
-            'User-Agent': getStandardUserAgent()
-          }
-        } as any);
-        // Bounded like every sibling fetch path: an adversarially large or
-        // never-ending body would otherwise be buffered into the main process and
-        // then serialised a second time into the viewer, twice over.
-        htmlSource = await readResponseTextWithLimit(resp, 8 * 1024 * 1024);
-      }
-    } catch {}
-  }
-
-  const sourceWin = new BrowserWindow({
-    title: `Source: ${currentUrl}`,
-    width: 1000,
-    height: 700,
-    parent: mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined,
-    autoHideMenuBar: true,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-    }
+  return createPageSourceViewer(currentUrl, wc, {
+    getMainWindow: () => mainWindow,
+    validatePreviewUrl,
+    fetch: fetch as any,
+    getStandardUserAgent,
+    readResponseTextWithLimit,
   });
-
-  sourceWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  sourceWin.webContents.on('will-navigate', (navEvt) => navEvt.preventDefault());
-
-  try {
-    if (!sourceWin.isDestroyed()) {
-      await sourceWin.loadURL('about:blank');
-      if (!sourceWin.isDestroyed()) {
-        await sourceWin.webContents.executeJavaScript(`
-          document.title = ${JSON.stringify(`Source: ${currentUrl}`)};
-          document.body.style.cssText = 'margin:0;padding:16px;background:#0f172a;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:13px;line-height:1.5;overflow-x:auto;';
-          const pre = document.createElement('pre');
-          pre.style.cssText = 'margin:0;white-space:pre-wrap;word-break:break-all;';
-          pre.textContent = ${JSON.stringify(htmlSource || '<!-- No source available -->')};
-          document.body.appendChild(pre);
-        `);
-      }
-    }
-  } catch {}
-
-  return sourceWin;
 }
 
 // Google rejects sign-in inside embedded browsers. Offer the user's default
@@ -4152,7 +3554,9 @@ export async function openPageSourceViewer(currentUrl: string, wc?: any): Promis
 function watchGoogleSigninRejection(wc: Electron.WebContents): void {
   let lastNonGoogleUrl: string | null = null;
   let prompting = false;
-  wc.on('did-navigate', (_e, url) => {
+
+  const onNavigate = (url: string): void => {
+    if (!url) return;
     if (!isGoogleEmbeddedSigninRejection(url)) {
       try {
         if (new URL(url).hostname !== 'accounts.google.com') lastNonGoogleUrl = url;
@@ -4162,11 +3566,12 @@ function watchGoogleSigninRejection(wc: Electron.WebContents): void {
     if (prompting) return;
     prompting = true;
     const target = pickSystemBrowserUrl(lastNonGoogleUrl);
+    const strings = googleSigninDialogStrings(currentUiLanguage);
     const options: Electron.MessageBoxOptions = {
       type: 'info',
-      message: 'Google blocked sign-in in this browser',
-      detail: `Google does not allow signing in from embedded browsers such as King Browser. You can continue in your default browser:\n${target}`,
-      buttons: ['Open in Default Browser', 'Cancel'],
+      message: strings.message,
+      detail: strings.detail(target),
+      buttons: [strings.openInDefaultBrowser, strings.cancel],
       defaultId: 0,
       cancelId: 1
     };
@@ -4177,72 +3582,55 @@ function watchGoogleSigninRejection(wc: Electron.WebContents): void {
       if (response === 0) return shell.openExternal(target);
     }).catch((err) => console.error('[Google Sign-in] Fallback failed:', err))
       .finally(() => { prompting = false; });
-  });
+  };
+
+  wc.on('did-navigate', (_e, url) => onNavigate(url));
+  // The rejection usually lands inside an iframe (the Google widget is
+  // embedded), and `did-navigate` only reports the top frame, so the escape
+  // hatch never appeared for the most common failure. `did-frame-navigate`
+  // reports every frame; the `prompting` guard keeps the two events from
+  // showing the dialog twice for a top-level navigation.
+  wc.on('did-frame-navigate', (_e, url) => onNavigate(url));
+}
+
+// With the opt-in setting on, documents on accounts.google.com also see the
+// Firefox user agent in navigator.userAgent, matching the request header that
+// applyPrivacyHeadersToSession sends. Leaving Google restores the standard one.
+function applyGoogleSigninCompat(wc: Electron.WebContents): void {
+  let overridden = false;
+  const onNavigation = (details: { url: string; isMainFrame: boolean; isSameDocument?: boolean }) => {
+    if (!details.isMainFrame || details.isSameDocument || wc.isDestroyed()) return;
+    const useCompat = isGoogleSigninCompatEnabled && isGoogleAccountsUrl(details.url);
+    if (useCompat === overridden) return;
+    try {
+      wc.setUserAgent(useCompat ? getGoogleSigninCompatUserAgent() : getStandardUserAgent());
+      overridden = useCompat;
+    } catch (err) {
+      console.warn('[Google Sign-in] Could not switch user agent:', err);
+    }
+  };
+  wc.on('did-start-navigation', onNavigation);
+  wc.on('did-redirect-navigation', onNavigation);
 }
 
 // Auto-capture thumbnails and Native Chrome-Parity Context Menu for WebViews
 app.on('web-contents-created', (_event, wc) => {
-  if (wc.getType() === 'webview') watchGoogleSigninRejection(wc);
+  // Sign-in popups are type 'window', not 'webview'. Attaching the fallback to
+  // webviews only meant a Google rejection inside an OAuth popup was a dead end,
+  // which is the opposite of what the README promises.
+  const wcType = wc.getType();
+  if (wcType === 'webview' || wcType === 'window') {
+    watchGoogleSigninRejection(wc);
+    applyGoogleSigninCompat(wc);
+  }
+  watchPageDialogs(wc, () => Boolean(mcpServer && mcpServer.isRunning()));
   wc.removeAllListeners('context-menu');
   wc.on('context-menu', (e, params) => {
     // Only show for webviews
     if (wc.getType() === 'webview') {
       const menu = new Menu();
 
-      const labels = {
-        // Spellcheck
-        noGuesses: 'No guesses found',
-        addToDictionary: 'Add to Dictionary',
-
-        // Links
-        openLinkNewTab: 'Open Link in New Tab',
-        openLinkNewIncognitoTab: 'Open Link in Incognito Window',
-        saveLinkAs: 'Save Link As...',
-        copyLinkAddress: 'Copy Link Address',
-
-        // Images
-        openImageNewTab: 'Open Image in New Tab',
-        saveImageAs: 'Save Image As...',
-        copyImage: 'Copy Image',
-        copyImageAddress: 'Copy Image Address',
-        searchImageLens: 'Search Image with Google Lens',
-
-        // Audio & Video
-        play: 'Play',
-        pause: 'Pause',
-        mute: 'Mute',
-        unmute: 'Unmute',
-        loop: 'Loop',
-        showControls: 'Show Controls',
-        pictureInPicture: 'Picture in Picture',
-        saveVideoAs: 'Save Video As...',
-        copyVideoAddress: 'Copy Video Address',
-        saveAudioAs: 'Save Audio As...',
-        copyAudioAddress: 'Copy Audio Address',
-
-        // Selection
-        copy: 'Copy',
-        cut: 'Cut',
-        paste: 'Paste',
-        pasteAsPlainText: 'Paste as Plain Text',
-        selectAll: 'Select All',
-        undo: 'Undo',
-        redo: 'Redo',
-        delete: 'Delete',
-        searchFor: (query: string) => `Search Google for "${query}"`,
-        aiExplain: 'Explain with King AI',
-
-        // Page Navigation
-        back: 'Back',
-        forward: 'Forward',
-        reload: 'Reload',
-        translatePage: 'Translate Page',
-        openInSystemBrowser: 'Open Page in Default Browser',
-        savePageAs: 'Save As...',
-        print: 'Print...',
-        viewSource: 'View Page Source',
-        inspect: 'Inspect',
-      };
+      const labels = contextMenuLabels(currentUiLanguage);
 
       // 1. Spellcheck Suggestions (if misspelled word)
       if (params.misspelledWord) {
@@ -4640,27 +4028,30 @@ ipcMain.handle('copy-mcp-token', (event) => {
         if (clipboard.readText() === token) {
           clipboard.clear();
         }
-      } catch (_) {}
+      } catch (err) { console.warn('[Security] Could not clear the MCP token from the clipboard; clear it manually:', err); }
     }, 15000);
     return true;
   }
   return false;
 });
 let clipboardConfigClearTimer: NodeJS.Timeout | null = null;
-ipcMain.handle('copy-mcp-config', (event) => {
+
+// The stdio bridge is a separate Node entry point. A child process cannot run a
+// file from inside app.asar, so packaged builds ship it through electron-builder
+// extraResources; in development it lives in dist-electron (npm run build:electron).
+function resolveMcpBridgePath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'mcp-bridge.cjs');
+  }
+  return path.join(app.getAppPath(), 'dist-electron', 'mcp-bridge.cjs');
+}
+
+ipcMain.handle('copy-mcp-config', (event, kind?: unknown) => {
   if (!isTrustedSender(event)) return false;
   const token = mcpServer?.getToken() || '';
   const port = mcpServer ? mcpServer.getPort() : 3020;
-  const config = JSON.stringify({
-    mcpServers: {
-      "king-browser": {
-        url: `http://localhost:${port}/sse`,
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
-    }
-  }, null, 2);
+  const clientKind: McpClientKind = kind === 'opencode' ? 'opencode' : 'generic';
+  const config = buildMcpClientConfig(clientKind, port, token, resolveMcpBridgePath());
   clipboard.writeText(config);
   // Security: Auto-clear Bearer-bearing config from clipboard after 15s (same as copy-mcp-token)
   if (clipboardConfigClearTimer) clearTimeout(clipboardConfigClearTimer);
@@ -4669,7 +4060,7 @@ ipcMain.handle('copy-mcp-config', (event) => {
       if (clipboard.readText() === config) {
         clipboard.clear();
       }
-    } catch (_) {}
+    } catch (err) { console.warn('[Security] Could not clear the MCP token from the clipboard; clear it manually:', err); }
   }, 15000);
   return { ok: true, autoClearSec: 15 };
 });
@@ -4695,6 +4086,100 @@ ipcMain.handle('set-mcp-tool-enabled', (event, toolName: string, enabled: boolea
   if (!toolName || typeof toolName !== 'string') return false;
   mcpServer?.setToolEnabled(toolName, Boolean(enabled));
   return true;
+});
+
+// Tool Manager (Settings -> MCP): user-defined tools. Definitions are validated and stored in the
+// main process (main/customTools.ts); credentials never travel back to the renderer.
+const CUSTOM_TOOLS_DENIED = { ok: false, errors: ['Unauthorized'] };
+ipcMain.handle('mcp-tool-registry', (event) => {
+  if (!isTrustedSender(event)) return { builtIn: [], custom: [] };
+  return mcpServer?.getToolRegistry() ?? { builtIn: [], custom: [] };
+});
+ipcMain.handle('mcp-custom-tool-create', (event, input: unknown, secret?: unknown) => {
+  if (!isTrustedSender(event)) return CUSTOM_TOOLS_DENIED;
+  return mcpServer?.createCustomTool(input, secret) ?? CUSTOM_TOOLS_DENIED;
+});
+ipcMain.handle('mcp-custom-tool-update', (event, id: unknown, input: unknown, options?: { secret?: unknown; confirmed?: unknown }) => {
+  if (!isTrustedSender(event)) return CUSTOM_TOOLS_DENIED;
+  return mcpServer?.updateCustomTool(id, input, options && typeof options === 'object' ? options : {}) ?? CUSTOM_TOOLS_DENIED;
+});
+ipcMain.handle('mcp-custom-tool-set-enabled', (event, id: unknown, enabled: unknown) => {
+  if (!isTrustedSender(event)) return CUSTOM_TOOLS_DENIED;
+  return mcpServer?.setCustomToolEnabled(id, enabled) ?? CUSTOM_TOOLS_DENIED;
+});
+ipcMain.handle('mcp-custom-tool-delete', (event, id: unknown) => {
+  if (!isTrustedSender(event)) return { ok: false };
+  return mcpServer?.deleteCustomTool(id) ?? { ok: false };
+});
+ipcMain.handle('mcp-custom-tool-test', (event, id: unknown, args: unknown) => {
+  if (!isTrustedSender(event)) return { ok: false, error: 'Unauthorized' };
+  return mcpServer?.testCustomTool(id, args) ?? { ok: false, error: 'MCP is unavailable' };
+});
+ipcMain.handle('mcp-custom-tools-export', (event) => {
+  if (!isTrustedSender(event)) return '';
+  return mcpServer?.exportCustomTools() ?? '';
+});
+ipcMain.handle('mcp-custom-tools-import-preview', (event, text: unknown) => {
+  if (!isTrustedSender(event)) return { entries: [], error: 'Unauthorized' };
+  return mcpServer?.previewCustomToolImport(text) ?? { entries: [], error: 'MCP is unavailable' };
+});
+ipcMain.handle('mcp-custom-tools-import', (event, text: unknown, renameDuplicates?: unknown) => {
+  if (!isTrustedSender(event)) return { ok: false, imported: [], errors: ['Unauthorized'] };
+  return mcpServer?.importCustomTools(text, renameDuplicates) ?? { ok: false, imported: [], errors: ['MCP is unavailable'] };
+});
+
+// Wipes everything the agent has stored (cookies, logins, caches) in both of its sessions.
+ipcMain.handle('recording-state', (event) => {
+  if (!isTrustedSender(event)) return { recording: false, steps: 0, replaying: false, recordings: [] };
+  return mcpServer?.getRecordingState() ?? { recording: false, steps: 0, replaying: false, recordings: [] };
+});
+ipcMain.handle('recording-start', (event) => {
+  if (!isTrustedSender(event)) return false;
+  return mcpServer?.startRecording() ?? false;
+});
+ipcMain.handle('recording-stop', (event, name: unknown) => {
+  if (!isTrustedSender(event)) return { saved: null, skipped: [] };
+  const result = mcpServer?.stopRecording(name);
+  return { saved: result?.saved ? { id: result.saved.id, name: result.saved.name, steps: result.saved.steps.length } : null, skipped: result?.skipped ?? [] };
+});
+ipcMain.handle('recording-delete', (event, id: unknown) => {
+  if (!isTrustedSender(event)) return false;
+  return mcpServer?.deleteRecording(id) ?? false;
+});
+ipcMain.handle('recording-replay', async (event, id: unknown) => {
+  if (!isTrustedSender(event)) return { total: 0, completed: 0, status: 'failed', message: 'Unauthorized' };
+  if (!mcpServer) return { total: 0, completed: 0, status: 'failed', message: 'Start the MCP server first.' };
+  return mcpServer.replayRecording(id);
+});
+ipcMain.handle('clear-agent-profile', async (event) => {
+  if (!isTrustedSender(event)) return false;
+  try {
+    for (const name of [AGENT_PERSIST_PARTITION, AGENT_PARTITION]) {
+      const sess = session.fromPartition(name, { cache: false });
+      await sess.clearStorageData();
+      await sess.clearCache();
+    }
+    return true;
+  } catch (err) {
+    console.error('Error clearing agent profile:', err);
+    return false;
+  }
+});
+ipcMain.handle('get-mcp-approval-mode', (event) => {
+  if (!isTrustedSender(event)) return 'balanced';
+  return mcpServer?.getApprovalMode() ?? 'balanced';
+});
+ipcMain.handle('set-mcp-approval-mode', (event, mode: unknown) => {
+  if (!isTrustedSender(event)) return 'balanced';
+  return mcpServer?.setApprovalMode(mode) ?? 'balanced';
+});
+ipcMain.handle('get-mcp-site-rules', (event) => {
+  if (!isTrustedSender(event)) return [];
+  return mcpServer?.getSiteRules() ?? [];
+});
+ipcMain.handle('set-mcp-site-rules', (event, rules: unknown) => {
+  if (!isTrustedSender(event)) return [];
+  return mcpServer?.setSiteRules(rules) ?? [];
 });
 
 ipcMain.handle('get-mcp-status', (event) => {
@@ -4731,9 +4216,10 @@ ipcMain.handle('clear-incognito-session', async (event, tabId?: string) => {
       await sess.clearStorageData();
       await sess.clearCache();
     } else {
-      // Clear all active per-tab incognito partitions
-      const partitions = Array.from(hardenedIncognitoPartitions);
-      hardenedIncognitoPartitions.clear();
+      // Clear all active per-tab incognito partitions. The agent's shared
+      // partition is left alone: agent tabs may still be using it.
+      const partitions = Array.from(hardenedIncognitoPartitions).filter(name => name !== AGENT_PARTITION && name !== AGENT_PERSIST_PARTITION);
+      for (const partName of partitions) hardenedIncognitoPartitions.delete(partName);
       for (const partName of partitions) {
         try {
           const sess = session.fromPartition(partName, { cache: false });
@@ -4804,33 +4290,9 @@ ipcMain.handle('purge-system-memory', async (event) => {
   }
 });
 
-// Password Manager: save-password channel (fire-and-forget, validated with isTrustedSender)
-ipcMain.on('save-password', (event, data: { hostname: string; username: string; password: string }) => {
-  if (!isTrustedSender(event)) return;
-  if (!data || typeof data !== 'object') return;
-  const { hostname, username, password } = data;
-  if (typeof hostname !== 'string' || typeof username !== 'string' || typeof password !== 'string') return;
-  const cleanUser = username.trim();
-  let cleanHost = hostname.trim().toLowerCase();
-  try {
-    if (cleanHost.includes('://')) {
-      cleanHost = new URL(cleanHost).hostname.toLowerCase();
-    } else {
-      cleanHost = new URL(`https://${cleanHost}`).hostname.toLowerCase();
-    }
-  } catch {
-    cleanHost = cleanHost.replace(/:\d+$/, '').replace(/\.+$/, '');
-  }
-  if (!cleanHost || !cleanUser || !password) return;
-  // Emit event to the main window to trigger password prompt
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('password-form-submitted', { hostname: cleanHost, username: cleanUser, password });
-  }
-});
-
 // Generic Secure Storage API (for future password manager, etc.)
 // Mutex: serialize concurrent secure-store operations to prevent read-modify-write races
-// when multiple tabs call save-password / secure-store-set simultaneously.
+// when multiple tabs call secure-store-set simultaneously.
 let secureStoreMutexChain: Promise<unknown> = Promise.resolve();
 function withSecureStoreMutex<T>(fn: () => Promise<T>): Promise<T> {
   const next = secureStoreMutexChain.then(fn, fn) as Promise<T>;
@@ -4868,38 +4330,8 @@ ipcMain.handle('secure-store-set', async (event, key: string, value: string) => 
         try { await fs.promises.chmod(keyPath, 0o600); } catch (_) {}
       } else {
         console.warn(`[Security] safeStorage encryption unavailable. Storing key "${key}" with local AES-256-GCM cipher.`);
-        const getFallbackKey = (): Buffer => {
-          const secretPath = path.join(app.getPath('userData'), '.machine_secret');
-          let secret: Buffer;
-          try {
-            secret = fs.readFileSync(secretPath);
-            if (secret.length !== 32) {
-              throw new Error(
-                `Corrupt .machine_secret (${secret.length} bytes, expected 32). ` +
-                'Values encrypted with it cannot be recovered; restore a backup or clear secure storage.'
-              );
-            }
-          } catch (err: any) {
-            if (err?.code === 'ENOENT') {
-              secret = crypto.randomBytes(32);
-              fs.writeFileSync(secretPath, secret, { mode: 0o600 });
-              if (process.platform !== 'win32') {
-                try { fs.chmodSync(secretPath, 0o600); } catch (_) {}
-              }
-            } else {
-              throw err;
-            }
-          }
-          // K-3: Bind salt to machine identity so copying userData to another machine/account fails
-          const machineSalt = getMachineSalt('nova-secure-salt');
-          return crypto.scryptSync(secret, machineSalt, 32);
-        };
-        const keyBuf = getFallbackKey();
-        const iv = crypto.randomBytes(12);
-        const cipher = crypto.createCipheriv('aes-256-gcm', keyBuf, iv);
-        const enc = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
-        const tag = cipher.getAuthTag();
-        const payload = Buffer.concat([Buffer.from('NENC', 'utf8'), iv, tag, enc]);
+        // K-3: the shared fallback binds the salt to machine identity so copying userData to another machine/account fails
+        const payload = encryptDataWithFallback(value, app.getPath('userData'));
         // Same reasoning as the safeStorage branch above: O_TRUNC in place turns a
         // crash mid-write into unreadable ciphertext that then reads as null.
         const nencTmp = `${keyPath}.${process.pid}.${crypto.randomUUID()}.tmp`;
@@ -4938,23 +4370,9 @@ ipcMain.handle('secure-store-get', async (event, key: string) => {
           return safeStorage.decryptString(raw);
         } catch (_) {}
       }
-      // Check for fallback AES-256-GCM format
-      if (raw.length >= 32 && raw.subarray(0, 4).toString('utf8') === 'NENC') {
-        try {
-          const secretPath = path.join(app.getPath('userData'), '.machine_secret');
-          if (fs.existsSync(secretPath)) {
-            const secret = fs.readFileSync(secretPath);
-            const machineSalt = getMachineSalt('nova-secure-salt');
-            const keyBuf = crypto.scryptSync(secret, machineSalt, 32);
-            const iv = raw.subarray(4, 16);
-            const tag = raw.subarray(16, 32);
-            const enc = raw.subarray(32);
-            const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuf, iv);
-            decipher.setAuthTag(tag);
-            return decipher.update(enc) + decipher.final('utf8');
-          }
-        } catch (_) {}
-      }
+      // Fallback AES-256-GCM format (NENC), same shared implementation as the writer
+      const fallbackPlain = decryptDataWithFallback(raw, app.getPath('userData'));
+      if (fallbackPlain !== null) return fallbackPlain;
       // K-4: Fail closed: do NOT read unauthenticated plaintext
       return null;
     } catch {
@@ -5093,6 +4511,9 @@ ipcMain.handle('model-cache-set', async (event, url: unknown, data: unknown) => 
   }
 });
 
+// Dialog, upload, drag and accessibility-snapshot handlers (electron/main/agentCdp.ts).
+registerAgentCdpHandlers({ isTrustedSender, isMcpRunning: () => Boolean(mcpServer && mcpServer.isRunning()) });
+
 // Second layer of the agent navigation policy. The renderer check
 // (isSafeAgentNavigationUrl) cannot resolve a DNS name, so a public hostname
 // that points at a private address still needs to be refused here, where the
@@ -5157,6 +4578,30 @@ ipcMain.handle('store-set', async (event, key: string, value: string) => {
   }
 });
 
+ipcMain.handle('open-crash-logs-folder', async (event) => {
+  if (!isTrustedSender(event)) return false;
+  // Crashes that happen before app startup are appended under the private
+  // fallback directory (see appendCrashLog), not under userData. Reveal the
+  // file that actually exists so the earliest crash is reachable too.
+  const userDataLog = path.join(app.getPath('userData'), 'crash.log');
+  const earlyLog = path.join(os.homedir(), '.king-browser', 'crash.log');
+  try {
+    if (fs.existsSync(userDataLog) || fs.existsSync(earlyLog)) {
+      shell.showItemInFolder(fs.existsSync(userDataLog) ? userDataLog : earlyLog);
+      return true;
+    }
+    // No crash has been recorded yet. Open the private directory that will hold
+    // the log instead of creating an empty file only to reveal it.
+    const logDir = path.dirname(userDataLog);
+    await fs.promises.mkdir(logDir, { recursive: true, mode: 0o700 });
+    const openError = await shell.openPath(logDir);
+    return openError === '';
+  } catch (error) {
+    console.error('[CrashLog] Unable to reveal crash log:', error);
+    return false;
+  }
+});
+
 ipcMain.handle('store-get', async (event, key: string) => {
   if (!isTrustedSender(event)) return null;
   try {
@@ -5200,7 +4645,7 @@ ipcMain.handle('set-vpn', async (event, config: { enabled: boolean; proxyUrl?: s
       const encrypted = encryptDataWithFallback(payload, app.getPath('userData'), safeStorage);
       fs.writeFileSync(vpnConfigPath, encrypted, { mode: 0o600 });
       if (process.platform !== 'win32') {
-        try { fs.chmodSync(vpnConfigPath, 0o600); } catch (_) {}
+        try { fs.chmodSync(vpnConfigPath, 0o600); } catch (err) { console.warn('[Security] Could not restrict permissions on a private file; it may be readable by other users:', err); }
       }
     } else if (fs.existsSync(vpnConfigPath)) {
       fs.unlinkSync(vpnConfigPath);
@@ -5211,351 +4656,37 @@ ipcMain.handle('set-vpn', async (event, config: { enabled: boolean; proxyUrl?: s
 
 const dnsLookup = promisify(dns.lookup);
 
-interface ValidatedPreviewTarget {
-  url: URL;
-  pinnedIp: string;
-}
+// The SSRF rules (scheme, local hosts, DNS pinning, MCP port, redirects, body limit) live in main/previewFetch.ts.
+const previewValidationDeps = (): PreviewValidationDeps => ({
+  lookup: (hostname) => dnsLookup(hostname, { all: true }) as Promise<any>,
+  getMcpPort: () => mcpServer?.getPort?.() || 3020
+});
 
-async function validatePreviewUrl(rawUrl: string): Promise<ValidatedPreviewTarget | { error: string }> {
-  let parsedUrl: URL;
-  try {
-    parsedUrl = new URL(rawUrl);
-    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      return { error: 'Only HTTP/HTTPS protocols are allowed for this operation.' };
-    }
-    if (parsedUrl.username || parsedUrl.password) {
-      return { error: 'URLs with embedded credentials are not allowed.' };
-    }
-  } catch {
-    return { error: 'Invalid URL format' };
-  }
-
-  const hostname = parsedUrl.hostname.toLowerCase();
-  if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local')) {
-    return { error: 'Requests to local hostnames are blocked.' };
-  }
-
-  let pinnedIp = '';
-  let dnsTimeoutTimer: NodeJS.Timeout | undefined;
-  try {
-    const lookupPromise = dnsLookup(hostname, { all: true }) as Promise<any>;
-    lookupPromise.catch(() => {});
-    const addresses = await Promise.race([
-      lookupPromise,
-      new Promise<never>((_, reject) => {
-        dnsTimeoutTimer = setTimeout(() => reject(new Error('DNS lookup timeout')), 3000);
-      })
-    ]);
-    const addrList = Array.isArray(addresses) ? addresses : [addresses];
-    if (addrList.length === 0 || addrList.some((entry: any) => isPrivateIP(entry?.address))) {
-      return { error: 'Requests to private/internal IP addresses are blocked.' };
-    }
-    pinnedIp = String(addrList[0]?.address || '');
-    if (!pinnedIp) {
-      return { error: 'DNS resolution returned empty address.' };
-    }
-  } catch {
-    return { error: 'DNS resolution failed.' };
-  } finally {
-    if (dnsTimeoutTimer) clearTimeout(dnsTimeoutTimer);
-  }
-
-  const port = parsedUrl.port || (parsedUrl.protocol === 'https:' ? '443' : '80');
-  const activeMcpPort = String(mcpServer?.getPort?.() || 3020);
-  if (port === '3020' || port === activeMcpPort) {
-    return { error: 'Requests to MCP server port are blocked.' };
-  }
-  return { url: parsedUrl, pinnedIp };
-}
-
-const MAX_PREVIEW_HTML_BYTES = 5 * 1024 * 1024;
-
-// Read a response body with a hard byte limit even when the server omits
-// Content-Length. This keeps the SSRF-protected preview endpoint bounded for
-// chunked/streaming responses as well as normal buffered responses.
-async function readResponseTextWithLimit(response: any, maxBytes: number): Promise<string> {
-  const body = response?.body;
-  if (body && typeof body.on === 'function') {
-    return await new Promise<string>((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      let received = 0;
-      let settled = false;
-      const fail = (error: Error) => {
-        if (settled) return;
-        settled = true;
-        try { body.destroy?.(); } catch (_) {}
-        reject(error);
-      };
-      body.on('data', (chunk: Buffer | string) => {
-        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-        received += buffer.length;
-        if (received > maxBytes) {
-          fail(new Error(`Response body exceeds ${maxBytes} byte size limit`));
-          return;
-        }
-        chunks.push(buffer);
-      });
-      body.on('end', () => {
-        if (settled) return;
-        settled = true;
-        resolve(Buffer.concat(chunks).toString('utf8'));
-      });
-      body.on('error', (error: Error) => fail(error));
-    });
-  }
-
-  if (body && typeof body.getReader === 'function') {
-    const reader = body.getReader();
-    const chunks: Buffer[] = [];
-    let received = 0;
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const buffer = Buffer.from(value);
-        received += buffer.length;
-        if (received > maxBytes) {
-          try { await reader.cancel(); } catch (_) {}
-          throw new Error(`Response body exceeds ${maxBytes} byte size limit`);
-        }
-        chunks.push(buffer);
-      }
-      return Buffer.concat(chunks).toString('utf8');
-    } finally {
-      try { reader.releaseLock?.(); } catch (_) {}
-    }
-  }
-
-  const arrayBuffer = await response.arrayBuffer();
-  if (arrayBuffer.byteLength > maxBytes) {
-    throw new Error(`Response body exceeds ${maxBytes} byte size limit`);
-  }
-  return Buffer.from(arrayBuffer).toString('utf8');
+async function validatePreviewUrl(rawUrl: string) {
+  return validatePreviewUrlWith(rawUrl, previewValidationDeps());
 }
 
 // IPC Handler to fetch raw HTML (Bypasses CORS for Link Preview with SSRF protection)
 ipcMain.handle('fetch-page-html', async (event, url: string) => {
   if (!isTrustedSender(event)) return { error: 'Unauthorized' };
-  if (!url || typeof url !== 'string') return { error: 'Invalid URL' };
-
-  let currentUrl = url;
-  const MAX_REDIRECTS = 3;
-
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    // Validate every hop. Redirects can cross from a public host to localhost,
-    // a private IP, a mapped IPv4 address, or the local MCP port.
-    const validated = await validatePreviewUrl(currentUrl);
-    if ('error' in validated) return validated;
-    const { url: parsedUrl, pinnedIp } = validated;
-    currentUrl = parsedUrl.href;
-
-    try {
-      const isHttps = parsedUrl.protocol === 'https:';
-      const agentOptions = {
-        lookup: (_hostname: string, _opts: any, cb: any) => {
-          cb(null, pinnedIp, pinnedIp.includes(':') ? 6 : 4);
-        }
-      };
-      const agent = isHttps ? new https.Agent(agentOptions) : new http.Agent(agentOptions);
-
-      const res = await fetch(currentUrl, {
-        headers: {
-          'User-Agent': getStandardUserAgent(),
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
-        },
-        agent,
-        redirect: 'manual',
-        signal: AbortSignal.timeout(5000)
-      } as any);
-
-      if (res.status >= 300 && res.status < 400) {
-        const location = res.headers.get('location');
-        if (!location) return { error: 'Redirect without Location header' };
-        currentUrl = new URL(location, currentUrl).href;
-        continue;
-      }
-
-      if (res.ok) {
-        const contentLength = res.headers.get('content-length');
-        if (contentLength && parseInt(contentLength, 10) > MAX_PREVIEW_HTML_BYTES) {
-          return { error: 'Response body exceeds 5MB size limit' };
-        }
-        const rawHtml = await readResponseTextWithLimit(res, MAX_PREVIEW_HTML_BYTES);
-        // Security: Robust AST-based DOMPurify sanitization in main process
-        let html = getMainDOMPurify().sanitize(rawHtml, {
-          WHOLE_DOCUMENT: true,
-          FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'applet', 'svg', 'base', 'math', 'form', 'meta', 'link'],
-          FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'formaction', 'ontoggle', 'oninput', 'onchange', 'onsubmit', 'onkeydown', 'onkeyup', 'onkeypress', 'onmouseenter', 'onmouseleave', 'onmousedown', 'onmouseup', 'ondblclick', 'oncontextmenu', 'onwheel', 'onscroll', 'ondragstart', 'srcdoc']
-        });
-        // Security: Cap sanitized output at 3MB (also bounds the ReaderMode
-        // outerHTML -> fetchPageHtml fallback path at the main-process boundary).
-        const MAX_SANITIZED_HTML_CHARS = 3 * 1024 * 1024;
-        if (html.length > MAX_SANITIZED_HTML_CHARS) {
-          console.warn(`[fetch-page-html] Sanitized HTML exceeds 3MB (${html.length} chars), truncating`);
-          html = html.slice(0, MAX_SANITIZED_HTML_CHARS);
-        }
-        return { success: true, html };
-      }
-      return { error: 'HTTP ' + res.status };
-    } catch (err: any) {
-      return { error: err.message };
-    }
-  }
-
-  return { error: 'Too many redirects' };
+  return fetchPageHtml(url, {
+    validate: validatePreviewUrl,
+    fetch: (target, init) => fetch(target, init),
+    userAgent: getStandardUserAgent(),
+    sanitize: (rawHtml) => getMainDOMPurify().sanitize(rawHtml, {
+      WHOLE_DOCUMENT: true,
+      FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'applet', 'svg', 'base', 'math', 'form', 'meta', 'link'],
+      FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'formaction', 'ontoggle', 'oninput', 'onchange', 'onsubmit', 'onkeydown', 'onkeyup', 'onkeypress', 'onmouseenter', 'onmouseleave', 'onmousedown', 'onmouseup', 'ondblclick', 'oncontextmenu', 'onwheel', 'onscroll', 'ondragstart', 'srcdoc']
+    })
+  });
 });
 
-async function translateTextWithGoogle(text: string, sourceLang: string = 'auto', targetLang: string = 'tr'): Promise<string> {
-  const url = `https://translate.googleapis.com/translate_a/single?client=dict-chrome-ex&sl=${encodeURIComponent(sourceLang)}&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': getStandardUserAgent(),
-    },
-    signal: AbortSignal.timeout(8000)
-  });
-  if (!res.ok) {
-    throw new Error(`Translation failed with status ${res.status}`);
-  }
-  const data = await res.json();
-  if (Array.isArray(data) && Array.isArray(data[0])) {
-    return data[0].map((item: any) => item[0] || '').join('');
-  }
-  return text;
-}
-
-async function detectLanguageWithGoogle(sampleText: string): Promise<string> {
-  try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=dict-chrome-ex&sl=auto&tl=en&dt=t&q=${encodeURIComponent(sampleText.slice(0, 300))}`;
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': getStandardUserAgent(),
-      },
-      signal: AbortSignal.timeout(6000)
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && typeof data[2] === 'string') {
-        return data[2]; // e.g. 'en', 'de', 'es', 'fr', 'tr', 'ru', 'ja'
-      }
-    }
-  } catch (err) {
-    console.warn('[Translate] Language detection error:', err);
-  }
-  return 'auto';
-}
-
-function escapeHtmlForTranslation(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-const TRANSLATION_HTML_ENTITY_MAP: Record<string, string> = {
-  '&lt;': '<',
-  '&gt;': '>',
-  '&quot;': '"',
-  '&#39;': "'",
-  '&nbsp;': ' ',
-  '&amp;': '&'
-};
-
-function unescapeHtmlForTranslation(str: string): string {
-  return str.replace(/&(?:lt|gt|quot|#39|nbsp|amp);/g, (match) => TRANSLATION_HTML_ENTITY_MAP[match] || match);
-}
-
-// IPC Handlers for One-Click Page Translation
-const MAX_TRANSLATION_ITEMS = 500;
-const MAX_TRANSLATION_TEXT_CHARS = 4000;
-const MAX_TRANSLATION_TOTAL_CHARS = 100_000;
+// IPC Handlers for One-Click Page Translation (limits, chunking and the service calls live in main/translation.ts)
+const translationDeps = (): TranslationDeps => ({ fetch: (url, init) => fetch(url, init as any), userAgent: getStandardUserAgent() });
 
 ipcMain.handle('translate-text-batch', async (event, payload: unknown) => {
   if (!isTrustedSender(event)) return { error: 'Unauthorized', translations: [] };
-  const input = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
-  const rawTexts = Array.isArray(input.texts) ? input.texts : [];
-  const safeTexts: string[] = [];
-  let remainingChars = MAX_TRANSLATION_TOTAL_CHARS;
-
-  for (const rawText of rawTexts.slice(0, MAX_TRANSLATION_ITEMS)) {
-    if (typeof rawText !== 'string' || remainingChars <= 0) {
-      safeTexts.push('');
-      continue;
-    }
-    const text = rawText.slice(0, Math.min(MAX_TRANSLATION_TEXT_CHARS, remainingChars));
-    safeTexts.push(text);
-    remainingChars -= text.length;
-  }
-
-  if (safeTexts.length === 0) return { translations: [], success: true };
-
-  const validLanguage = (value: unknown, fallback: string): string => {
-    if (typeof value !== 'string' || !/^[a-zA-Z]{2,12}(?:[-_][a-zA-Z0-9]{2,12})?$/.test(value)) {
-      return fallback;
-    }
-    return value;
-  };
-  const sLang = validLanguage(input.sourceLang, 'auto');
-  const tLang = validLanguage(input.targetLang, 'en');
-  const texts = safeTexts;
-
-  try {
-    const results: string[] = [...texts];
-
-    // Group into HTML payload chunks of ~1600 chars or ~35 elements
-    const chunks: { indices: number[]; payload: string }[] = [];
-    let currentIndices: number[] = [];
-    let currentPayload = '';
-
-    for (let i = 0; i < texts.length; i++) {
-      const txt = texts[i] || '';
-      if (!txt.trim()) continue;
-
-      const itemHtml = `<p id="${i}">${escapeHtmlForTranslation(txt)}</p>`;
-      if (currentIndices.length >= 35 || (currentPayload.length + itemHtml.length > 1600 && currentIndices.length > 0)) {
-        chunks.push({ indices: currentIndices, payload: currentPayload });
-        currentIndices = [i];
-        currentPayload = itemHtml;
-      } else {
-        currentIndices.push(i);
-        currentPayload += itemHtml;
-      }
-    }
-
-    if (currentIndices.length > 0) {
-      chunks.push({ indices: currentIndices, payload: currentPayload });
-    }
-
-    // Process chunks concurrently (up to 3 at a time)
-    const CONCURRENCY = 3;
-    for (let i = 0; i < chunks.length; i += CONCURRENCY) {
-      const batch = chunks.slice(i, i + CONCURRENCY);
-      await Promise.all(batch.map(async (chunk) => {
-        try {
-          const rawTranslated = await translateTextWithGoogle(chunk.payload, sLang, tLang);
-          const regex = /<p id="?(\d+)"?>([\s\S]*?)<\/p>/gi;
-          let match;
-          while ((match = regex.exec(rawTranslated)) !== null) {
-            const idx = parseInt(match[1], 10);
-            const content = unescapeHtmlForTranslation(match[2].trim());
-            if (idx >= 0 && idx < results.length && content) {
-              results[idx] = content;
-            }
-          }
-        } catch (err: any) {
-          console.warn('[Translate] Chunk translation failed:', err.message);
-        }
-      }));
-      if (i + CONCURRENCY < chunks.length) {
-        await new Promise(r => setTimeout(r, 60));
-      }
-    }
-
-    return { translations: results, success: true };
-  } catch (err: any) {
-    console.error('[Translate] Batch translation error:', err);
-    return { error: err.message || 'Translation failed', translations: texts, success: false };
-  }
+  return translateBatch(payload, translationDeps());
 });
 
 ipcMain.handle('detect-language', async (event, sampleText: string) => {
@@ -5563,7 +4694,7 @@ ipcMain.handle('detect-language', async (event, sampleText: string) => {
   if (!sampleText || typeof sampleText !== 'string') return 'auto';
   const cleanText = sampleText.trim().slice(0, 2048);
   if (!cleanText) return 'auto';
-  return await detectLanguageWithGoogle(cleanText);
+  return detectLanguage(cleanText, translationDeps());
 });
 
 // Autocomplete Suggestions handler (providers + LRU cache + staggered fallback live in main/suggestions.ts)
@@ -5997,13 +5128,6 @@ ipcMain.handle('list-extensions', async (event) => {
   }));
 });
 
-const incognitoAllowedExtensions = new Set<string>();
-
-export function isExtensionAllowedInIncognito(extensionId: string, manifest: any): boolean {
-  if (!extensionId) return false;
-  if (manifest?.incognito === 'not_allowed') return false;
-  return incognitoAllowedExtensions.has(extensionId);
-}
 
 // Open Extension Popup Window
 ipcMain.handle('open-extension-popup', async (event, url: unknown, bounds?: { x?: number; y?: number; width?: number; height?: number } | null, activeTabInfo?: Record<string, unknown> | null) => {
@@ -6585,18 +5709,14 @@ ipcMain.handle('remove-extension', async (event, extensionId: string) => {
 ipcMain.handle('set-extension-incognito-access', async (event, extensionId: unknown, allowed: unknown) => {
   if (!isTrustedSender(event)) return { error: 'Unauthorized' };
   if (typeof extensionId !== 'string' || !extensionId) return { error: 'Invalid extension ID' };
-  if (allowed === true) {
-    incognitoAllowedExtensions.add(extensionId);
-  } else {
-    incognitoAllowedExtensions.delete(extensionId);
-  }
+  setExtensionIncognitoAccess(extensionId, allowed === true);
   return { success: true };
 });
 
 ipcMain.handle('get-extension-incognito-access', async (event, extensionId: unknown) => {
   if (!isTrustedSender(event)) return false;
   if (typeof extensionId !== 'string' || !extensionId) return false;
-  return incognitoAllowedExtensions.has(extensionId);
+  return hasExtensionIncognitoAccess(extensionId);
 });
 
 // Install from Chrome Web Store (CRX download + zip-slip guards live in main/crxInstaller.ts)
@@ -6673,182 +5793,28 @@ ipcMain.handle('review-extension-permissions', async (event, extensionId: string
 });
 
 // --- NATIVE OS TEXT-TO-SPEECH (macOS High Fidelity) ---
-let activeTtsProcess: child_process.ChildProcess | null = null;
-// Generation counter: each speak request invalidates the previous one so a
-// killed request's close-handler can never spawn a fallback that talks over
-// the newer request.
-let ttsGeneration = 0;
-
-// Performance: async execFile so a slow `/usr/bin/say` can never block the Electron main process
+// The controller (voice sanitising, request supersession, watchdog) lives in main/nativeTts.ts.
 const execFileAsync = promisify(child_process.execFile);
+const nativeTts = new NativeTts({
+  platform: process.platform,
+  spawn: (command, args, options) => child_process.spawn(command, args, options) as unknown as SayProcess,
+  // Async so a slow `/usr/bin/say` can never block the Electron main process
+  listVoices: async () => (await execFileAsync('/usr/bin/say', ['-v', '?'], { encoding: 'utf8', timeout: 5000 })).stdout
+});
 
 ipcMain.handle('native-tts-get-voices', async (event) => {
   if (!isTrustedSender(event)) return [];
-  if (process.platform === 'darwin') {
-    try {
-      const { stdout } = await execFileAsync('/usr/bin/say', ['-v', '?'], { encoding: 'utf8', timeout: 5000 });
-      const lines = stdout.split('\n');
-      const list: { name: string; lang: string; description: string }[] = [];
-      for (const line of lines) {
-        const match = line.match(/^([^\t#]+?)\s+([a-zA-Z]{2}_[a-zA-Z0-9]+)\s+#\s*(.*)$/);
-        if (match) {
-          list.push({
-            name: match[1].trim(),
-            lang: match[2].replace('_', '-'),
-            description: match[3].trim()
-          });
-        }
-      }
-      return list;
-    } catch (e) {
-      console.error('Failed to get macOS native voices:', e);
-      return [];
-    }
-  }
-  return [];
+  return nativeTts.getVoices();
 });
 
 ipcMain.handle('native-tts-speak', async (event, text: string, voiceName?: string, rate?: number, lang?: string) => {
   if (!isTrustedSender(event)) return { success: false, error: 'Unauthorized' };
-  if (!text || typeof text !== 'string') return { success: false, error: 'Invalid text' };
-
-  // Limit text length to 100,000 chars to avoid memory exhaustion
-  if (text.length > 100000) {
-    text = text.substring(0, 100000);
-  }
-
-  // Invalidate any in-flight request BEFORE killing it: its close handler runs
-  // on a future tick, so bumping the generation first guarantees it observes
-  // the mismatch and never spawns a voice-fallback over this request.
-  const myGeneration = ++ttsGeneration;
-
-  if (activeTtsProcess) {
-    try {
-      activeTtsProcess.kill();
-    } catch (_) {}
-    activeTtsProcess = null;
-  }
-
-  if (process.platform === 'darwin') {
-    return new Promise((resolve) => {
-      // Robustness: hard overall cap so a hung `say` process can never leave this
-      // handler pending forever. Single shared deadline across voice-fallback retries.
-      let settled = false;
-      let sayTimedOut = false;
-      const sayTimeout = setTimeout(() => {
-        sayTimedOut = true;
-        if (activeTtsProcess) {
-          try { activeTtsProcess.kill(); } catch (_) {}
-          activeTtsProcess = null;
-        }
-      }, 120000);
-      sayTimeout.unref?.();
-      const finish = (result: { success: boolean; error?: string }) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(sayTimeout);
-        resolve(result);
-      };
-
-      // Security: Sanitize voice name strictly against command flag injection
-      let cleanVoice: string | null = null;
-      if (voiceName && typeof voiceName === 'string') {
-        const rawName = voiceName.split('(')[0].trim();
-        if (/^[a-zA-Z0-9\s]+$/.test(rawName) && rawName.length <= 40 && !rawName.startsWith('-')) {
-          cleanVoice = rawName;
-        }
-      }
-
-      // If no voice specified, determine best default by language
-      if (!cleanVoice && lang && typeof lang === 'string') {
-        const prefix = lang.toLowerCase().split('-')[0];
-        if (prefix === 'tr') cleanVoice = 'Yelda';
-        else if (prefix === 'de') cleanVoice = 'Anna';
-        else if (prefix === 'fr') cleanVoice = 'Thomas';
-        else if (prefix === 'es') cleanVoice = 'Mónica';
-        else if (prefix === 'it') cleanVoice = 'Alice';
-        else if (prefix === 'ja') cleanVoice = 'Kyoko';
-        else if (prefix === 'ru') cleanVoice = 'Milena';
-        else cleanVoice = 'Samantha';
-      }
-
-      const args: string[] = [];
-      if (cleanVoice) {
-        args.push('-v', cleanVoice);
-      }
-
-      if (rate && typeof rate === 'number' && Number.isFinite(rate)) {
-        const clampedRate = Math.max(0.5, Math.min(2.5, rate));
-        const wpm = Math.round(175 * clampedRate);
-        args.push('-r', String(wpm));
-      }
-
-      const runSay = (commandArgs: string[]) => {
-        try {
-          const proc = child_process.spawn('/usr/bin/say', commandArgs, {
-            stdio: ['pipe', 'ignore', 'pipe']
-          });
-          activeTtsProcess = proc;
-
-          // Robustness: drain stderr so pipe backpressure can never stall the process
-          if (proc.stderr) {
-            proc.stderr.on('data', () => {});
-          }
-
-          if (proc.stdin) {
-            proc.stdin.on('error', () => {});
-            try {
-              proc.stdin.write(text, 'utf8');
-              proc.stdin.end();
-            } catch (_) {}
-          }
-
-          proc.on('close', (code) => {
-            if (activeTtsProcess === proc) activeTtsProcess = null;
-            if (myGeneration !== ttsGeneration) {
-              // A newer speak request or stop request superseded this one.
-              finish({ success: false, error: 'Superseded or stopped' });
-            } else if (sayTimedOut) {
-              finish({ success: false, error: 'Speech synthesis timed out' });
-            } else if (code === 0) {
-              finish({ success: true });
-            } else if (code !== null && commandArgs.includes('-v') && myGeneration === ttsGeneration) {
-              // Only fallback if not cancelled/stopped and custom voice failed
-              const fallbackArgs = commandArgs.filter((a, i) => a !== '-v' && commandArgs[i - 1] !== '-v');
-              runSay(fallbackArgs);
-            } else {
-              finish({ success: false, error: `Process exited with code ${code}` });
-            }
-          });
-
-          proc.on('error', (err) => {
-            if (activeTtsProcess === proc) activeTtsProcess = null;
-            finish({ success: false, error: err.message });
-          });
-        } catch (err: any) {
-          activeTtsProcess = null;
-          finish({ success: false, error: err.message });
-        }
-      };
-
-      runSay(args);
-    });
-  }
-
-  return { success: false, error: 'Native TTS is only available on macOS' };
+  return nativeTts.speak(text, voiceName, rate, lang);
 });
 
 ipcMain.handle('native-tts-stop', async (event) => {
   if (!isTrustedSender(event)) return false;
-  ttsGeneration++; // Increment generation to invalidate any in-flight processes and close handlers
-  if (activeTtsProcess) {
-    try {
-      activeTtsProcess.kill('SIGKILL');
-    } catch (_) {}
-    activeTtsProcess = null;
-    return true;
-  }
-  return false;
+  return nativeTts.stop();
 });
 
 // Sliding-window rate limit state for show-confirm-dialog (dialog flood protection)
