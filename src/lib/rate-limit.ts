@@ -59,12 +59,17 @@ export function rateLimitSubject(
   return user.authenticated ? `user:${user.clerkId}` : `ip:${clientIp(req)}`;
 }
 
-export function clientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
+/** IP العميل من ترويسات الطلب (`x-forwarded-for` ثم `x-real-ip`). */
+export function ipFromHeaders(headers: Headers): string {
+  const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
     return forwarded.split(",")[0]?.trim() || "unknown";
   }
-  return req.headers.get("x-real-ip")?.trim() || "unknown";
+  return headers.get("x-real-ip")?.trim() || "unknown";
+}
+
+export function clientIp(req: Request): string {
+  return ipFromHeaders(req.headers);
 }
 
 /**

@@ -38,17 +38,39 @@ export const STALE_RENDER_MS = 15 * 60 * 1000;
 /**
  * يضمن وجود صف المستخدم ويُعيده. المستخدم الجديد يحصل على كريدتات
  * الترحيب مرة واحدة فقط (التحديث لا يلمس الرصيد إطلاقاً).
+ *
+ * `signupCredits`: عدد الكريدتات الأولية، أو دالة تُنفَّذ **فقط** عند إنشاء
+ * حساب جديد (لا للحسابات القائمة) — تُستعمل لحجب الكريدت المجاني عن حسابات
+ * البوتات (`signup-guard.ts`). الافتراضي `FREE_SIGNUP_CREDITS`.
  */
 export async function ensureUser(
   db: Db,
-  args: { clerkId: string; email?: string | null },
+  args: {
+    clerkId: string;
+    email?: string | null;
+    signupCredits?: number | (() => Promise<number>);
+  },
 ): Promise<UserRow> {
+  let initialCredits: number;
+  if (typeof args.signupCredits === "function") {
+    const existing = await db
+      .update(users)
+      .set({ updatedAt: new Date() })
+      .where(eq(users.clerkId, args.clerkId))
+      .returning();
+    if (existing[0]) {
+      return existing[0];
+    }
+    initialCredits = await args.signupCredits();
+  } else {
+    initialCredits = args.signupCredits ?? FREE_SIGNUP_CREDITS;
+  }
   const rows = await db
     .insert(users)
     .values({
       clerkId: args.clerkId,
       email: args.email ?? null,
-      credits: FREE_SIGNUP_CREDITS,
+      credits: initialCredits,
     })
     .onConflictDoUpdate({
       target: users.clerkId,
