@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { WordCaption } from "../../types/shorts";
 import { UserFacingError } from "./user-facing-error";
 import { escapeSsml } from "./ssml";
@@ -102,14 +101,6 @@ export async function synthesizeAzure(
   }));
 
   return { audio, captions, durationSec };
-}
-
-/** هاش مزج للكاش — مُختلف عن edge-tts لنفس ال voiceId (بديل في الغالب). */
-export function azureNarrationHash(text: string, voiceId: string): string {
-  return createHash("sha256")
-    .update(`azure::${voiceId}::${text}`)
-    .digest("hex")
-    .slice(0, 32);
 }
 
 /** هل المفتاحان مهيأتان؟ — للاستخدام الخارجي. */

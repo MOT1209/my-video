@@ -53,7 +53,7 @@ fix(ui): set the body text colour so dark mode is readable
 
 ## الفحوصات المطلوبة
 
-يشغّل CI على كل Pull Request: **Test & Typecheck** و**Website Build & Test** و**CodeQL**. الدمج بعد نجاحها كلها.
+يشغّل CI على كل Pull Request: **MY-VIDEO — lint, typecheck, migrations, tests, build** (تطبيق الفيديو، ويشمل `npm audit` للاعتماديات)، و**Test & Typecheck** و**Website Build & Test** (نسخة King_Browser)، و**CodeQL**. الدمج بعد نجاحها كلها.
 
 | الأمر | ما يفحصه |
 |---|---|

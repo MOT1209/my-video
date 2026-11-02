@@ -58,14 +58,6 @@ export async function ensureUser(
   return rows[0];
 }
 
-export async function getUserByClerkId(
-  db: Db,
-  clerkId: string,
-): Promise<UserRow | null> {
-  const rows = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
-  return rows[0] ?? null;
-}
-
 export async function getCredits(db: Db, userId: string): Promise<number> {
   const rows = await db
     .select({ credits: users.credits })
@@ -73,26 +65,6 @@ export async function getCredits(db: Db, userId: string): Promise<number> {
     .where(eq(users.id, userId))
     .limit(1);
   return rows[0]?.credits ?? 0;
-}
-
-/** زيادة الرصيد (شراء، أو إرجاع كريدت تصيير فشل). */
-export async function addCredits(
-  db: Db,
-  userId: string,
-  amount: number,
-): Promise<number> {
-  const rows = await db
-    .update(users)
-    .set({
-      credits: sql`${users.credits} + ${amount}`,
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, userId))
-    .returning({ credits: users.credits });
-  if (!rows[0]) {
-    throw new Error(`مستخدم غير موجود: ${userId}`);
-  }
-  return rows[0].credits;
 }
 
 /**

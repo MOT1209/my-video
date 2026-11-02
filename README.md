@@ -4,11 +4,11 @@
 
 <br/>
 
-[![CI](https://github.com/MOT1209/my-video/actions/workflows/ci.yml/badge.svg)](https://github.com/MOT1209/my-video/actions/workflows/ci.yml)
+[![CI](https://github.com/MOT1209/my-video/actions/workflows/root-app-ci.yml/badge.svg)](https://github.com/MOT1209/my-video/actions/workflows/root-app-ci.yml)
 [![CodeQL](https://github.com/MOT1209/my-video/actions/workflows/codeql.yml/badge.svg)](https://github.com/MOT1209/my-video/actions/workflows/codeql.yml)
 ![Next.js](https://img.shields.io/badge/Next.js-16.4-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white)
-![Remotion](https://img.shields.io/badge/Remotion-4.0.535-0b84f3)
+![Remotion](https://img.shields.io/badge/Remotion-4.0.540-0b84f3)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind-4.2-38bdf8?logo=tailwindcss&logoColor=white)
 
@@ -87,10 +87,11 @@ npm run dev            # http://localhost:3000
 |---|---|
 | `npm run dev` | خادم التطوير |
 | `npm run build` | بناء الإنتاج (Next.js) |
-| `npm test` | الاختبارات عبر `bun test` على `src/` (93 اختباراً في 16 ملفاً وقت كتابة هذا الملف) |
+| `npm test` | الاختبارات عبر `bun test` على `src/` |
 | `npm run lint` | فحص ESLint للتطبيق |
 | `npx remotion studio` | استوديو Remotion |
-| `npm run cleanup-blobs` | عرض الملفات الأقدم من 30 يوماً في Blob (تجريبي، لا يحذف) |
+| `npm run db:generate` / `db:migrate` / `db:push` | توليد ترحيلات Drizzle من المخطط، تطبيقها على `DATABASE_URL`، أو دفع المخطط مباشرة لقاعدة التطوير |
+| `npm run cleanup-blobs` | عرض الملفات الأقدم من 30 يوماً في Blob: الأصوات والـ snapshots وفيديوهات الكاش وصور الخلفيات (تجريبي، لا يحذف) |
 | `npm run cleanup-blobs -- --delete --older-than-days=7` | حذف فعلي |
 
 ## متغيرات البيئة
@@ -203,8 +204,8 @@ npm test                         # اختباراته الخاصة (esbuild + No
 
 ## توثيق إضافي
 
-- [`report.html`](report.html): تقرير المراجعة والتطوير الكامل (يُفتح في المتصفح).
-- [`plan.md`](plan.md): خارطة الطريق التنفيذية.
+- [`docs/report.html`](docs/report.html): تقرير المراجعة والتطوير الكامل (يُفتح في المتصفح).
+- [`docs/plan.md`](docs/plan.md): خارطة الطريق التنفيذية.
 - [Remotion on Vercel](https://remotion.dev/docs/vercel-sandbox) · [Discord](https://remotion.dev/discord)
 
 ## الرخصة
