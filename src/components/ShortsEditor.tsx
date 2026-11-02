@@ -32,6 +32,7 @@ import { ErrorComp } from "./Error";
 import { ProgressBar } from "./ProgressBar";
 import { Spacing } from "./Spacing";
 import { ShortMain } from "../remotion/Shorts/ShortMain";
+import { SHORT_TEMPLATES, type ShortTemplate } from "../../types/templates";
 
 type TtsStatus =
   | { status: "idle" }
@@ -138,6 +139,30 @@ export const ShortsEditor: React.FC = () => {
         : { status: "idle" },
     );
     setLoadedTitle(projectTitle);
+  };
+
+  /** يطبّق قالباً جاهزاً: يستبدل النص والإعدادات، ويصفّر الصوت لأنه لم يعد يطابق النص. */
+  const applyTemplate = (template: ShortTemplate) => {
+    const untouched =
+      hook === defaultShortProps.hook &&
+      scenesText === defaultShortProps.scenes.map((s) => s.text).join("\n");
+    if (
+      !untouched &&
+      !window.confirm(`سيستبدل القالب «${template.label}» الخطاف والمشاهد الحالية. المتابعة؟`)
+    ) {
+      return;
+    }
+    setFormError(null);
+    setHook(template.hook);
+    setScenesText(template.scenes.join("\n"));
+    setTheme(template.theme);
+    setCaptionStyle(template.captionStyle);
+    setVoiceId(template.voiceId);
+    setAudioUrl(null);
+    setAudioDurationSec(null);
+    setCaptions([]);
+    setTts({ status: "idle" });
+    setLoadedTitle(null);
   };
 
   const scenes = useMemo(() => {
@@ -311,6 +336,23 @@ export const ShortsEditor: React.FC = () => {
         {loadedTitle ? (
           <div className="text-xs opacity-70 mb-2">مشروع محمّل: {loadedTitle}</div>
         ) : null}
+        <div className="flex flex-col gap-1 mb-3">
+          <span className="text-sm font-medium" id="templates-label">قوالب جاهزة</span>
+          <div className="flex flex-wrap gap-2" role="group" aria-labelledby="templates-label">
+            {SHORT_TEMPLATES.map((template) => (
+              <button
+                key={template.id}
+                type="button"
+                title={template.description}
+                onClick={() => applyTemplate(template)}
+                className="rounded border px-3 py-1 text-xs hover:opacity-80"
+                lang={template.lang}
+              >
+                {template.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="hook" className="text-sm font-medium">الخطاف (أول ثانيتين)</label>
           <input
