@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
-import { PanelRight, PanelLeft, Columns2, ArrowLeftRight, X, Globe } from 'lucide-react';
+import { PanelRight, PanelLeft, Columns2, ArrowLeftRight, X, Globe, Bot } from 'lucide-react';
 import { TopBar } from './components/TopBar';
 import { BrowserView } from './components/BrowserView';
 // Downloads / history / permission domains were extracted into hooks under
@@ -11,19 +11,7 @@ import { useDownloads } from './hooks/useDownloads';
 import { useHistoryRecorder } from './hooks/useHistoryRecorder';
 import { usePermissionRequests } from './hooks/usePermissionRequests';
 import { useTabHibernation } from './hooks/useTabHibernation';
-import type {
-  DownloadItem,
-  HistoryItem,
-  UserSettings,
-  BrowserDemoOptions,
-  VpnLocation,
-  Tab,
-  Folder,
-  Bookmark,
-  Extension,
-  Workspace,
-  ShortcutConfig
-} from './types/browser';
+import type { DownloadItem, HistoryItem, UserSettings, BrowserDemoOptions, VpnLocation, Tab, Workspace } from './types/browser';
 export type { DownloadItem, HistoryItem, UserSettings, BrowserDemoOptions, VpnLocation };
 import type { BlockedSiteAlertData } from './components/BlockedSiteModal';
 import { SidebarTabs } from './components/SidebarTabs';
@@ -31,10 +19,9 @@ import { AgentControlPanel } from './components/AgentControlPanel';
 import { repairTabFolderAssignments } from './utils/verticalTabs';
 import { generateId } from './utils/idGenerator';
 import { safeParseArrayWithBackup, safeParseObjectWithBackup } from './utils/safeStorage';
-import { showConfirm, showAlert } from './utils/confirmDialog';
 import { isSafeNavigationUrl } from './utils/safeNavigation';
 import { syncMcpServerWithSetting } from './utils/mcpServerSync';
-import { matchesShortcut } from './utils/keyboardShortcuts';
+import { matchesShortcut, shortcutKey } from './utils/keyboardShortcuts';
 import { useBookmarks } from './hooks/useBookmarks';
 import { useVpn } from './hooks/useVpn';
 import { useWorkspaces } from './hooks/useWorkspaces';
@@ -108,14 +95,12 @@ const UpdateToast = lazyWithRetry(() => import('./components/UpdateToast').then(
 const VPN_ANCHOR_REF: React.RefObject<HTMLButtonElement> = { current: null };
 
 import { isTombstonedRow } from './services/syncService';
+import { l, t } from './services/i18n';
+import { useAgentTabId, useAgentTakenOver } from './services/agentTabStore';
+import { handoffUrlForAgent } from './utils/handoffUrl';
+import { customizedBindings } from './utils/shortcutCatalog';
 import { logger } from './utils/logger';
-import {
-  EMPTY_ARRAY,
-  normalizeAIActionPayload,
-  getDemoParams,
-  isMac,
-  isWindows,
-} from './utils/appConstants';
+import { EMPTY_ARRAY, normalizeAIActionPayload, getDemoParams, isMac, isWindows } from './utils/appConstants';
 
 
 
@@ -471,6 +456,17 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
     demoBg: demoParams.bg,
     isMac,
   });
+  // The application menu's accelerators follow the shortcuts the user changed.
+  useEffect(() => {
+    if (demoParams.isDemo) return;
+    const api = window.electronAPI;
+    if (!api?.setShortcutBindings) return;
+    api.setShortcutBindings(customizedBindings(settings.shortcuts, isMac)).catch(() => {});
+  }, [settings.shortcuts, demoParams.isDemo]);
+
+  const handleAgentPillHiddenChange = useCallback((hidden: boolean) => {
+    handleUpdateSettings({ agentPillHidden: hidden });
+  }, [handleUpdateSettings]);
 
   // The MCP setting is the source of truth for the server: main auto-starts it
   // from a disk mirror that can disagree with these settings (see mcpServerSync).
@@ -725,6 +721,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
   const {
     handleCreateFolder,
     handleToggleFolder,
+    handleSetFolderColor,
     handleRenameFolder,
     handleDeleteFolder,
     handleMoveTabToFolder,
@@ -783,9 +780,12 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
 
 
 
+  // Stable identity: zoom handlers are passed to memoized children and key handlers.
+  const getTabForZoom = useCallback((tabId: string) => tabsRef.current.find(t => t.id === tabId), []);
   const { handleZoomIn, handleZoomOut, handleResetZoom } = useZoom({
     activeTabId,
     setTabs,
+    getTab: getTabForZoom,
   });
 
 
@@ -1124,7 +1124,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
       const s = settings.shortcuts;
       if (!s) return;
 
-      const key = e.key.toLowerCase();
+      const key = shortcutKey(e);
       const shift = e.shiftKey;
       const meta = e.metaKey || e.ctrlKey; // Accept either Meta (Mac) or Ctrl (Windows)
 
@@ -1178,7 +1178,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
       }
 
       // Focus Address / Search bar (⌘L / Ctrl+L)
-      if (meta && key === 'l') {
+      if (matches('focusAddress')) {
         e.preventDefault();
         const searchInput = document.querySelector<HTMLInputElement>('input[data-omnibox-input]');
         if (searchInput) {
@@ -1188,8 +1188,12 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         return;
       }
 
-      // Next / Previous Tab (Ctrl+Tab / Ctrl+Shift+Tab) within current workspace
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Tab') {
+      // Next / Previous Tab within current workspace. Ctrl+Tab also works on
+      // macOS, where the configurable default is Cmd+Option+arrows.
+      const macCtrlTab = isMac && e.ctrlKey && !e.metaKey && e.key === 'Tab';
+      const wantsNextTab = matches('nextTab') || (macCtrlTab && !shift);
+      const wantsPrevTab = matches('prevTab') || (macCtrlTab && shift);
+      if (wantsNextTab || wantsPrevTab) {
         e.preventDefault();
         // Compute from refs OUTSIDE the updater (StrictMode-safe). Tabs are
         // unchanged here — only the selection moves within the active workspace.
@@ -1198,7 +1202,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         if (currentTabs.length > 1) {
           const currentIndex = currentTabs.findIndex(t => t.id === activeTabIdRef.current);
           let nextIndex = 0;
-          if (e.shiftKey) {
+          if (wantsPrevTab) {
             nextIndex = currentIndex <= 0 ? currentTabs.length - 1 : currentIndex - 1;
           } else {
             nextIndex = currentIndex >= currentTabs.length - 1 ? 0 : currentIndex + 1;
@@ -1209,14 +1213,14 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
       }
 
       // Capture Screenshot (Cmd + Shift + S / Ctrl + Shift + S)
-      if (meta && shift && key === 's') {
+      if (matches('screenshot')) {
         e.preventDefault();
         void handleTakeScreenshot();
         return;
       }
 
-      // Toggle Sidebar in Vertical Tabs Mode (⌘B / ⌘S / Ctrl+B / Ctrl+S)
-      if (matches('toggleSidebar') || ((e.metaKey || e.ctrlKey) && !shift && (key === 'b' || key === 's'))) {
+      // Toggle Sidebar in Vertical Tabs Mode (default ⌘S / Ctrl+S, plus fixed ⌘B / Ctrl+B)
+      if (matches('toggleSidebar') || (meta && !shift && !e.altKey && key === 'b')) {
         e.preventDefault();
         setIsSidebarCollapsed(prev => !prev);
         return;
@@ -1246,8 +1250,8 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         return;
       }
 
-      // Toggle AI Assistant (Cmd + I / Cmd + Shift + A)
-      if ((meta && key === 'i' && !e.altKey && !shift) || (meta && shift && key === 'a')) {
+      // Toggle AI Assistant (default Cmd + I, plus fixed Cmd + Shift + A)
+      if (matches('toggleAiPanel') || (meta && shift && !e.altKey && key === 'a')) {
         e.preventDefault();
         handleToggleAIAssistant();
         return;
@@ -1275,48 +1279,48 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         return;
       }
 
-      // Zoom In (Cmd + + / Cmd + =)
-      if (meta && (key === '+' || key === '=')) {
+      // Zoom In (default Cmd + =, plus fixed Cmd + +)
+      if (matches('zoomIn') || (meta && key === '+')) {
         e.preventDefault();
         handleZoomIn();
         return;
       }
 
       // Zoom Out (Cmd + -)
-      if (meta && key === '-') {
+      if (matches('zoomOut')) {
         e.preventDefault();
         handleZoomOut();
         return;
       }
 
       // Reset Zoom (Cmd + 0)
-      if (meta && key === '0') {
+      if (matches('resetZoom')) {
         e.preventDefault();
         handleResetZoom();
         return;
       }
 
-      // History navigation (Cmd + [ / Cmd + ], Alt + Left / Alt + Right)
-      if ((meta && key === '[') || (e.altKey && key === 'ArrowLeft')) {
+      // History navigation (Cmd + [ / Cmd + ], plus fixed Alt + Left / Alt + Right)
+      if (matches('goBack') || (e.altKey && !meta && key === 'arrowleft')) {
         e.preventDefault();
         handleGoBack();
         return;
       }
-      if ((meta && key === ']') || (e.altKey && key === 'ArrowRight')) {
+      if (matches('goForward') || (e.altKey && !meta && key === 'arrowright')) {
         e.preventDefault();
         handleGoForward();
         return;
       }
 
       // Print Page (Cmd + P / Ctrl + P)
-      if (meta && key === 'p') {
+      if (matches('print')) {
         e.preventDefault();
         handlePrintPage();
         return;
       }
 
-      // Open DevTools (F12 or Cmd+Option+I / Ctrl+Shift+I)
-      if (key === 'f12' || (meta && e.altKey && key === 'i') || (e.ctrlKey && e.shiftKey && key === 'i')) {
+      // Open DevTools (fixed F12, default Cmd+Option+I / Ctrl+Shift+I)
+      if (key === 'f12' || matches('devtools')) {
         e.preventDefault();
         handleOpenDevTools();
         return;
@@ -1355,6 +1359,10 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
 
   // Compute stable primary (left) and secondary (right) tabs for split view.
   // Their physical positions remain stable based on tab order, even when activeTabId changes upon focus.
+  const tabIds = useMemo(() => tabs.map(tab => tab.id), [tabs]);
+  const agentTabId = useAgentTabId(tabIds);
+  const agentTakenOver = useAgentTakenOver();
+
   const { primarySplitTab, secondarySplitTab } = useMemo(() => {
     if (!activeTab || !activeTab.splitWith) return { primarySplitTab: activeTab, secondarySplitTab: null };
     const partner = tabs.find(t => t.id === activeTab.splitWith);
@@ -1430,6 +1438,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
               onCreateFolder={handleCreateFolder}
               onToggleFolder={handleToggleFolder}
               onRenameFolder={handleRenameFolder}
+              onSetFolderColor={handleSetFolderColor}
               onDeleteFolder={handleDeleteFolder}
               onMoveTabToFolder={handleMoveTabToFolder}
               onOpenSpotlight={handleOpenSpotlight}
@@ -1467,7 +1476,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         <>
           {/* Left Edge Mouse Sensor for Instant Hover Reveal */}
           <div
-            className="fixed top-0 left-0 bottom-0 w-8 z-40 no-drag"
+            className="fixed top-0 start-0 bottom-0 w-8 z-40 no-drag"
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             onMouseEnter={handleHoverSidebarOpen}
           />
@@ -1500,7 +1509,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
                 onMouseEnter={handleHoverSidebarOpen}
                 onMouseLeave={handleHoverSidebarClose}
                 style={{ backgroundColor: 'var(--nova-sidebar-bg)', borderColor: 'var(--nova-border-subtle)' }}
-                className="fixed top-0 left-0 bottom-0 z-50 w-[240px] shadow-2xl overflow-hidden bg-white/95 dark:bg-slate-900/98 border-r border-slate-200 dark:border-white/10"
+                className="fixed top-0 start-0 bottom-0 z-50 w-[240px] shadow-2xl overflow-hidden bg-white/95 dark:bg-slate-900/98 border-e border-slate-200 dark:border-white/10"
               >
                 <SidebarTabs
                   tabs={workspaceTabs}
@@ -1526,6 +1535,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
                   onCreateFolder={handleCreateFolder}
                   onToggleFolder={handleToggleFolder}
                   onRenameFolder={handleRenameFolder}
+              onSetFolderColor={handleSetFolderColor}
                   onDeleteFolder={handleDeleteFolder}
                   onMoveTabToFolder={handleMoveTabToFolder}
                   onOpenSpotlight={handleOpenSpotlight}
@@ -1570,7 +1580,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         useVerticalTabs
           ? isSidebarCollapsed
             ? 'bg-white dark:bg-slate-900 m-0 rounded-none border-0'
-            : 'rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.35)] border border-slate-200/90 dark:border-white/[0.08] bg-white dark:bg-slate-900 m-2 ml-1.5'
+            : 'rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.35)] border border-slate-200/90 dark:border-white/[0.08] bg-white dark:bg-slate-900 m-2 ms-1.5'
           : 'bg-white dark:bg-slate-900 rounded-none m-0 border-0'
       }`}>
         {/* TOP NAVIGATION BAR with fluid accordion fold transition */}
@@ -1717,7 +1727,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.15 }}
               className={`absolute inset-y-0 ${
-                splitDragSide === 'left' ? 'left-0 border-r-2' : 'right-0 border-l-2'
+                splitDragSide === 'left' ? 'left-0 border-e-2' : 'right-0 border-s-2'
               } w-[48%] bg-blue-500/15 border-blue-500/60 backdrop-blur-sm z-[999] flex items-center justify-center pointer-events-none`}
             >
               <div className="bg-blue-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center gap-2.5 text-sm font-semibold">
@@ -1750,7 +1760,13 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
         </React.Suspense>
 
         {/* §10 agent control panel (engine status, approvals, STOP NOW) */}
-        <AgentControlPanel />
+        <AgentControlPanel
+          shortcuts={settings.shortcuts}
+          hideWhenIdle={settings.agentPillHideWhenIdle !== false}
+          hidden={!!settings.agentPillHidden}
+          onHiddenChange={handleAgentPillHiddenChange}
+          activeTabUrl={handoffUrlForAgent(activeTab, Boolean(settings.agentIsolatedProfile))}
+        />
 
         {/* Unified Browser Views Container (Single persistent container for primary, secondary split, and background tabs) */}
         <div
@@ -1825,7 +1841,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
                     }`}
                   >
                     {/* Left side: Pane Indicator + Favicon + Page Title + Hostname */}
-                    <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1 me-2">
                       <span className={`px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded transition-colors shrink-0 ${
                         activeTabId === tab.id
                           ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25'
@@ -1894,7 +1910,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
                           }
                         }}
                         className="p-1 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 rounded text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
-                        title="Exit Split View"
+                        title={l({ en: 'Exit Split View', ar: 'الخروج من العرض المقسوم', de: 'Geteilte Ansicht beenden' })}
                       >
                         <Columns2 className="w-3.5 h-3.5" />
                       </button>
@@ -1906,7 +1922,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
                           handleCloseTab(tab.id);
                         }}
                         className="p-1 hover:bg-red-500/15 rounded text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer"
-                        title="Close Tab"
+                        title={l({ en: 'Close Tab', ar: 'إغلاق التبويب', de: 'Tab schließen' })}
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -2012,6 +2028,19 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
                 document.addEventListener('mouseup', handleMouseUp);
               }}
             />
+          )}
+
+          {/* Frame the page while the agent works in a visible tab, so the human
+              always sees which page is under agent control. */}
+          {agentTabId !== null && (agentTabId === primarySplitTab?.id || agentTabId === secondarySplitTab?.id) && (
+            <div className={`pointer-events-none absolute inset-0 z-30 ring-2 ring-inset ${agentTakenOver ? 'ring-sky-400/80' : 'ring-amber-400/80'}`} data-agent-frame="true">
+              <div className="absolute top-2 inset-x-0 flex justify-center">
+                <span className={`flex items-center gap-1.5 rounded-full ${agentTakenOver ? 'bg-sky-400' : 'bg-amber-400'} text-slate-900 text-[11px] font-semibold px-2.5 py-0.5 shadow-md`}>
+                  <Bot className="w-3 h-3" />
+                  {t(agentTakenOver ? 'agentPanel.pageMarkerTakenOver' : 'agentPanel.pageMarker')}
+                </span>
+              </div>
+            </div>
           )}
         </div>
 
@@ -2136,6 +2165,7 @@ function App({ demo: demoOptions }: { demo?: BrowserDemoOptions } = {}) {
             isOpen={isHelpOpen}
             onClose={handleCloseHelp}
             initialTab={helpInitialTab}
+            shortcuts={settings.shortcuts}
           />
         )}
       </React.Suspense>

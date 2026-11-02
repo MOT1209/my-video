@@ -32,7 +32,7 @@ const HARDENED_PROD_CSP = [
   "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://huggingface.co https://*.huggingface.co https://hf.co https://*.hf.co https://fonts.googleapis.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://huggingface.co https://*.huggingface.co https://hf.co https://*.hf.co https://fonts.googleapis.com https://www.bing.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "worker-src 'self' blob:",
   "object-src 'none'",
@@ -190,7 +190,10 @@ export default defineConfig({
           'vendor-dompurify': ['dompurify'],
           'vendor-supabase': ['@supabase/supabase-js'],
           'vendor-readability': ['@mozilla/readability'],
-          'web-llm': ['@mlc-ai/web-llm']
+          'web-llm': ['@mlc-ai/web-llm'],
+          // The interface dictionaries are bundled (language switching is
+          // synchronous) but kept out of the startup index chunk.
+          'i18n-locales': ['./src/locales/en.json', './src/locales/ar.json', './src/locales/de.json']
         }
       }
     }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Languages, Check, ArrowRight, RotateCcw, Loader2, X, Globe } from 'lucide-react';
-import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../services/translationService';
+import { SUPPORTED_LANGUAGES } from '../services/translationService';
+import { useTranslation } from '../services/i18n';
 
 export interface PageTranslatePopoverProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const PageTranslatePopover: React.FC<PageTranslatePopoverProps> = ({
   currentTargetLang = 'en',
   error
 }) => {
+  const { l } = useTranslation();
   const [selectedTargetLang, setSelectedTargetLang] = useState<string>(currentTargetLang);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -60,7 +62,7 @@ export const PageTranslatePopover: React.FC<PageTranslatePopoverProps> = ({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -4, scale: 0.96 }}
           transition={{ duration: 0.14, ease: 'easeOut' }}
-          className="absolute top-full right-0 mt-2.5 w-80 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-white/15 shadow-2xl shadow-black/30 select-none overflow-hidden z-[99999]"
+          className="absolute top-full end-0 mt-2.5 w-80 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200/90 dark:border-white/15 shadow-2xl shadow-black/30 select-none overflow-hidden z-[99999]"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/80 dark:border-white/10 bg-slate-50/80 dark:bg-white/5">
@@ -69,7 +71,7 @@ export const PageTranslatePopover: React.FC<PageTranslatePopoverProps> = ({
                 <Languages className="w-3.5 h-3.5" />
               </div>
               <span className="text-xs font-bold text-slate-800 dark:text-slate-100 tracking-tight">
-                Page Translation
+                {l({ en: 'Page Translation', ar: 'ترجمة الصفحة', de: 'Seitenübersetzung' })}
               </span>
             </div>
             <button
@@ -87,7 +89,7 @@ export const PageTranslatePopover: React.FC<PageTranslatePopoverProps> = ({
               <div className="flex items-center gap-1.5 min-w-0">
                 <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                 <span className="text-xs font-medium text-slate-600 dark:text-slate-300 truncate">
-                  {sourceLangObj ? sourceLangObj.name : (currentSourceLang === 'auto' ? 'Auto Detect' : currentSourceLang.toUpperCase())}
+                  {sourceLangObj ? sourceLangObj.name : (currentSourceLang === 'auto' ? l({ en: 'Auto Detect', ar: 'اكتشاف تلقائي', de: 'Automatisch erkennen' }) : currentSourceLang.toUpperCase())}
                 </span>
               </div>
 
@@ -104,7 +106,7 @@ export const PageTranslatePopover: React.FC<PageTranslatePopoverProps> = ({
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-1.5 w-44 max-h-52 overflow-y-auto rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/15 shadow-xl z-50 py-1 scrollbar-thin">
+                  <div className="absolute end-0 top-full mt-1.5 w-44 max-h-52 overflow-y-auto rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/15 shadow-xl z-50 py-1 scrollbar-thin">
                     {SUPPORTED_LANGUAGES.map((lang) => (
                       <button
                         key={lang.code}
@@ -112,7 +114,7 @@ export const PageTranslatePopover: React.FC<PageTranslatePopoverProps> = ({
                           setSelectedTargetLang(lang.code);
                           setIsDropdownOpen(false);
                         }}
-                        className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between hover:bg-slate-100 dark:hover:bg-white/10 transition-colors ${
+                        className={`w-full text-start px-3 py-1.5 text-xs flex items-center justify-between hover:bg-slate-100 dark:hover:bg-white/10 transition-colors ${
                           lang.code === selectedTargetLang ? 'text-cyan-600 dark:text-cyan-400 font-semibold bg-cyan-500/10' : 'text-slate-700 dark:text-slate-200'
                         }`}
                       >
@@ -134,9 +136,9 @@ export const PageTranslatePopover: React.FC<PageTranslatePopoverProps> = ({
 
             {/* Status Information */}
             <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
-              <span>Status:</span>
+              <span>{l({ en: 'Status:', ar: 'الحالة:', de: 'Status:' })}</span>
               <span className={`font-semibold ${isTranslated ? 'text-emerald-500' : 'text-slate-600 dark:text-slate-300'}`}>
-                {isLoading ? 'Translating...' : isTranslated ? `Translated to ${currentLangObj.name}` : 'Original page'}
+                {isLoading ? l({ en: 'Translating...', ar: 'جارٍ الترجمة...', de: 'Wird übersetzt...' }) : isTranslated ? l({ en: 'Translated to {lang}', ar: 'مترجمة إلى {lang}', de: 'Übersetzt in {lang}' }, { lang: currentLangObj.name }) : l({ en: 'Original page', ar: 'الصفحة الأصلية', de: 'Originalseite' })}
               </span>
             </div>
 
@@ -152,7 +154,7 @@ export const PageTranslatePopover: React.FC<PageTranslatePopoverProps> = ({
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-slate-200 dark:border-white/15 bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   <RotateCcw className="w-3 h-3 text-slate-500 dark:text-slate-400" />
-                  <span>Show Original</span>
+                  <span>{l({ en: 'Show Original', ar: 'عرض الأصل', de: 'Original anzeigen' })}</span>
                 </button>
               )}
 
@@ -171,12 +173,12 @@ export const PageTranslatePopover: React.FC<PageTranslatePopoverProps> = ({
                 {isLoading ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Translating...</span>
+                    <span>{l({ en: 'Translating...', ar: 'جارٍ الترجمة...', de: 'Wird übersetzt...' })}</span>
                   </>
                 ) : (
                   <>
                     <Languages className="w-3.5 h-3.5" />
-                    <span>{isTranslated ? 'Re-Translate' : 'Translate Page'}</span>
+                    <span>{isTranslated ? l({ en: 'Re-Translate', ar: 'إعادة الترجمة', de: 'Erneut übersetzen' }) : l({ en: 'Translate Page', ar: 'ترجمة الصفحة', de: 'Seite übersetzen' })}</span>
                   </>
                 )}
               </button>

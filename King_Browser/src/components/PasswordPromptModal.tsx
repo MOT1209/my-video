@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KeyRound, Check, X, Eye, EyeOff, User, Lock, Globe } from 'lucide-react';
+import { useTranslation } from '../services/i18n';
 
 interface PasswordPromptModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const PasswordPromptModal: React.FC<PasswordPromptModalProps> = React.mem
   password: initialPassword,
   isUpdate = false
 }) => {
+  const { l } = useTranslation();
   const [editedUsername, setEditedUsername] = useState(initialUsername || '');
   const [editedPassword, setEditedPassword] = useState(initialPassword || '');
   const [showPassword, setShowPassword] = useState(false);
@@ -61,7 +63,7 @@ export const PasswordPromptModal: React.FC<PasswordPromptModalProps> = React.mem
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -20, scale: 0.95 }}
             transition={{ type: 'spring', damping: 26, stiffness: 420 }}
-            className="absolute top-14 right-4 w-88 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/80 dark:border-white/10 z-[9999] overflow-hidden select-none"
+            className="absolute top-14 end-4 w-88 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/80 dark:border-white/10 z-[9999] overflow-hidden select-none"
           >
             <div className="p-4 flex flex-col gap-3.5">
               {/* Header */}
@@ -71,7 +73,7 @@ export const PasswordPromptModal: React.FC<PasswordPromptModalProps> = React.mem
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 id="password-prompt-title" className="font-semibold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    {isUpdate ? 'Update Password?' : 'Save Password?'}
+                    {isUpdate ? l({ en: 'Update Password?', ar: 'تحديث كلمة المرور؟', de: 'Passwort aktualisieren?' }) : l({ en: 'Save Password?', ar: 'حفظ كلمة المرور؟', de: 'Passwort speichern?' })}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1 mt-0.5" title={hostname}>
                     <Globe size={11} className="opacity-70 shrink-0" />
@@ -82,8 +84,8 @@ export const PasswordPromptModal: React.FC<PasswordPromptModalProps> = React.mem
                   type="button"
                   onClick={onClose}
                   className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                  title="Close"
-                  aria-label="Close"
+                  title={l({ en: 'Close', ar: 'إغلاق', de: 'Schließen' })}
+                  aria-label={l({ en: 'Close', ar: 'إغلاق', de: 'Schließen' })}
                 >
                   <X size={16} />
                 </button>
@@ -93,10 +95,10 @@ export const PasswordPromptModal: React.FC<PasswordPromptModalProps> = React.mem
               <div className="space-y-2">
                 {/* Username Input */}
                 <div className="bg-slate-50 dark:bg-slate-950/60 p-2 rounded-xl border border-slate-200/70 dark:border-white/5 flex items-center gap-2">
-                  <User size={14} className="text-slate-400 dark:text-slate-500 shrink-0 ml-1" />
+                  <User size={14} className="text-slate-400 dark:text-slate-500 shrink-0 ms-1" />
                   <div className="flex-1 min-w-0">
                     <label htmlFor="password-prompt-username" className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                      Username / Email
+                      {l({ en: 'Username / Email', ar: 'اسم المستخدم / البريد', de: 'Benutzername / E-Mail' })}
                     </label>
                     <input
                       id="password-prompt-username"
@@ -112,10 +114,10 @@ export const PasswordPromptModal: React.FC<PasswordPromptModalProps> = React.mem
                 {/* Password Input */}
                 {initialPassword && (
                   <div className="bg-slate-50 dark:bg-slate-950/60 p-2 rounded-xl border border-slate-200/70 dark:border-white/5 flex items-center gap-2">
-                    <Lock size={14} className="text-slate-400 dark:text-slate-500 shrink-0 ml-1" />
+                    <Lock size={14} className="text-slate-400 dark:text-slate-500 shrink-0 ms-1" />
                     <div className="flex-1 min-w-0">
                       <label htmlFor="password-prompt-password" className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                        Password
+                        {l({ en: 'Password', ar: 'كلمة المرور', de: 'Passwort' })}
                       </label>
                       <input
                         id="password-prompt-password"
@@ -144,14 +146,14 @@ export const PasswordPromptModal: React.FC<PasswordPromptModalProps> = React.mem
                 onClick={onClose}
                 className="flex-1 py-2 px-3 rounded-xl border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 font-medium text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <span>Not Now</span>
+                <span>{l({ en: 'Not Now', ar: 'ليس الآن', de: 'Nicht jetzt' })}</span>
               </button>
               <button
                 onClick={handleSave}
                 className="flex-1 py-2 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
               >
                 <Check size={14} />
-                <span>{isUpdate ? 'Update' : 'Save'}</span>
+                <span>{isUpdate ? l({ en: 'Update', ar: 'تحديث', de: 'Aktualisieren' }) : l({ en: 'Save', ar: 'حفظ', de: 'Speichern' })}</span>
               </button>
             </div>
           </div>

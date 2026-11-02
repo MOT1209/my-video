@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { cn } from "@/lib/utils";
 import { Bot, Brain, Cpu, Sparkles, Zap, Image as ImageIcon, Check, AlertCircle, X } from "lucide-react";
-import { getLocale, useTranslation } from "../../services/i18n";
+import { getLocale, useTranslation, l } from "../../services/i18n";
 import { transcribeAudio } from "../../services/localSpeechRecognition";
 
 // ----------------------------------------------------------------------
@@ -160,9 +160,9 @@ function AttachmentThumb({
           "relative size-full overflow-hidden rounded-xl border border-border bg-muted outline-none",
           "transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:scale-[1.04] active:scale-[0.96]"
         )}
-        aria-label="Open attachment preview"
+        aria-label={l({ en: 'Open attachment preview', ar: 'فتح معاينة المرفق', de: 'Anhangvorschau öffnen' })}
       >
-        <img src={sanitizeBlobUrl(attachment.url)} alt="Attachment preview" className="size-full object-cover" draggable={false} />
+        <img src={sanitizeBlobUrl(attachment.url)} alt={l({ en: 'Attachment preview', ar: 'معاينة المرفق', de: 'Anhangvorschau' })} className="size-full object-cover" draggable={false} />
         <span
           aria-hidden="true"
           className={cn("pointer-events-none absolute inset-0 flex items-start justify-end bg-black/0 transition-colors duration-200", isHovered && "bg-black/25")}
@@ -177,7 +177,7 @@ function AttachmentThumb({
         onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
         onClick={(e) => { e.stopPropagation(); onRemove(attachment.id); }}
         className={cn(
-          "absolute right-1 top-1 z-10 flex size-4 items-center justify-center rounded-full bg-background/90 text-foreground/70 shadow-sm transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-background hover:text-foreground hover:scale-110",
+          "absolute end-1 top-1 z-10 flex size-4 items-center justify-center rounded-full bg-background/90 text-foreground/70 shadow-sm transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-background hover:text-foreground hover:scale-110",
           isHovered ? "opacity-100 scale-100" : "opacity-0 scale-50 pointer-events-none",
           "focus:pointer-events-auto focus:opacity-100 focus:scale-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
         )}
@@ -268,14 +268,14 @@ function AttachmentGalleryModal({
         onTransitionEnd={() => { if (phase === "closing") onClose(); }}
         onClick={(e) => e.stopPropagation()}
       >
-        <img ref={imgRef} src={sanitizeBlobUrl(attachment.url)} alt="Attachment preview" className="size-full object-cover" draggable={false} />
+        <img ref={imgRef} src={sanitizeBlobUrl(attachment.url)} alt={l({ en: 'Attachment preview', ar: 'معاينة المرفق', de: 'Anhangvorschau' })} className="size-full object-cover" draggable={false} />
       </div>
 
       <button
         type="button" onClick={handleClose}
         style={{ opacity: isOpen ? 1 : 0, transform: isOpen ? "scale(1)" : "scale(0.7)" }}
         className={cn(
-          "fixed right-4 top-4 flex size-9 items-center justify-center rounded-full bg-card/90 text-foreground/70 shadow-md backdrop-blur-sm",
+          "fixed end-4 top-4 flex size-9 items-center justify-center rounded-full bg-card/90 text-foreground/70 shadow-md backdrop-blur-sm",
           "transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-card hover:text-foreground",
           !isOpen && "pointer-events-none"
         )}
@@ -1001,14 +1001,14 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                     onClick={() => window.electronAPI?.openSystemSettings?.('microphone')}
                     className="px-1.5 py-0.5 text-[11px] font-medium bg-amber-500/20 hover:bg-amber-500/30 rounded transition-colors text-amber-700 dark:text-amber-300"
                   >
-                    {getLocale().startsWith('tr') ? "Ayarları Aç" : "Open Settings"}
+                    {l({ en: 'Open Settings', ar: 'فتح الإعدادات', de: 'Einstellungen öffnen' })}
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={() => setVoiceError(null)}
                   className="p-0.5 hover:opacity-75 transition-opacity"
-                  aria-label="Kapat"
+                  aria-label={l({ en: 'Close', ar: 'إغلاق', de: 'Schließen' })}
                 >
                   <X className="size-3.5" />
                 </button>
@@ -1107,7 +1107,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                 }
               }}
               placeholder={placeholder}
-              aria-label="Prompt"
+              aria-label={l({ en: 'Prompt', ar: 'الطلب', de: 'Eingabe' })}
               disabled={isRecording}
               style={{
                 outline: 'none',
@@ -1117,7 +1117,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                   : "opacity 0.2s ease-out, transform 0.2s ease-out, height 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
               }}
               className={cn(
-                "prompt-scrollbar absolute top-0 inset-x-0 z-[1] w-full resize-none border-none bg-transparent pl-4 pr-12 py-3.5 text-sm leading-[22px] text-foreground outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 placeholder:font-medium placeholder:text-muted-foreground/80 cursor-text",
+                "prompt-scrollbar absolute top-0 inset-x-0 z-[1] w-full resize-none border-none bg-transparent ps-4 pe-12 py-3.5 text-sm leading-[22px] text-foreground outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 placeholder:font-medium placeholder:text-muted-foreground/80 cursor-text",
                 expanded ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 -translate-y-1 pointer-events-none",
                 isScrolling ? "overflow-y-auto" : "overflow-y-hidden",
                 isRecording && "pointer-events-none"
@@ -1126,11 +1126,11 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
 
             <div
               ref={topFadeRef}
-              className="absolute left-4 right-12 top-0 z-[2] h-8 bg-gradient-to-b from-card via-card/90 to-transparent pointer-events-none"
+              className="absolute start-4 end-12 top-0 z-[2] h-8 bg-gradient-to-b from-card via-card/90 to-transparent pointer-events-none"
             />
             <div
               ref={bottomFadeRef}
-              className="absolute left-4 right-12 z-[2] h-8 bg-gradient-to-t from-card via-card/90 to-transparent pointer-events-none"
+              className="absolute start-4 end-12 z-[2] h-8 bg-gradient-to-t from-card via-card/90 to-transparent pointer-events-none"
               style={{
                 opacity: 0,
                 top: `${textareaHeight - 32}px`,
@@ -1144,10 +1144,10 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
               onClick={expand}
               style={{ outline: 'none', transition: isSmoothResize ? "none" : "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}
               className={cn(
-                "absolute inset-x-0 top-0 z-[1] cursor-text pl-4 pr-12 py-[15px] text-left text-sm font-medium leading-[17px] text-muted-foreground/80 outline-none focus:outline-none focus-visible:outline-none",
+                "absolute inset-x-0 top-0 z-[1] cursor-text ps-4 pe-12 py-[15px] text-start text-sm font-medium leading-[17px] text-muted-foreground/80 outline-none focus:outline-none focus-visible:outline-none",
                 !expanded ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-105 translate-y-1 pointer-events-none"
               )}
-              aria-label="Open prompt input"
+              aria-label={l({ en: 'Open prompt input', ar: 'فتح حقل الإدخال', de: 'Eingabefeld öffnen' })}
             >
               {placeholder}
             </button>
@@ -1155,7 +1155,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
             {/* Bottom Actions Wrapper - Hides when recording to make space for visualizer */}
             <div
               className={cn(
-                "absolute bottom-2 left-3 right-12 z-[10] flex items-center gap-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                "absolute bottom-2 start-3 end-12 z-[10] flex items-center gap-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
                 expanded && !isRecording ? "opacity-100 blur-0 translate-y-0 pointer-events-auto" : "opacity-0 blur-sm translate-y-2 pointer-events-none"
               )}
             >
@@ -1187,7 +1187,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                     }));
                   }}
                   className={cn(
-                    "absolute bottom-full left-0 mb-2.5 z-50 w-44 rounded-2xl border border-border bg-card/95 p-1 shadow-xl backdrop-blur-md flex flex-col gap-0.5 transition-all duration-300 cursor-default",
+                    "absolute bottom-full start-0 mb-2.5 z-50 w-44 rounded-2xl border border-border bg-card/95 p-1 shadow-xl backdrop-blur-md flex flex-col gap-0.5 transition-all duration-300 cursor-default",
                     isModelSelectOpen
                       ? "opacity-100 scale-100 translate-y-0 pointer-events-auto ease-[cubic-bezier(0.16,1,0.3,1)]"
                       : "opacity-0 scale-95 translate-y-2 pointer-events-none ease-[cubic-bezier(0.16,1,0.3,1)]"
@@ -1213,7 +1213,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                           setIsModelSelectOpen(false);
                         }}
                         className={cn(
-                          "group relative flex h-8 w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs font-medium outline-none active:scale-[0.98] cursor-default transition-colors",
+                          "group relative flex h-8 w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-start text-xs font-medium outline-none active:scale-[0.98] cursor-default transition-colors",
                           model === selectedModel ? "text-cyan-600 dark:text-cyan-400 font-semibold" : "text-foreground/80 hover:text-foreground"
                         )}
                       >
@@ -1232,7 +1232,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
 
               <button
                 type="button" onMouseDown={(e) => e.preventDefault()} onClick={openFileChooser} disabled={attachments.length >= maxAttachments}
-                className="ml-auto flex size-7 items-center justify-center rounded-full text-foreground/50 transition-all duration-200 hover:bg-accent/60 hover:text-foreground outline-none cursor-default disabled:opacity-40 disabled:pointer-events-none"
+                className="ms-auto flex size-7 items-center justify-center rounded-full text-foreground/50 transition-all duration-200 hover:bg-accent/60 hover:text-foreground outline-none cursor-default disabled:opacity-40 disabled:pointer-events-none"
               >
                 <PlusIcon />
               </button>
@@ -1241,7 +1241,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
             {/* Audio Wave Visualizer Overlay positioned precisely to the left of the mic button */}
             <div
               className={cn(
-                "absolute right-12 bottom-2 z-[10] flex h-8 items-center justify-end gap-[3px] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                "absolute end-12 bottom-2 z-[10] flex h-8 items-center justify-end gap-[3px] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
                 isRecording ? "w-16 opacity-100 translate-x-0" : "w-0 opacity-0 translate-x-4 pointer-events-none"
               )}
             >
@@ -1261,7 +1261,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
               aria-label={actionLabel}
               title={isTranscribing ? t('ai.voiceTranscribing') : modelDownloadPercent !== null ? t('ai.voiceModelDownloading', { percent: modelDownloadPercent }) : undefined}
               style={{ borderRadius: 9999 }}
-              className="absolute right-2 bottom-2 z-[10] flex h-8 w-8 items-center justify-center bg-primary text-primary-foreground transition-all duration-300 hover:opacity-90 outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-default"
+              className="absolute end-2 bottom-2 z-[10] flex h-8 w-8 items-center justify-center bg-primary text-primary-foreground transition-all duration-300 hover:opacity-90 outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-default"
             >
               <span className="relative flex h-full w-full items-center justify-center">
                 <span className={cn("absolute inset-0 flex items-center justify-center transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]", showArrow ? "opacity-100 scale-100 rotate-0 blur-none" : "opacity-0 scale-50 rotate-45 blur-[1px] pointer-events-none")}>
@@ -1296,7 +1296,7 @@ export const PromptInput = React.forwardRef<HTMLDivElement, PromptInputProps>(
                 )}
               </span>
               {modelDownloadPercent !== null && (
-                <span className="pointer-events-none absolute -top-7 right-0 whitespace-nowrap rounded-md bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background shadow-sm">
+                <span className="pointer-events-none absolute -top-7 end-0 whitespace-nowrap rounded-md bg-foreground px-1.5 py-0.5 text-[10px] font-medium text-background shadow-sm">
                   {t('ai.voiceModelDownloading', { percent: modelDownloadPercent })}
                 </span>
               )}
