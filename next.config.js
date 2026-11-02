@@ -5,11 +5,7 @@ const nextConfig = {
   reactStrictMode: true,
   // Include the Remotion bundle in the API route
   outputFileTracingIncludes: {
-    "/api/render": [
-      "./" + BUILD_DIR + "/**/*",
-      "./render.ts",
-      "./ensure-browser.ts",
-    ],
+    "/api/render": ["./" + BUILD_DIR + "/**/*"],
     "/api/cron/retry-renders": ["./" + BUILD_DIR + "/**/*"],
   },
 };

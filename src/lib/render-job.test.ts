@@ -224,7 +224,7 @@ test("إعادة المحاولة: حد المحاولات، لا خصم إضا�
   const billing = await billingFor();
   const { options } = job(billing, {
     render: async () => {
-      throw new Error("Sandbox crashed");
+      throw new Error("sandbox_stopped: Sandbox crashed");
     },
   });
   await executeRenderJob(options);
@@ -236,7 +236,7 @@ test("إعادة المحاولة: حد المحاولات، لا خصم إضا�
     render: async ({ blobPath }: { blobPath: string }) => {
       // القاعدة مشتركة بين اختبارات الملف: نعدّ محاولات صف هذا الاختبار فقط
       if (blobPath === options.cachePath) calls += 1;
-      throw new Error("Sandbox crashed");
+      throw new Error("sandbox_stopped: Sandbox crashed");
     },
   };
   // attempts يبدأ 1 ⇒ محاولتان إضافيتان فقط (MAX_RENDER_ATTEMPTS = 3)
@@ -249,11 +249,37 @@ test("إعادة المحاولة: حد المحاولات، لا خصم إضا�
   expect(await getCredits(db, billing.userId)).toBe(creditsAfterRefund);
 });
 
+test("فشل محتوى (لا بنية): إرجاع الكريدت ثم لا إعادة مجانية من الطابور", async () => {
+  const billing = await billingFor();
+  const { options } = job(billing, {
+    render: async () => {
+      throw new Error("delayRender() timed out loading https://slow.example/huge.mp4");
+    },
+  });
+  expect(await executeRenderJob(options)).toEqual({ status: "failed", refunded: true });
+
+  let calls = 0;
+  for (let i = 0; i < 3; i += 1) {
+    await retryFailedRenders(db, {
+      findCached: async () => null,
+      render: async ({ blobPath }: { blobPath: string }) => {
+        if (blobPath === options.cachePath) calls += 1;
+        return OUTCOME;
+      },
+    });
+  }
+  expect(calls).toBe(0);
+  const [row] = await listRenders(db, billing.userId);
+  expect(row.status).toBe("error");
+  // الرسالة المحفوظة/المعروضة عامة: لا روابط ولا تفاصيل Remotion
+  expect(row.error).not.toContain("slow.example");
+});
+
 test("إعادة محاولة مكررة بالتوازي: محاولة واحدة فقط تحجز الصف", async () => {
   const billing = await billingFor();
   const { options } = job(billing, {
     render: async () => {
-      throw new Error("Sandbox crashed");
+      throw new Error("sandbox_stopped: Sandbox crashed");
     },
   });
   await executeRenderJob(options);
@@ -279,7 +305,7 @@ test("عامل إعادة محاولة متأخر لا يكتب فوق نتيج�
   const billing = await billingFor();
   const { options } = job(billing, {
     render: async () => {
-      throw new Error("Sandbox crashed");
+      throw new Error("sandbox_stopped: Sandbox crashed");
     },
   });
   await executeRenderJob(options);

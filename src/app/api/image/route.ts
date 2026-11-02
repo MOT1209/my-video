@@ -3,8 +3,8 @@ import { executeApi } from "../../../helpers/api-response";
 import { guardPaidRoute } from "../../../lib/auth";
 import {
   checkRateLimit,
-  clientIp,
   rateLimitRejection,
+  rateLimitSubject,
 } from "../../../lib/rate-limit";
 import {
   buildImagePrompt,
@@ -34,7 +34,7 @@ export const POST = async (req: Request) => {
     return guard.response;
   }
   const verdict = await checkRateLimit(
-    `image:${clientIp(req)}`,
+    `image:${rateLimitSubject(req, guard.user)}`,
     8,
     10 * 60 * 1000,
   );

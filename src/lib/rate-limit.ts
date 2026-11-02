@@ -47,6 +47,18 @@ export function inMemoryCheckRateLimit(
   };
 }
 
+/**
+ * موضوع حد المعدل: معرّف المستخدم المصادَق إن وُجد، وإلا الـ IP.
+ * الحد بالـ IP وحده يتجاوزه من يبدّل عناوينه، ويحجب مستخدمين حقيقيين
+ * خلف NAT واحد.
+ */
+export function rateLimitSubject(
+  req: Request,
+  user: { authenticated: boolean; clerkId: string },
+): string {
+  return user.authenticated ? `user:${user.clerkId}` : `ip:${clientIp(req)}`;
+}
+
 export function clientIp(req: Request): string {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {

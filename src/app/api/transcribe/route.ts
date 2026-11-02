@@ -1,4 +1,6 @@
+import { SHORT_MAX_SECONDS } from "../../../../types/shorts";
 import { guardPaidRoute } from "../../../lib/auth";
+import { publicErrorMessage } from "../../../lib/user-facing-error";
 import { apiError, apiSuccess } from "../../../helpers/api-response";
 import { getDb } from "../../../lib/db/client";
 import { ensureUser, recordUsage } from "../../../lib/db/repository";
@@ -51,7 +53,9 @@ export async function POST(req: Request) {
   const lang = form.get("lang") === "en" ? "en" : "ar";
   const rawDuration = Number(form.get("durationSec"));
   const durationSec =
-    Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : null;
+    Number.isFinite(rawDuration) && rawDuration > 0
+      ? Math.min(rawDuration, SHORT_MAX_SECONDS)
+      : null;
 
   try {
     const result = await transcribeAudio({
@@ -86,8 +90,8 @@ export async function POST(req: Request) {
       model: result.model,
     });
   } catch (err) {
-    // رسائل transcribeAudio عربية من صنعنا (بلا نص رد المزوّد) — آمنة للعرض
+    // نعرض رسائل UserFacingError فقط — غيرها (شبكة/SDK) رسالة عامة
     console.error("transcribe: فشل النسخ", (err as Error)?.message);
-    return apiError((err as Error)?.message || "تعذّر نسخ الملف الصوتي.", 502);
+    return apiError(publicErrorMessage(err, "تعذّر نسخ الملف الصوتي."), 502);
   }
 }

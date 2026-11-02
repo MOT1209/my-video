@@ -42,6 +42,12 @@ import {
 import { formatSSE, type RenderProgress } from "./helpers";
 
 /**
+ * حد صريح لمدة الدالة: التصيير يبث SSE ثم يكمل في `waitUntil`، والاعتماد
+ * على افتراضي المنصة قد يقطع التصيير في منتصفه (فيُحسم من الطابور لاحقاً).
+ */
+export const maxDuration = 300;
+
+/**
  * مسار التصيير — SSE تفاعلي.
  *
  * الطبقات فوقه بالترتيب، وكله **قبل** إنشاء أي sandbox:

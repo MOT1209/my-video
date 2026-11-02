@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { head, put } from "@vercel/blob";
+import { geminiGenerateUrl, geminiHeaders } from "./gemini";
+import { UserFacingError } from "./user-facing-error";
 
 /**
  * صور خلفيات AI — المرحلة 2 من الخطة:
@@ -14,8 +16,6 @@ import { head, put } from "@vercel/blob";
  * - المفاتيح خادمية فقط ( نفس نصاصة عليه المثالية في الخطط السابقة).
  */
 
-const GEMINI_ENDPOINT =
-  "https://generativelanguage.googleapis.com/v1beta/models";
 
 /** نحن 9:16 في المحل: 1080×1920 لإبقاء تصوير الفورزة الثانية (0.9:1.6). */
 const IMAGE_PROMPT_SUFFIX =
@@ -58,7 +58,7 @@ function extractImageBytes(payload: GeminiImageResponse): Buffer {
       return Buffer.from(part.inlineData.data, "base64");
     }
   }
-  throw new Error("رد Gemini لم يُرجع صورة inlineData.");
+  throw new UserFacingError("رد Gemini لم يُرجع صورة inlineData.");
 }
 
 export interface GeneratedBackground {
@@ -77,7 +77,7 @@ export async function generateBackgroundImage(
 ): Promise<GeneratedBackground> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error(
+    throw new UserFacingError(
       "GEMINI_API_KEY غير مُهيأ. أضف مفتاح Google AI Studio إلى متغيرات البيئة (خادم فقط).",
     );
   }
@@ -103,10 +103,10 @@ export async function generateBackgroundImage(
 
   // 2) التوليد حيًا عبر REST
   const response = await fetchImpl(
-    `${GEMINI_ENDPOINT}/${model}:generateContent?key=${apiKey}`,
+    geminiGenerateUrl(model),
     {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: geminiHeaders(apiKey),
       body: JSON.stringify({
         contents: [{ parts: [{ text: input.prompt }] }],
         generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
@@ -117,14 +117,14 @@ export async function generateBackgroundImage(
     const detail = await response.text().catch(() => "");
     // نص رد المزوّد يُسجَّل في الخادم فقط — قد يحمل تفاصيل داخلية لا تخصّ العميل
     console.warn("background-images: رد غير ناجح", response.status, detail.slice(0, 300));
-    throw new Error(`فشل استدعاء توليد الصورة (${response.status}).`);
+    throw new UserFacingError(`فشل استدعاء توليد الصورة (${response.status}).`);
   }
   const payload = (await response.json()) as GeminiImageResponse;
   const imageBytes = extractImageBytes(payload);
 
   // 3) الرفع لمسار حتمي — يلتقته الكاش عند الاستعمال مرات قادمة
   if (!blobToken) {
-    throw new Error("BLOB_READ_WRITE_TOKEN مطلوب لتخزين صور الخلفيات.");
+    throw new UserFacingError("BLOB_READ_WRITE_TOKEN مطلوب لتخزين صور الخلفيات.");
   }
   const blob = await put(
     fullPath,

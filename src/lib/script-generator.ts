@@ -1,5 +1,8 @@
 import * as cheerio from "cheerio";
 import { z } from "zod";
+import { geminiGenerateUrl, geminiHeaders } from "./gemini";
+import { fetchPublicText, type LookupFn } from "./safe-fetch";
+import { UserFacingError } from "./user-facing-error";
 
 /**
  * توليد سكربت من رابط/مقال — المرحلة 2 من الخطة:
@@ -12,7 +15,6 @@ import { z } from "zod";
  *   اسم النموذج قابل للتجّوز عبر GEMINI_MODEL (يتغيّر بمرور الوقت).
  */
 
-const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
 /** الحد الأقصى لنص المقال المُرسل للنموذج (توفير توكنات). */
 const MAX_ARTICLE_CHARS = 15_000;
@@ -36,7 +38,7 @@ export function extractArticleText(html: string, maxChars = MAX_ARTICLE_CHARS): 
   const preferred = $("article").text() || $("main").text() || $("body").text();
   const cleaned = preferred.replace(/\s+/g, " ").trim();
   if (!cleaned) {
-    throw new Error("لم يتم العثور على نص مقروء في الصفحة.");
+    throw new UserFacingError("لم يتم العثور على نص مقروء في الصفحة.");
   }
   return cleaned.slice(0, maxChars);
 }
@@ -80,7 +82,7 @@ function parseJSONLoose(raw: string): unknown {
   const start = trimmed.indexOf("{");
   const end = trimmed.lastIndexOf("}");
   if (start === -1 || end === -1 || end <= start) {
-    throw new Error("رد الذكاء الاصطناعي لا يحتوي كائن JSON.");
+    throw new UserFacingError("رد الذكاء الاصطناعي لا يحتوي كائن JSON.");
   }
   return JSON.parse(trimmed.slice(start, end + 1));
 }
@@ -92,36 +94,37 @@ function parseJSONLoose(raw: string): unknown {
 export async function generateScript(
   input: { url?: string; topic?: string; lang: "ar" | "en" },
   fetchImpl: FetchLike = fetch,
+  /** حقن حلّ DNS في الاختبارات (الافتراضي DNS النظام). */
+  options: { lookup?: LookupFn } = {},
 ): Promise<{ hook: string; scenes: Array<{ id: string; text: string }> }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error(
+    throw new UserFacingError(
       "GEMINI_API_KEY غير مُهيأ. أضف مفتاح Google AI Studio إلى متغيرات البيئة (خادم فقط — لا يظهر للعميل).",
     );
   }
   if (!input.topic && !input.url) {
-    throw new Error("مطلوب رابط مقال أو موضوع.");
+    throw new UserFacingError("مطلوب رابط مقال أو موضوع.");
   }
 
   let sourceText: string;
   if (input.url) {
-    const page = await fetchImpl(input.url, {
-      headers: { "user-agent": "Mozilla/5.0 (compatible; my-video-bot/0.1)" },
+    // رابط المستخدم ⇒ جلب محمي من SSRF (لا عناوين داخلية، مهلة، حد حجم)
+    const html = await fetchPublicText(input.url, {
+      fetchImpl,
+      lookup: options.lookup,
     });
-    if (!page.ok) {
-      throw new Error(`فشل جلب المقال (${page.status}).`);
-    }
-    sourceText = extractArticleText(await page.text());
+    sourceText = extractArticleText(html);
   } else {
     sourceText = input.topic!;
   }
 
   const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
   const response = await fetchImpl(
-    `${GEMINI_ENDPOINT}/${model}:generateContent?key=${apiKey}`,
+    geminiGenerateUrl(model),
     {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: geminiHeaders(apiKey),
       body: JSON.stringify({
         contents: [{ parts: [{ text: buildPrompt(sourceText, input.lang) }] }],
         generationConfig: { responseMimeType: "application/json" },
@@ -132,14 +135,14 @@ export async function generateScript(
     const detail = await response.text().catch(() => "");
     // نص رد المزوّد يُسجَّل في الخادم فقط — قد يحمل تفاصيل داخلية لا تخصّ العميل
     console.warn("script-generator: رد Gemini غير ناجح", response.status, detail.slice(0, 300));
-    throw new Error(`فشل استدعاء Gemini (${response.status}).`);
+    throw new UserFacingError(`فشل استدعاء Gemini (${response.status}).`);
   }
   const payload = (await response.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
   const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!raw) {
-    throw new Error("رد Gemini فارغ أو غير مفهوم.");
+    throw new UserFacingError("رد Gemini فارغ أو غير مفهوم.");
   }
 
   const parsed = ScriptResponse.parse(parseJSONLoose(raw));
@@ -149,7 +152,7 @@ export async function generateScript(
     text: text.trim(),
   }));
   if (scenes.length === 0 || scenes.every((s) => !s.text)) {
-    throw new Error("الرد النموذجي خالٍ من المشاهد.");
+    throw new UserFacingError("الرد النموذجي خالٍ من المشاهد.");
   }
   return { hook: parsed.hook.trim(), scenes };
 }

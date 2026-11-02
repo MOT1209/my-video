@@ -5,6 +5,10 @@ import {
   ScriptResponse,
   type FetchLike,
 } from "./script-generator";
+import type { LookupFn } from "./safe-fetch";
+
+/** DNS وهمي يحلّ أي مضيف إلى عنوان عام (بلا شبكة في الاختبارات). */
+const publicLookup: LookupFn = async () => [{ address: "93.184.215.14", family: 4 }];
 
 /** يبني fetch وهمياً يرد رداً Gemini صحيحاً من نص معطى. */
 function fakeLLMFetch(
@@ -115,6 +119,7 @@ describe("مسار كامل: رابط → استخراج → LLM → سينار�
     const result = await generateScript(
       { url: "https://example.com/article", lang: "ar" },
       fetchImpl,
+      { lookup: publicLookup },
     );
     expect(calls).toHaveLength(2);
     expect(result.hook).toBe("هل تعلم؟");
@@ -130,8 +135,9 @@ describe("مسار كامل: رابط → استخراج → LLM → سينار�
       generateScript(
         { url: "https://example.com/missing", lang: "ar" },
         fetchImpl,
+        { lookup: publicLookup },
       ),
-    ).rejects.toThrow("فشل جلب المقال");
+    ).rejects.toThrow("تعذّر جلب المقال");
   });
 
   test("رد LLM بلا JSON يفشل برسالة مفهومة", async () => {
