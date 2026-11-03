@@ -9,6 +9,7 @@ import {
   clientIp,
   rateLimitRejection,
 } from "../../../lib/rate-limit";
+import { signupCreditsResolver } from "../../../lib/signup-guard";
 import { MAX_AUDIO_BYTES, transcribeAudio } from "../../../lib/transcribe";
 
 /** هامش ترويسات multipart فوق حد الملف الصوتي نفسه. */
@@ -72,6 +73,7 @@ export async function POST(req: Request) {
         const row = await ensureUser(db, {
           clerkId: requestUser.clerkId,
           email: requestUser.email,
+          signupCredits: signupCreditsResolver(requestUser.email),
         });
         await recordUsage(db, {
           userId: row.id,

@@ -7,6 +7,7 @@ import {
 } from "./auth";
 import { getDb, isDatabaseConfigured, type Db } from "./db/client";
 import { ensureUser, type UserRow } from "./db/repository";
+import { signupCreditsResolver } from "./signup-guard";
 
 /**
  * حارس المسارات المحمية: مصادقة + قاعدة بيانات + صف المستخدم.
@@ -45,6 +46,7 @@ export async function requireSession(): Promise<SessionResult> {
   const user = await ensureUser(db, {
     clerkId: requestUser.clerkId,
     email: requestUser.email,
+    signupCredits: signupCreditsResolver(requestUser.email),
   });
   return {
     ok: true,

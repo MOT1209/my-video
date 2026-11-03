@@ -109,6 +109,7 @@ npm run dev            # http://localhost:3000
 | `CRON_SECRET` | اختياري | إعادة محاولة التصييرات الفاشلة (`/api/cron/retry-renders`) |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | **نعم في الإنتاج** | حد المعدل والقفل الموزّعان. بدونهما (أو عند تعطّل Upstash) تُغلق المسارات المكلفة في الإنتاج 503؛ محلياً يعمل بديل الذاكرة |
 | `RATE_LIMIT_ALLOW_IN_MEMORY` | اختياري، **بحذر** | `true` يقبل عدّاد الذاكرة (لكل نسخة على حدة) بديلاً في الإنتاج — لا يحمي التكلفة عبر النسخ |
+| `SIGNUP_FREE_PER_IP_PER_DAY` | اختياري (الافتراضي 3) | أقصى عدد حسابات جديدة تُمنح كريدت الترحيب المجاني من نفس IP كل 24 ساعة. ما فوقه يُنشأ حسابه برصيد 0 (يستطيع الشراء). `0` يمنع المجاني تماماً |
 | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` | اختياري | البديل الرسمي للصوت (يبقى Edge-TTS المجاني) |
 
 بعد ضبط `DATABASE_URL` طبّق الهجرات: `npx drizzle-kit migrate` (بعد كل ترقية تضيف ملفاً في `drizzle/`). تفاصيل المرحلة 5 وترتيب النشر: [`docs/audits/PHASE_5_PRODUCTION_READINESS.md`](docs/audits/PHASE_5_PRODUCTION_READINESS.md).
@@ -198,6 +199,9 @@ npm test                         # اختباراته الخاصة (esbuild + No
 1. من لوحة Vercel: **Storage ← Create ← Blob**، بإعداد **public** (الفيديوهات والصوتيات تُخدم بروابط عامة)، واربطه بالمشروع. يُضاف `BLOB_READ_WRITE_TOKEN` تلقائياً.
 2. أضف بقية [المتغيرات](#متغيرات-البيئة) التي تحتاجها ثم أعد النشر.
 3. للـ Cron: `vercel.json` يعرّف مهمة يومية على `/api/cron/retry-renders`، وتحتاج `CRON_SECRET`.
+
+> [!IMPORTANT]
+> **حماية التسجيل من البوتات:** كل حساب جديد يأخذ كريدتات مجانية تُصرف على تصيير حقيقي. التطبيق يحجب الكريدت المجاني عن البريد المؤقت المعروف وعن ما يتجاوز `SIGNUP_FREE_PER_IP_PER_DAY` من نفس الـ IP، لكن هذا طبقة ثانية فقط. **فعّل أيضاً من لوحة Clerk** ← Configure ← Attack protection: **Bot sign-up protection** (CAPTCHA) وفرض **تأكيد البريد**، فهما الحماية الأساسية ولا يمكن ضبطهما من الكود.
 
 > [!WARNING]
 > **قبل الإنتاج:** فعّل [Vercel Spend Management](https://vercel.com/docs/accounts/spend-management)، وأضف مفاتيح **Clerk** (بدونها تُغلق المسارات المكلفة وميزات الحساب في الإنتاج برد 503)، ونظّف الـ snapshots والفيديوهات القديمة دورياً بـ `npm run cleanup-blobs -- --delete`.
