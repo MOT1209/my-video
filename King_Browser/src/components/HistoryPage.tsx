@@ -94,7 +94,7 @@ const HistoryRowItem: React.FC<HistoryRowItemProps> = React.memo(({
           <p className="text-xs text-slate-400 dark:text-slate-500 truncate mt-0.5" title={item.url}>{item.url}</p>
         </div>
       </div>
-      <div className="flex items-center gap-3 shrink-0 pl-4">
+      <div className="flex items-center gap-3 shrink-0 ps-4">
         <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap font-mono">{formatTime(item.timestamp)}</span>
         <button
           onClick={() => onRemoveHistoryItem(item.id)}
@@ -252,13 +252,13 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({
         )}
 
         <div className="relative mb-6">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <Search className="absolute start-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setVisibleCount(100); }}
             placeholder={t('history.searchPlaceholder')}
-            className="w-full h-12 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 rounded-2xl pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-500/50 shadow-sm transition-shadow text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 backdrop-blur-md"
+            className="w-full h-12 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/50 rounded-2xl ps-11 pe-4 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-500/50 shadow-sm transition-shadow text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 backdrop-blur-md"
           />
         </div>
 

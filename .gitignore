@@ -15,13 +15,17 @@ yarn-debug.log*
 yarn-error.log*
 # local env files
 .env*
+!.env.example
 # vercel
 .vercel
 # local-only compat shim: .claude/skills is a per-machine junction to .agents/skills
-.claude/
+/.claude/
 # playwright MCP artifacts
 .playwright-mcp/
 paper-check.png
 next-env.d.ts
 tsconfig.tsbuildinfo
 code-review-report.html
+# build caches
+.remotion/
+.turbo/

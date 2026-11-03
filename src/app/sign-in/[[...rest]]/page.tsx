@@ -1,5 +1,4 @@
 import { SignIn } from "@clerk/nextjs";
-import { Suspense } from "react";
 
 /**
  * صفحة تسجيل الدخول (Clerk).
@@ -25,14 +24,9 @@ export default function SignInPage() {
   }
 
   return (
+    // ClerkProvider في الـ layout الجذري يلفّ هذه الصفحة
     <div className="flex min-h-screen items-center justify-center" dir="ltr">
-      <Suspense>
-        <SignIn
-          fallbackRedirectUrl="/"
-          signUpFallbackRedirectUrl="/"
-          forceRedirectUrl="/"
-        />
-      </Suspense>
+      <SignIn />
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { DEFAULT_AR_VOICE } from "../../../../types/shorts";
+import { DEFAULT_AR_VOICE, VoiceId } from "../../../../types/shorts";
 import { apiError, executeApi } from "../../../helpers/api-response";
 import { guardPaidRoute } from "../../../lib/auth";
 import {
   checkRateLimit,
-  clientIp,
   rateLimitRejection,
+  rateLimitSubject,
 } from "../../../lib/rate-limit";
 import { generateScript } from "../../../lib/script-generator";
 
@@ -15,7 +15,7 @@ const ScriptRequest = z
     url: z.string().url().optional(),
     topic: z.string().min(3).max(500).optional(),
     lang: z.enum(["ar", "en"]).default("ar"),
-    voiceId: z.string().min(1).max(120).default(DEFAULT_AR_VOICE),
+    voiceId: VoiceId.default(DEFAULT_AR_VOICE),
   })
   .refine((body) => Boolean(body.url ?? body.topic), {
     message: "يجب تمرير رابط مقال أو موضوع",
@@ -42,9 +42,11 @@ export const POST = async (req: Request) => {
   if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return apiError("أرسل الطلب بصيغة application/json.", 415);
   }
-  const user = guard.user;
-  const subject = user.authenticated ? `user:${user.clerkId}` : `ip:${clientIp(req)}`;
-  const verdict = await checkRateLimit(`script:${subject}`, 6, 10 * 60 * 1000);
+  const verdict = await checkRateLimit(
+    `script:${rateLimitSubject(req, guard.user)}`,
+    6,
+    10 * 60 * 1000,
+  );
   if (!verdict.allowed) {
     return rateLimitRejection(verdict);
   }

@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { apiError, executeApi } from "../../../helpers/api-response";
+import { executeApi } from "../../../helpers/api-response";
 import { guardPaidRoute } from "../../../lib/auth";
 import {
   checkRateLimit,
-  clientIp,
   rateLimitRejection,
+  rateLimitSubject,
 } from "../../../lib/rate-limit";
 import {
   buildImagePrompt,
@@ -19,9 +19,13 @@ const ImageRequest = z.object({
 });
 
 const handleImage = executeApi(ImageRequest, async (req, body) => {
-  const prompt = buildImagePrompt(body.prompt);
+  // تلميح النمط يمر بنفس التنظيف والقص قبل اللاحقة الثابتة (9:16، بلا نص)،
+  // فلا يتجاوز الحد ولا يأتي بعد تعليمات الإطار
+  const prompt = buildImagePrompt(
+    body.styleHint ? `${body.prompt} ${body.styleHint}` : body.prompt,
+  );
   const { url, cached, hash } = await generateBackgroundImage({
-    prompt: body.styleHint ? `${prompt} ${body.styleHint}` : prompt,
+    prompt,
     blobToken: process.env.BLOB_READ_WRITE_TOKEN,
   });
   return { url, cached, hash };
@@ -30,14 +34,11 @@ const handleImage = executeApi(ImageRequest, async (req, body) => {
 /** 8 صور لكل IP كل 10 دقائق (توليد صور مكلف نسبياً). */
 export const POST = async (req: Request) => {
   const guard = await guardPaidRoute();
-  if ("response" in guard) return guard.response;
-  if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
-    return apiError("أرسل الطلب بصيغة application/json.", 415);
+  if ("response" in guard) {
+    return guard.response;
   }
-  const user = guard.user;
-  const subject = user.authenticated ? `user:${user.clerkId}` : `ip:${clientIp(req)}`;
   const verdict = await checkRateLimit(
-    `image:${subject}`,
+    `image:${rateLimitSubject(req, guard.user)}`,
     8,
     10 * 60 * 1000,
   );

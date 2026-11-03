@@ -1,8 +1,8 @@
 import * as cheerio from "cheerio";
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
-import { Agent, type Dispatcher } from "undici";
 import { z } from "zod";
+import { geminiGenerateUrl, geminiHeaders } from "./gemini";
+import { fetchPublicText, type LookupFn } from "./safe-fetch";
+import { UserFacingError } from "./user-facing-error";
 
 /**
  * توليد سكربت من رابط/مقال — المرحلة 2 من الخطة:
@@ -15,161 +15,12 @@ import { z } from "zod";
  *   اسم النموذج قابل للتجّوز عبر GEMINI_MODEL (يتغيّر بمرور الوقت).
  */
 
-const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
 /** الحد الأقصى لنص المقال المُرسل للنموذج (توفير توكنات). */
 const MAX_ARTICLE_CHARS = 15_000;
-const MAX_ARTICLE_BYTES = 2 * 1024 * 1024;
-const ARTICLE_FETCH_TIMEOUT_MS = 10_000;
 
 // مخطط الرد مع نماذج قابلة للحقن في الاختبارات بلا شبكة
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
-export type ResolveHost = (hostname: string) => Promise<Array<{ address: string; family: number }>>;
-
-function isPublicAddress(address: string, family: number): boolean {
-  if (family === 4) {
-    const parts = address.split(".").map(Number);
-    const [a, b, c] = parts;
-    if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
-    return !(
-      a === 0 || a === 10 || a === 127 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && (b === 168 || (b === 0 && c === 0) || (b === 0 && c === 2) || (b === 88 && c === 99))) ||
-      (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) ||
-      (a === 203 && b === 0 && c === 113) ||
-      (a === 255 && b === 255 && c === 255) || a >= 224
-    );
-  }
-  if (family !== 6 || isIP(address) !== 6) return false;
-  const host = address.toLowerCase().split("%")[0];
-  if (host.startsWith("::ffff:")) {
-    const mappedAddress = host.slice("::ffff:".length);
-    if (isIP(mappedAddress) === 4) return isPublicAddress(mappedAddress, 4);
-  }
-  const expanded = expandIpv6(host);
-  const firstBlock = Number.parseInt(expanded[0], 16);
-  const secondBlock = Number.parseInt(expanded[1], 16);
-  return (
-    firstBlock >= 0x2000 && firstBlock <= 0x3fff &&
-    firstBlock !== 0x2002 &&
-    !(firstBlock === 0x2001 && (secondBlock <= 0x01ff || secondBlock === 0x0db8)) &&
-    !(firstBlock === 0x3fff && secondBlock <= 0x0fff)
-  );
-}
-
-function expandIpv6(address: string): string[] {
-  const halves = address.split("::");
-  const left = halves[0] ? halves[0].split(":") : [];
-  const right = halves[1] ? halves[1].split(":") : [];
-  return halves.length === 1
-    ? left
-    : [...left, ...Array(8 - left.length - right.length).fill("0"), ...right];
-}
-
-export interface ValidatedArticleUrl {
-  url: URL;
-  addresses: Array<{ address: string; family: number }>;
-}
-
-export async function validatePublicHttpUrl(
-  value: string,
-  resolveHost: ResolveHost = (hostname) => lookup(hostname, { all: true, verbatim: true }),
-): Promise<ValidatedArticleUrl> {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error("رابط المقال غير صالح.");
-  }
-  if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) {
-    throw new Error("يُسمح بروابط مقالات HTTP/HTTPS العامة فقط.");
-  }
-  const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
-  if (!hostname || hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local")) {
-    throw new Error("رابط المقال يجب أن يشير إلى مضيف عام.");
-  }
-  const literalHost = hostname.startsWith("[") && hostname.endsWith("]")
-    ? hostname.slice(1, -1)
-    : hostname;
-  const literalFamily = isIP(literalHost);
-  const addresses = literalFamily
-    ? [{ address: literalHost, family: literalFamily }]
-    : await resolveHost(hostname);
-  if (addresses.length === 0 || addresses.some(({ address, family }) => !isPublicAddress(address, family))) {
-    throw new Error("رابط المقال يجب أن يشير إلى مضيف عام.");
-  }
-  url.hostname = hostname;
-  return { url, addresses };
-}
-
-function createPinnedDispatcher(address: string, family: number): Dispatcher {
-  return new Agent({
-    connect: {
-      lookup: (_hostname, options, callback) => {
-        if (options.all) {
-          callback(null, [{ address, family }]);
-        } else {
-          callback(null, address, family);
-        }
-      },
-    },
-  });
-}
-
-async function fetchPublicArticleText(
-  target: ValidatedArticleUrl,
-  fetchImpl: FetchLike,
-): Promise<string> {
-  const address = target.addresses[0];
-  const dispatcher = createPinnedDispatcher(address.address, address.family);
-  const cleanup = (dispatcher as unknown as {
-    close?: () => Promise<void>;
-    destroy?: () => Promise<void>;
-  }).close ?? (dispatcher as unknown as { destroy?: () => Promise<void> }).destroy;
-  const requestInit = {
-    headers: { "user-agent": "Mozilla/5.0 (compatible; my-video-bot/0.1)" },
-    redirect: "manual" as const,
-    signal: AbortSignal.timeout(ARTICLE_FETCH_TIMEOUT_MS),
-    dispatcher,
-  };
-  try {
-    const page = await fetchImpl(
-      target.url.toString(),
-      requestInit as RequestInit & { dispatcher: Dispatcher },
-    );
-    if (page.status >= 300 && page.status < 400) {
-      throw new Error("إعادة توجيه روابط المقالات غير مسموحة.");
-    }
-    if (!page.ok) {
-      throw new Error(`فشل جلب المقال (${page.status}).`);
-    }
-    const reader = page.body?.getReader();
-    if (!reader) return "";
-    const chunks: Uint8Array[] = [];
-    let totalBytes = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      totalBytes += value.byteLength;
-      if (totalBytes > MAX_ARTICLE_BYTES) {
-        await reader.cancel();
-        throw new Error("حجم صفحة المقال يتجاوز الحد المسموح.");
-      }
-      chunks.push(value);
-    }
-    const htmlBytes = new Uint8Array(totalBytes);
-    let offset = 0;
-    for (const chunk of chunks) {
-      htmlBytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    return new TextDecoder().decode(htmlBytes);
-  } finally {
-    if (cleanup) await cleanup.call(dispatcher);
-  }
-}
 
 export const ScriptResponse = z
   .object({
@@ -187,7 +38,7 @@ export function extractArticleText(html: string, maxChars = MAX_ARTICLE_CHARS): 
   const preferred = $("article").text() || $("main").text() || $("body").text();
   const cleaned = preferred.replace(/\s+/g, " ").trim();
   if (!cleaned) {
-    throw new Error("لم يتم العثور على نص مقروء في الصفحة.");
+    throw new UserFacingError("لم يتم العثور على نص مقروء في الصفحة.");
   }
   return cleaned.slice(0, maxChars);
 }
@@ -231,7 +82,7 @@ function parseJSONLoose(raw: string): unknown {
   const start = trimmed.indexOf("{");
   const end = trimmed.lastIndexOf("}");
   if (start === -1 || end === -1 || end <= start) {
-    throw new Error("رد الذكاء الاصطناعي لا يحتوي كائن JSON.");
+    throw new UserFacingError("رد الذكاء الاصطناعي لا يحتوي كائن JSON.");
   }
   return JSON.parse(trimmed.slice(start, end + 1));
 }
@@ -243,32 +94,37 @@ function parseJSONLoose(raw: string): unknown {
 export async function generateScript(
   input: { url?: string; topic?: string; lang: "ar" | "en" },
   fetchImpl: FetchLike = fetch,
-  resolveHost?: ResolveHost,
+  /** حقن حلّ DNS في الاختبارات (الافتراضي DNS النظام). */
+  options: { lookup?: LookupFn } = {},
 ): Promise<{ hook: string; scenes: Array<{ id: string; text: string }> }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error(
+    throw new UserFacingError(
       "GEMINI_API_KEY غير مُهيأ. أضف مفتاح Google AI Studio إلى متغيرات البيئة (خادم فقط — لا يظهر للعميل).",
     );
   }
   if (!input.topic && !input.url) {
-    throw new Error("مطلوب رابط مقال أو موضوع.");
+    throw new UserFacingError("مطلوب رابط مقال أو موضوع.");
   }
 
   let sourceText: string;
   if (input.url) {
-    const articleTarget = await validatePublicHttpUrl(input.url, resolveHost);
-    sourceText = extractArticleText(await fetchPublicArticleText(articleTarget, fetchImpl));
+    // رابط المستخدم ⇒ جلب محمي من SSRF (لا عناوين داخلية، مهلة، حد حجم)
+    const html = await fetchPublicText(input.url, {
+      fetchImpl,
+      lookup: options.lookup,
+    });
+    sourceText = extractArticleText(html);
   } else {
     sourceText = input.topic!;
   }
 
   const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
   const response = await fetchImpl(
-    `${GEMINI_ENDPOINT}/${model}:generateContent?key=${apiKey}`,
+    geminiGenerateUrl(model),
     {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: geminiHeaders(apiKey),
       body: JSON.stringify({
         contents: [{ parts: [{ text: buildPrompt(sourceText, input.lang) }] }],
         generationConfig: { responseMimeType: "application/json" },
@@ -279,14 +135,14 @@ export async function generateScript(
     const detail = await response.text().catch(() => "");
     // نص رد المزوّد يُسجَّل في الخادم فقط — قد يحمل تفاصيل داخلية لا تخصّ العميل
     console.warn("script-generator: رد Gemini غير ناجح", response.status, detail.slice(0, 300));
-    throw new Error(`فشل استدعاء Gemini (${response.status}).`);
+    throw new UserFacingError(`فشل استدعاء Gemini (${response.status}).`);
   }
   const payload = (await response.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
   };
   const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!raw) {
-    throw new Error("رد Gemini فارغ أو غير مفهوم.");
+    throw new UserFacingError("رد Gemini فارغ أو غير مفهوم.");
   }
 
   const parsed = ScriptResponse.parse(parseJSONLoose(raw));
@@ -296,7 +152,7 @@ export async function generateScript(
     text: text.trim(),
   }));
   if (scenes.length === 0 || scenes.every((s) => !s.text)) {
-    throw new Error("الرد النموذجي خالٍ من المشاهد.");
+    throw new UserFacingError("الرد النموذجي خالٍ من المشاهد.");
   }
   return { hook: parsed.hook.trim(), scenes };
 }

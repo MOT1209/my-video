@@ -1,6 +1,8 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import Stripe from "stripe";
-import { resetDbForTests } from "../../lib/db/client";
+import { resetDbForTests, setDbForTests } from "../../lib/db/client";
+import { createTestDb } from "../../lib/db/testing";
+import { defaultShortProps } from "../../../types/shorts";
 import { resetStripeForTests } from "../../lib/stripe";
 import { resetUpstashRedisForTests } from "../../lib/upstash-redis";
 
@@ -35,6 +37,7 @@ const ENV_KEYS = [
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
   "CLERK_AUTH_TEST_FAILURE",
+  "CRON_SECRET",
 ] as const;
 const saved = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
 
@@ -330,4 +333,170 @@ test("Webhook موقّع: غير مدفوع ⇒ 200 بلا منح؛ مدفوع �
   expect(await unknownPack.json()).toMatchObject({ applied: false, reason: "invalid-credits" });
 
   expect((await POST(await signedWebhook(paidSession))).status).toBe(503);
+});
+
+test("الإنتاج بلا Clerk مع قاعدة بيانات: ميزات الحساب 503 (لا حساب محلي مشترك)", async () => {
+  setEnv({
+    NODE_ENV: "production",
+    DATABASE_URL: "postgres://user:pass@localhost:5432/never-touched",
+  });
+  const projects = await import("./projects/route");
+  const project = await import("./projects/[id]/route");
+  const renders = await import("./renders/route");
+  const credits = await import("./credits/route");
+  const ctx = { params: Promise.resolve({ id: "00000000-0000-4000-8000-000000000000" }) };
+  const get = () => new Request("http://localhost/api");
+  const responses = [
+    await projects.GET(),
+    await project.GET(get(), ctx),
+    await project.DELETE(get(), ctx),
+    await renders.GET(get()),
+    await credits.GET(),
+  ];
+  for (const res of responses) {
+    expect(res.status).toBe(503);
+  }
+});
+
+test("TTS: معرّف صوت يحقن SSML يُرفض 400 قبل أي مزوّد", async () => {
+  setEnv({ NODE_ENV: "test", RATE_LIMIT_ALLOW_IN_MEMORY: "true" });
+  const { POST } = await import("./tts/route");
+  const res = await POST(
+    post(
+      JSON.stringify({
+        text: "مرحبا",
+        voiceId: "ar-SA-HamedNeural'><audio src='http://evil/x.mp3'/><voice name='x",
+      }),
+    ),
+  );
+  expect(res.status).toBe(400);
+});
+
+test("executeApi: خطأ داخلي غير مقصود لا تتسرب رسالته للعميل", async () => {
+  const { z } = await import("zod");
+  const { executeApi } = await import("../../helpers/api-response");
+  const { UserFacingError } = await import("../../lib/user-facing-error");
+  const leaky = executeApi(z.object({}), async () => {
+    throw new Error("connect ECONNREFUSED 10.0.0.7:5432 secret-host");
+  });
+  const res = await leaky(post("{}"));
+  expect(res.status).toBe(500);
+  const body = (await res.json()) as { message: string };
+  expect(body.message).not.toContain("10.0.0.7");
+
+  const intended = executeApi(z.object({}), async () => {
+    throw new UserFacingError("رسالة مقصودة للمستخدم");
+  });
+  const body2 = (await (await intended(post("{}"))).json()) as { message: string };
+  expect(body2.message).toBe("رسالة مقصودة للمستخدم");
+});
+
+
+test("cron: بلا CRON_SECRET ⇒ 503، وسر خاطئ أو غائب ⇒ 401 قبل أي عمل", async () => {
+  const { GET } = await import("./cron/retry-renders/route");
+  setEnv({ NODE_ENV: "production" });
+  expect((await GET(new Request("http://localhost/api/cron"))).status).toBe(503);
+
+  setEnv({ NODE_ENV: "production", CRON_SECRET: "s3cret-value" });
+  expect((await GET(new Request("http://localhost/api/cron"))).status).toBe(401);
+  const wrong = new Request("http://localhost/api/cron", {
+    headers: { authorization: "Bearer s3cret-valuX" },
+  });
+  expect((await GET(wrong)).status).toBe(401);
+  // السر الصحيح يتجاوز الحارس (ثم 503 لغياب قاعدة البيانات، لا 401)
+  const right = new Request("http://localhost/api/cron", {
+    headers: { authorization: "Bearer s3cret-value" },
+  });
+  expect((await GET(right)).status).toBe(503);
+});
+
+test("المشاريع على قاعدة حقيقية: مستخدم لا يقرأ ولا يحذف مشروع غيره، والقائمة لكل مستخدم", async () => {
+  const { db } = await createTestDb();
+  const projects = await import("./projects/route");
+  const project = await import("./projects/[id]/route");
+  const credits = await import("./credits/route");
+  try {
+    setEnv({
+      NODE_ENV: "test",
+      ...CLERK,
+      DATABASE_URL: "postgres://injected-pglite",
+      RATE_LIMIT_ALLOW_IN_MEMORY: "true",
+    });
+    setDbForTests(db);
+
+    clerkUserId = "user_owner";
+    const saved = await projects.POST(
+      post(JSON.stringify({ title: "مشروعي", props: defaultShortProps })),
+    );
+    expect(saved.status).toBe(200);
+    const { data } = (await saved.json()) as { data: { id: string } };
+    const ctx = { params: Promise.resolve({ id: data.id }) };
+    const get = () => new Request("http://localhost/api");
+
+    // مستخدم آخر: لا قراءة ولا حذف ولا ظهور في قائمته
+    clerkUserId = "user_other";
+    expect((await project.GET(get(), ctx)).status).toBe(404);
+    expect((await project.DELETE(get(), ctx)).status).toBe(404);
+    const otherList = (await (await projects.GET()).json()) as {
+      data: { projects: unknown[] };
+    };
+    expect(otherList.data.projects).toHaveLength(0);
+    const otherCredits = (await (await credits.GET()).json()) as { type: string };
+    expect(otherCredits.type).toBe("success");
+
+    // المالك ما زال يراه كاملاً ويستطيع حذفه
+    clerkUserId = "user_owner";
+    const own = await project.GET(get(), ctx);
+    expect(own.status).toBe(200);
+    expect(((await own.json()) as { data: { title: string } }).data.title).toBe("مشروعي");
+    expect((await project.DELETE(get(), ctx)).status).toBe(200);
+    expect((await project.GET(get(), ctx)).status).toBe(404);
+  } finally {
+    setDbForTests(null);
+    resetDbForTests();
+  }
+}, 60_000);
+
+test("health: بلا سر ردّ بسيط لا يكشف الإعداد، ومع السر الصحيح قائمة الناقص ورمز 503", async () => {
+  const { GET } = await import("./health/route");
+  setEnv({ NODE_ENV: "production", CRON_SECRET: "hs-secret" });
+
+  for (const headers of [{} as Record<string, string>, { authorization: "Bearer wrong" }]) {
+    const res = await GET(new Request("http://localhost/api/health", { headers }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "ok" });
+  }
+
+  const res = await GET(
+    new Request("http://localhost/api/health", {
+      headers: { authorization: "Bearer hs-secret" },
+    }),
+  );
+  expect(res.status).toBe(503);
+  const body = (await res.json()) as {
+    status: string;
+    missingRequired: string[];
+    checks: Array<{ id: string }>;
+  };
+  expect(body.status).toBe("degraded");
+  expect(body.missingRequired).toEqual(["blob", "database", "clerk", "upstash"]);
+  expect(JSON.stringify(body)).not.toContain("hs-secret");
+
+  // كل المطلوب مضبوط ⇒ 200 جاهز
+  setEnv({
+    NODE_ENV: "production",
+    CRON_SECRET: "hs-secret",
+    BLOB_READ_WRITE_TOKEN: "t",
+    DATABASE_URL: "postgres://x",
+    ...CLERK,
+    UPSTASH_REDIS_REST_URL: "https://u",
+    UPSTASH_REDIS_REST_TOKEN: "t",
+  });
+  const ready = await GET(
+    new Request("http://localhost/api/health", {
+      headers: { authorization: "Bearer hs-secret" },
+    }),
+  );
+  expect(ready.status).toBe(200);
+  expect(((await ready.json()) as { status: string }).status).toBe("ready");
 });

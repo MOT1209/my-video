@@ -6,7 +6,15 @@ import {
 } from "../../../../lib/auth";
 import { apiError, apiSuccess } from "../../../../helpers/api-response";
 import { findCreditPack } from "../../../../lib/credits";
-import { checkoutParamsForPack, getStripe } from "../../../../lib/stripe";
+import {
+  checkRateLimit,
+  rateLimitRejection,
+} from "../../../../lib/rate-limit";
+import {
+  checkoutParamsForPack,
+  checkoutReturnOrigin,
+  getStripe,
+} from "../../../../lib/stripe";
 
 /**
  * إنشاء جلسة دفع لحزمة كريدت.
@@ -45,17 +53,16 @@ export async function POST(req: Request) {
     );
   }
 
+  // كل طلب يُنشئ جلسة Stripe حقيقية: 10 لكل مستخدم كل 10 دقائق
+  const verdict = await checkRateLimit(`checkout:user:${user.clerkId}`, 10, 10 * 60 * 1000);
+  if (!verdict.allowed) {
+    return rateLimitRejection(verdict);
+  }
+
   if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return apiError("أرسل الطلب بصيغة application/json.", 415);
   }
-
-  let payload: unknown;
-  try {
-    payload = await req.json();
-  } catch {
-    return apiError("تعذّر قراءة JSON صالح.", 400);
-  }
-  const parsed = CheckoutRequest.safeParse(payload);
+  const parsed = CheckoutRequest.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return apiError("حزمة الكريدت غير محددة.", 400);
   }
@@ -64,8 +71,7 @@ export async function POST(req: Request) {
     return apiError("حزمة كريدت غير معروفة.", 404);
   }
 
-  const origin =
-    req.headers.get("origin") ?? new URL(req.url).origin;
+  const origin = checkoutReturnOrigin(req);
 
   try {
     const session = await stripe.checkout.sessions.create(

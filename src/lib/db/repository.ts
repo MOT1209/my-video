@@ -38,17 +38,39 @@ export const STALE_RENDER_MS = 15 * 60 * 1000;
 /**
  * يضمن وجود صف المستخدم ويُعيده. المستخدم الجديد يحصل على كريدتات
  * الترحيب مرة واحدة فقط (التحديث لا يلمس الرصيد إطلاقاً).
+ *
+ * `signupCredits`: عدد الكريدتات الأولية، أو دالة تُنفَّذ **فقط** عند إنشاء
+ * حساب جديد (لا للحسابات القائمة) — تُستعمل لحجب الكريدت المجاني عن حسابات
+ * البوتات (`signup-guard.ts`). الافتراضي `FREE_SIGNUP_CREDITS`.
  */
 export async function ensureUser(
   db: Db,
-  args: { clerkId: string; email?: string | null },
+  args: {
+    clerkId: string;
+    email?: string | null;
+    signupCredits?: number | (() => Promise<number>);
+  },
 ): Promise<UserRow> {
+  let initialCredits: number;
+  if (typeof args.signupCredits === "function") {
+    const existing = await db
+      .update(users)
+      .set({ updatedAt: new Date() })
+      .where(eq(users.clerkId, args.clerkId))
+      .returning();
+    if (existing[0]) {
+      return existing[0];
+    }
+    initialCredits = await args.signupCredits();
+  } else {
+    initialCredits = args.signupCredits ?? FREE_SIGNUP_CREDITS;
+  }
   const rows = await db
     .insert(users)
     .values({
       clerkId: args.clerkId,
       email: args.email ?? null,
-      credits: FREE_SIGNUP_CREDITS,
+      credits: initialCredits,
     })
     .onConflictDoUpdate({
       target: users.clerkId,
@@ -58,14 +80,6 @@ export async function ensureUser(
   return rows[0];
 }
 
-export async function getUserByClerkId(
-  db: Db,
-  clerkId: string,
-): Promise<UserRow | null> {
-  const rows = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
-  return rows[0] ?? null;
-}
-
 export async function getCredits(db: Db, userId: string): Promise<number> {
   const rows = await db
     .select({ credits: users.credits })
@@ -73,26 +87,6 @@ export async function getCredits(db: Db, userId: string): Promise<number> {
     .where(eq(users.id, userId))
     .limit(1);
   return rows[0]?.credits ?? 0;
-}
-
-/** زيادة الرصيد (شراء، أو إرجاع كريدت تصيير فشل). */
-export async function addCredits(
-  db: Db,
-  userId: string,
-  amount: number,
-): Promise<number> {
-  const rows = await db
-    .update(users)
-    .set({
-      credits: sql`${users.credits} + ${amount}`,
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, userId))
-    .returning({ credits: users.credits });
-  if (!rows[0]) {
-    throw new Error(`مستخدم غير موجود: ${userId}`);
-  }
-  return rows[0].credits;
 }
 
 /**
@@ -227,6 +221,11 @@ export async function finishRender(
     durationSec?: number | null;
     sandboxMs?: number | null;
     error?: string | null;
+    /**
+     * فشل نهائي لا يُعاد من الطابور (خطأ محتوى لا بنية): يرفع `attempts`
+     * إلى الحد فيستبعده `listRetryableRenders`. الافتراضي قابل لإعادة المحاولة.
+     */
+    retryable?: boolean;
   },
   fence: { from?: RenderStatus[]; attempts?: number } = {},
 ): Promise<boolean> {
@@ -246,6 +245,9 @@ export async function finishRender(
       durationSec: args.durationSec ?? null,
       sandboxMs: args.sandboxMs ?? null,
       error: args.error ?? null,
+      ...(args.status === "error" && args.retryable === false
+        ? { attempts: MAX_RENDER_ATTEMPTS }
+        : {}),
       updatedAt: new Date(),
     })
     .where(and(...conditions))

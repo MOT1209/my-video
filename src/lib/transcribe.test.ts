@@ -6,15 +6,23 @@ function fakeFetch(reply: {
   status?: number;
   body?: unknown;
   text?: string;
-}): { fetchImpl: (url: string, init?: RequestInit) => Promise<Response>; calls: string[]; bodies: string[] } {
+}): {
+  fetchImpl: (url: string, init?: RequestInit) => Promise<Response>;
+  calls: string[];
+  bodies: string[];
+  headers: Array<Record<string, string>>;
+} {
   const calls: string[] = [];
   const bodies: string[] = [];
+  const headers: Array<Record<string, string>> = [];
   return {
     calls,
     bodies,
+    headers,
     fetchImpl: async (url, init) => {
       calls.push(url);
       bodies.push(String(init?.body ?? ""));
+      headers.push((init?.headers ?? {}) as Record<string, string>);
       return new Response(reply.text ?? JSON.stringify(reply.body ?? {}), {
         status: reply.status ?? 200,
       });
@@ -50,7 +58,7 @@ test("أنواع الصوت المدعومة تُقبل مع معاملات code
 
 test("النسخ يُرسل الصوت مضمَّناً base64 ويُعيد النص مع كابشن موزَّع", async () => {
   await withKey("key-123", async () => {
-    const { fetchImpl, calls, bodies } = fakeFetch({
+    const { fetchImpl, calls, bodies, headers } = fakeFetch({
       body: {
         candidates: [
           { content: { parts: [{ text: "مرحباً بكم" }, { text: "في هذا الفيديو" }] } },
@@ -63,7 +71,9 @@ test("النسخ يُرسل الصوت مضمَّناً base64 ويُعيد ال
       fetchImpl,
     );
 
-    expect(calls[0]).toContain("generateContent?key=key-123");
+    // المفتاح في الترويسة لا في الرابط (الروابط تُسجَّل)
+    expect(calls[0]).not.toContain("key-123");
+    expect(headers[0]["x-goog-api-key"]).toBe("key-123");
     expect(calls[0]).toContain("gemini-2.0-flash");
     const sent = JSON.parse(bodies[0]) as {
       contents: Array<{ parts: Array<Record<string, unknown>> }>;

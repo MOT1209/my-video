@@ -70,6 +70,18 @@ export const EN_VOICES = [
   { id: "en-US-AndrewNeural", label: "English (US) — Andrew", gender: "Male" },
 ] as const;
 
+/**
+ * معرّف صوت Neural بصيغة Azure/Edge فقط (مثل ‎ar-SA-HamedNeural‎).
+ * يُدرج المعرّف داخل SSML، فأي اقتباس أو وسم يكسر السمة ويحقن عناصر
+ * (‎<audio src>‎، تجاوز حد الأحرف...) — الصيغة الصارمة تمنع ذلك من الأصل.
+ */
+export const VoiceId = z
+  .string()
+  .max(80)
+  .regex(/^[a-z]{2,3}-[A-Z]{2,4}(?:-[A-Za-z]+)?-[A-Za-z0-9]+Neural$/, {
+    message: "معرّف صوت غير صالح",
+  });
+
 export const DEFAULT_AR_VOICE = AR_VOICES[0].id;
 export const DEFAULT_EN_VOICE = EN_VOICES[0].id;
 
@@ -93,7 +105,7 @@ export const ShortProps = z.object({
   scenes: z.array(ShortScene).min(1).max(12),
   theme: ShortTheme.default("dark"),
   lang: ShortLang.default("ar"),
-  voiceId: z.string().min(1).max(120).default(DEFAULT_AR_VOICE),
+  voiceId: VoiceId.default(DEFAULT_AR_VOICE),
   /** رابط mp3 عام (Blob) أو null قبل توليد الصوت */
   audioUrl: MediaUrl.nullable().default(null),
   audioDurationSec: z.number().min(0).max(SHORT_MAX_SECONDS).nullable().default(null),

@@ -1,5 +1,13 @@
+import * as sensitiveFieldModule from '../src/utils/sensitiveField';
+import * as agentLoginModule from '../src/utils/agentLogin';
+import * as elementSnapshotModule from '../src/utils/elementSnapshot';
+import * as consoleBufferModule from '../src/utils/consoleBuffer';
+import * as urlRedactionModule from '../src/utils/urlRedaction';
+import * as trustedInputModule from '../src/utils/trustedInput';
+import * as deepQueryModule from '../src/utils/deepQuery';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import https from 'node:https';
 import vm from 'node:vm';
 import ts from 'typescript';
 import crypto from 'node:crypto';
@@ -52,14 +60,22 @@ async function run() {
     CustomEvent: class {}, setTimeout, clearTimeout
   }, {
     react: { useEffect: (fn: Function) => fn(), useRef: (current: unknown) => ({ current }) },
-    '../services/aiAgent': { aiAgent: { setActionContext: () => {} } },
+    '../services/aiActionContext': { publishActionContext: () => {} },
+    '../services/agentTabStore': { markAgentTab: () => {} },
     '../services/agentOrchestrator': { orchestrator: {
       enqueueAction: () => ({ id: 'approval', done: new Promise<boolean>(resolve => { approve = resolve; }) }),
       denyAction: () => { denied++; approve(false); }, updateActionState: () => {}
     } },
     '../utils/safeNavigation': { isSafeAgentNavigationUrl: (url: string) => url === 'king://newtab' || url.startsWith('https://') },
     '../utils/mcpActionTiming': mcpActionTiming,
-    '../utils/searchHistoryBookmarks': { searchHistoryAndBookmarks: () => [] }
+    '../utils/searchHistoryBookmarks': { searchHistoryAndBookmarks: () => [] },
+    '../utils/sensitiveField': sensitiveFieldModule,
+    '../utils/elementSnapshot': elementSnapshotModule,
+    '../utils/consoleBuffer': consoleBufferModule,
+    '../utils/agentLogin': agentLoginModule,
+    '../utils/urlRedaction': urlRedactionModule,
+    '../utils/deepQuery': deepQueryModule,
+    '../utils/trustedInput': trustedInputModule
   });
   hook.useBrowserAgentBridge({ activeTabId: 'tab', tabs: [], history: [], bookmarks: [], settingsRef,
     activeWorkspaceIdRef: { current: 'default' }, setActiveWorkspaceId: () => {}, setActiveTabId: () => {}, setTabs: () => {},
@@ -91,14 +107,43 @@ async function run() {
   // §11/§12 modules are real dependencies of mcpServer.ts now — load them with
   // the same sandbox so the "Unexpected dependency" guard stays honest.
   const executionEngineModule = loadSource('electron/main/executionEngine.ts', { setTimeout, clearTimeout, setImmediate }, {});
+  const recordingsModule = loadSource('electron/main/recordings.ts', { Map, Set }, { 'node:fs': fs });
+  const approvalModeModule = loadSource('electron/main/approvalMode.ts', {}, { 'node:fs': fs });
+  const elementRefsModule = loadSource('electron/main/elementRefs.ts', {}, {});
+  const mcpContentModule = loadSource('electron/main/mcpContent.ts', {}, {});
+  const mcpProtocolModule = loadSource('electron/main/mcpProtocol.ts', {}, { './mcpContent.js': mcpContentModule });
+  const mcpStreamableHttpModule = loadSource('electron/main/mcpStreamableHttp.ts', {}, { 'node:crypto': crypto, './mcpProtocol.js': mcpProtocolModule });
+  const proxySecurityModule = loadSource('electron/main/proxySecurity.ts', { Buffer, URL, process }, { crypto, os, fs, path });
+  const injectionDetectorModule = loadSource('electron/main/injectionDetector.ts', {}, {});
+  const customToolsModule = loadSource('electron/main/customTools.ts', { Buffer, URL, AbortController, AbortSignal }, { 'node:fs': fs, 'node:https': https, './injectionDetector.js': injectionDetectorModule });
+  const toolSchemaModule = loadSource('electron/main/toolSchema.ts', {}, {});
+  const siteRulesModule = loadSource('electron/main/siteRules.ts', {}, { 'node:fs': fs });
   const policyEngineModule = loadSource('electron/main/policyEngine.ts', { setTimeout, clearTimeout, setImmediate }, {});
+  const approvalDetailsModule = loadSource('electron/main/approvalDetails.ts', {}, {});
+  const handoffNoteModule = loadSource('electron/main/handoffNote.ts', { URL }, {});
+  const uiStringsModule = loadSource('electron/main/uiStrings.ts', {}, {});
   const serverModule = loadSource('electron/mcpServer.ts', { process, Buffer, setTimeout, clearTimeout }, {
     electron: { app: { isPackaged: false }, powerMonitor: { on: (name: string, fn: Function) => lockEvents.set(name, fn) },
       dialog: { showMessageBox: () => new Promise(resolve => { resolveDialog = resolve; }) } },
     crypto, os, fs, path,
     './main/mcpBridge.js': { requestRendererMcpAction: async () => { forwarded++; return 'ok'; }, cancelPendingMcpActions: () => {} },
     './main/executionEngine.js': executionEngineModule,
-    './main/policyEngine.js': policyEngineModule
+    './main/policyEngine.js': policyEngineModule,
+    './main/approvalDetails.js': approvalDetailsModule,
+    './main/handoffNote.js': handoffNoteModule,
+    './main/uiStrings.js': uiStringsModule,
+    './main/siteRules.js': siteRulesModule,
+    './main/injectionDetector.js': injectionDetectorModule,
+    './main/customTools.js': customToolsModule,
+    './main/toolSchema.js': toolSchemaModule,
+    './main/elementRefs.js': elementRefsModule,
+    './main/mcpContent.js': mcpContentModule,
+    './main/mcpProtocol.js': mcpProtocolModule,
+    './main/mcpStreamableHttp.js': mcpStreamableHttpModule,
+    './main/proxySecurity.js': proxySecurityModule,
+    './main/approvalMode.js': approvalModeModule,
+    './main/recordings.js': recordingsModule,
+    './main/activityStore.js': { createActivityStore: () => ({ append() {}, readAll: () => [] }) }
   });
   for (const change of ['stop', 'rotateToken', 'lock'] as const) {
     const server: any = Object.assign(Object.create(serverModule.BrowserMCPServer.prototype), {

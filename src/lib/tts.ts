@@ -13,6 +13,7 @@ import {
   synthesizeAzure,
 } from "./azure-tts";
 import { synthesizeWithWordBoundaries } from "./edge-tts";
+import { UserFacingError } from "./user-facing-error";
 
 /** حد الحماية: نص أطول من هذا يُرفض قبل طلب TTS */
 export const MAX_TTS_CHARS = 1000;
@@ -47,10 +48,10 @@ export async function synthesizeNarration(input: {
 }): Promise<NarrationResult> {
   const text = input.text.trim();
   if (!text) {
-    throw new Error("النص فارغ — أدخل Hook ومشهداً واحداً على الأقل");
+    throw new UserFacingError("النص فارغ — أدخل Hook ومشهداً واحداً على الأقل");
   }
   if (text.length > MAX_TTS_CHARS) {
-    throw new Error(
+    throw new UserFacingError(
       `النص طويل (${text.length} حرف). الحد ${MAX_TTS_CHARS} حرف لتبقى ضمن 60 ثانية`,
     );
   }
@@ -102,16 +103,21 @@ export async function synthesizeNarration(input: {
         hash,
       };
     } catch (azureErr) {
-      throw new Error(
-        "تعذر الاتصال بخدمة التعليق الصوتي (فشل Edge-TTS ثم Azure الرسمية)." +
-          ` Edge: ${(lastError as Error)?.message ?? "؟"}; Azure: ${(azureErr as Error).message}`,
+      // تفاصيل المزوّدين في سجل الخادم فقط — لا تُعرض للعميل
+      console.error(
+        "tts: فشل Edge ثم Azure",
+        (lastError as Error)?.message,
+        (azureErr as Error)?.message,
+      );
+      throw new UserFacingError(
+        "تعذر الاتصال بخدمة التعليق الصوتي (فشل Edge-TTS ثم Azure الرسمية). أعد المحاولة بعد دقيقة.",
       );
     }
   }
 
-  throw new Error(
-    "تعذر الاتصال بخدمة التعليق الصوتي من هذه الشبكة. تحقق من الإنترنت وأعد المحاولة بعد دقيقة. " +
-      `(${(lastError as Error)?.message ?? "unknown"})`,
+  console.error("tts: فشل Edge-TTS", (lastError as Error)?.message);
+  throw new UserFacingError(
+    "تعذر الاتصال بخدمة التعليق الصوتي من هذه الشبكة. تحقق من الإنترنت وأعد المحاولة بعد دقيقة.",
   );
 }
 
@@ -191,7 +197,7 @@ export async function putAudioCache(
     return meta;
   } catch (err) {
     if (err instanceof BlobAccessError) {
-      throw new Error(
+      throw new UserFacingError(
         "مخزن Blob خاص (private) والتطبيق يحتاج رفعاً عاماً. من Vercel Dashboard افتح Storage ثم إعدادات الـ Blob store واسمح بالوصول العام ثم أعد النشر.",
       );
     }

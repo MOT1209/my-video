@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ShortProps } from "../../../../types/shorts";
 import { apiError, apiSuccess } from "../../../helpers/api-response";
 import { listProjects, PROJECT_NOT_FOUND, saveProject } from "../../../lib/db/repository";
+import { checkRateLimit, rateLimitRejection } from "../../../lib/rate-limit";
 import { requireSession } from "../../../lib/session";
 
 /**
@@ -40,16 +41,16 @@ export async function POST(req: Request) {
   }
   const { db, user } = guard.session;
 
+  // كل حفظ كتابة في القاعدة بحالة كاملة (مئات الكابشنات): 60 لكل مستخدم كل 10 دقائق
+  const verdict = await checkRateLimit(`projects:user:${user.id}`, 60, 10 * 60 * 1000);
+  if (!verdict.allowed) {
+    return rateLimitRejection(verdict);
+  }
+
   if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return apiError("أرسل الطلب بصيغة application/json.", 415);
   }
-  let payload: unknown;
-  try {
-    payload = await req.json();
-  } catch {
-    return apiError("تعذّر قراءة JSON صالح.", 400);
-  }
-  const parsed = ProjectSaveRequest.safeParse(payload);
+  const parsed = ProjectSaveRequest.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return apiError("بيانات المشروع غير صالحة: تحقّق من العنوان والمشاهد.", 400);
   }

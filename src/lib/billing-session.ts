@@ -1,5 +1,6 @@
 import type { RequestUser } from "./auth";
 import { RENDER_CREDIT_COST } from "./credits";
+import { signupCreditsResolver } from "./signup-guard";
 import { getDb, type Db } from "./db/client";
 import {
   ensureUser,
@@ -39,6 +40,8 @@ export interface RenderFinishArgs {
   durationSec?: number | null;
   sandboxMs?: number | null;
   error?: string | null;
+  /** false ⇒ فشل نهائي لا يعيده طابور الـ cron (انظر `isRetryableRenderError`). */
+  retryable?: boolean;
 }
 
 export interface BillingSession {
@@ -74,6 +77,7 @@ export async function openBillingSession(
   const row: UserRow = await ensureUser(db, {
     clerkId: user.clerkId,
     email: user.email,
+    signupCredits: signupCreditsResolver(user.email),
   });
 
   return {

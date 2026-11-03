@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { WebSocket } from "ws";
 import type { WordCaption } from "../../types/shorts";
 import { generateSecMsGecV2 } from "./sec-ms-gec";
+import { escapeSsml } from "./ssml";
 
 const BASE_URL = "speech.platform.bing.com/consumer/speech/synthesize/readaloud";
 const TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
@@ -25,14 +26,6 @@ interface WordBoundaryData {
   text: { Text: string; Length: number };
 }
 
-function escapeSsml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
 
 function uuid(): string {
   return crypto.randomUUID().replaceAll("-", "");
@@ -172,8 +165,8 @@ export function synthesizeWithWordBoundaries(
           `X-Timestamp:${Date()}Z\r\n` +
           `Path:ssml\r\n\r\n` +
           `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>` +
-          `<voice name='${voice}'>` +
-          `<prosody rate='${rate}'>${escapeSsml(text)}</prosody>` +
+          `<voice name='${escapeSsml(voice)}'>` +
+          `<prosody rate='${escapeSsml(rate)}'>${escapeSsml(text)}</prosody>` +
           `</voice></speak>`;
         ws.send(ssmlMessage, { compress: true }, (ssmlError) => {
           if (ssmlError) {

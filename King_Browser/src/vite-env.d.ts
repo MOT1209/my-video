@@ -2,6 +2,7 @@
 
 import type { DownloadItem, PermissionRequest } from './types/browser';
 import type { NativeVoiceInfo } from './services/tts';
+import type { McpToolRegistry, McpToolMutation } from './types/mcpTools';
 
 /** Wallpaper photo object returned by the main-process wallpaper providers. */
 interface ElectronWallpaperPhoto {
@@ -87,12 +88,21 @@ export interface ElectronEngineActionRecord {
 }
 
 /** Action awaiting an explicit Approve/Reject decision. */
+export interface ElectronApprovalDetailLine {
+  kind: 'type' | 'value' | 'url' | 'key' | 'option' | 'other';
+  text: string;
+}
+
 export interface ElectronEnginePendingApproval {
   actionId: string;
   toolName: string;
   args: Record<string, unknown>;
   summary?: string;
   domain?: string;
+  /** Redacted, bounded lines describing what the action will do. */
+  details?: ElectronApprovalDetailLine[];
+  /** Selector of the element to highlight while waiting for the decision. */
+  previewSelector?: string;
 }
 
 /** Active phase progress shown by the control panel. */
@@ -113,6 +123,8 @@ export interface ElectronEngineStatus {
   queueLength: number;
   inFlight: ElectronEngineActionRecord | null;
   pendingApproval: ElectronEnginePendingApproval | null;
+  /** The human has taken the browser; the agent waits until they hand it back. */
+  takenOver?: boolean;
   phase: ElectronEnginePhaseInfo | null;
   actionsUsedThisRun: number;
   maxActionsPerRun: number;
@@ -130,6 +142,7 @@ export type ElectronEngineEvent =
   | { type: 'action_updated'; record: ElectronEngineActionRecord }
   | { type: 'approval_needed'; approval: ElectronEnginePendingApproval }
   | { type: 'approval_resolved'; actionId: string; approved: boolean }
+  | { type: 'takeover_changed'; takenOver: boolean }
   | {
       type: 'phase_updated';
       phase: ElectronEnginePhaseInfo['phase'] | null;
@@ -200,9 +213,9 @@ export interface ElectronAPI {
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setPrivacyShield: (enabled: boolean) => Promise<boolean>;
   setDoNotTrack: (enabled: boolean) => Promise<void>;
+  setGoogleSigninCompat: (enabled: boolean) => Promise<boolean>;
   getSuggestions: (query: string, engine?: string, locale?: string) => Promise<string[]>;
   fetchWallpaperPhotos: (query: string) => Promise<ElectronWallpaperPhoto[]>;
-  fetchUnsplashPhotos: (query: string) => Promise<ElectronWallpaperPhoto[]>;
   fetchPageHtml: (url: string) => Promise<{ success: boolean; html?: string; error?: string }>;
   captureFullPage: (webContentsId: number) => Promise<string | null>;
   // Translation
@@ -260,14 +273,35 @@ export interface ElectronAPI {
     callback: (event: any, status: { running: boolean; port?: number } | boolean) => void
   ) => () => void;
   copyMcpToken: () => Promise<boolean>;
-  copyMcpConfig: () => Promise<{ ok: boolean; autoClearSec: number } | boolean>;
+  copyMcpConfig: (kind?: 'generic' | 'opencode') => Promise<{ ok: boolean; autoClearSec: number } | boolean>;
   getMcpTokenStatus: () => Promise<{ configured: boolean; prefix: string }>;
   rotateMcpToken: () => Promise<boolean>;
+  getRecordingState: () => Promise<{ recording: boolean; steps: number; replaying: boolean; recordings: Array<{ id: string; name: string; createdAt: string; steps: number }> }>;
+  startRecording: () => Promise<boolean>;
+  stopRecording: (name?: string) => Promise<{ saved: { id: string; name: string; steps: number } | null; skipped: string[] }>;
+  deleteRecording: (id: string) => Promise<boolean>;
+  replayRecording: (id: string) => Promise<{ total: number; completed: number; status: string; message: string }>;
+  clearAgentProfile: () => Promise<boolean>;
+  getMcpApprovalMode: () => Promise<'balanced' | 'strict'>;
+  setMcpApprovalMode: (mode: 'balanced' | 'strict') => Promise<'balanced' | 'strict'>;
+  getMcpSiteRules: () => Promise<Array<{ domain: string; mode: 'ask' | 'block' }>>;
+  setMcpSiteRules: (rules: Array<{ domain: string; mode: 'ask' | 'block' }>) => Promise<Array<{ domain: string; mode: 'ask' | 'block' }>>;
   getMcpToolSettings: () => Promise<string[]>;
   setMcpToolEnabled: (toolName: string, enabled: boolean) => Promise<boolean>;
+  // Tool Manager (custom MCP tools)
+  getMcpToolRegistry: () => Promise<McpToolRegistry>;
+  createMcpCustomTool: (input: unknown, secret?: string) => Promise<McpToolMutation>;
+  updateMcpCustomTool: (id: string, input: unknown, options?: { secret?: string | null; confirmed?: boolean }) => Promise<McpToolMutation>;
+  setMcpCustomToolEnabled: (id: string, enabled: boolean) => Promise<McpToolMutation>;
+  deleteMcpCustomTool: (id: string) => Promise<{ ok: boolean; name?: string }>;
+  testMcpCustomTool: (id: string, args: Record<string, unknown>) => Promise<{ ok: boolean; output?: string; error?: string }>;
+  exportMcpCustomTools: () => Promise<string>;
+  previewMcpCustomToolImport: (text: string) => Promise<{ entries: Array<{ name: string; status: 'new' | 'duplicate' | 'invalid' | 'limit'; errors: string[] }>; error?: string }>;
+  importMcpCustomTools: (text: string, renameDuplicates?: boolean) => Promise<{ ok: boolean; imported: string[]; errors: string[] }>;
   // §10 execution control panel (engine bridge)
   getEngineStatus: () => Promise<ElectronEngineStatus>;
   getEngineHistory: () => Promise<ElectronEngineActionRecord[]>;
+  exportEngineLog: (format?: 'json' | 'csv') => Promise<string>;
   sendEngineCommand: (command: string, payload?: unknown) => Promise<ElectronEngineCommandResult>;
   respondEngineApproval: (
     actionId: string,
@@ -297,7 +331,6 @@ export interface ElectronAPI {
   modelCacheGet: (url: string) => Promise<ArrayBuffer | null>;
   modelCacheSet: (url: string, data: ArrayBuffer | ArrayBufferView) => Promise<boolean>;
   // Password manager: fire-and-forget send channel (not invoke)
-  savePassword: (data: { hostname: string; username: string; password: string }) => void;
   storeSet: (key: string, value: string) => Promise<boolean | { error: string }>;
   storeGet: (key: string) => Promise<string | null>;
   showConfirmDialog: (options: {
@@ -307,6 +340,10 @@ export interface ElectronAPI {
     confirmLabel?: string;
     cancelLabel?: string;
   }) => Promise<boolean>;
+  agentAxSnapshot: (webContentsId: number) => Promise<{ ok: boolean; text?: string; error?: string }>;
+  agentDrag: (webContentsId: number, from: { x: number; y: number }, to: { x: number; y: number }) => Promise<{ ok: boolean; text?: string; error?: string }>;
+  agentUploadFile: (webContentsId: number, selector: string, filePath: string) => Promise<{ ok: boolean; text?: string; error?: string }>;
+  agentPageDialog: (webContentsId: number, action: string, promptText?: string) => Promise<{ ok: boolean; text?: string; error?: string }>;
   // VPN
   setVpn: (config: { enabled: boolean; proxyUrl?: string }) => Promise<boolean | { error: string }>;
   // Shortcuts, navigation & download events
@@ -380,10 +417,12 @@ export interface ElectronAPI {
   ) => () => void;
   // App Locale / Language sync
   setAppLanguage: (lang: string) => Promise<{ success: boolean; acceptLanguages: string }>;
+  setShortcutBindings?: (bindings: Record<string, { key: string; shift?: boolean; meta?: boolean; alt?: boolean }>) => Promise<{ success: boolean; error?: string }>;
   // Microphone & Permissions
   checkMicrophonePermission: () => Promise<{ status: 'granted' | 'denied' | 'restricted' | 'not-determined' | 'unknown'; canAsk: boolean; platform?: string }>;
   requestMicrophonePermission: () => Promise<{ granted: boolean; status: string; platform?: string }>;
   openSystemSettings: (pane?: string) => Promise<boolean>;
+  openCrashLogsFolder: () => Promise<boolean>;
 }
 
 declare global {

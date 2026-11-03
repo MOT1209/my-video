@@ -19,7 +19,7 @@ function getUserDataPath() {
 }
 function resolveMcpConfig() {
   let port = 3020;
-  let token = process.env.MCP_TOKEN;
+  const token = process.env.MCP_TOKEN;
   if (process.env.MCP_PORT) {
     const parsed = parseInt(process.env.MCP_PORT, 10);
     if (!isNaN(parsed) && parsed > 0 && parsed < 65536) port = parsed;
@@ -38,11 +38,32 @@ function resolveMcpConfig() {
   }
   return { port, token };
 }
+const LOOPBACK_HOSTNAMES = /* @__PURE__ */ new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+function resolveSseUrl(port) {
+  const configured = (process.env.MCP_SSE_URL || "").trim();
+  let url;
+  try {
+    url = new URL(configured || `http://127.0.0.1:${port}/sse`);
+  } catch (_) {
+    throw new Error("MCP_SSE_URL is not a valid URL. Use an http(s) URL such as http://127.0.0.1:3020/sse.");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`MCP_SSE_URL must use http or https, not "${url.protocol}".`);
+  }
+  if (url.username || url.password) {
+    throw new Error("MCP_SSE_URL must not embed credentials. Put the token in MCP_TOKEN instead.");
+  }
+  if (url.protocol === "http:" && !LOOPBACK_HOSTNAMES.has(url.hostname.toLowerCase())) {
+    throw new Error(
+      `MCP_SSE_URL refuses to send the bearer token in cleartext to "${url.hostname}". Use https:// or a loopback address (127.0.0.1, localhost, ::1).`
+    );
+  }
+  return url;
+}
 async function main() {
   const config = resolveMcpConfig();
-  const defaultUrl = `http://127.0.0.1:${config.port}/sse`;
-  const sseUrl = new URL(process.env.MCP_SSE_URL || defaultUrl);
-  const activeToken = process.env.MCP_TOKEN || config.token;
+  const sseUrl = resolveSseUrl(config.port);
+  const activeToken = config.token;
   const sseTransport = new SSEClientTransport(sseUrl, activeToken ? {
     requestInit: {
       headers: { Authorization: `Bearer ${activeToken}` }
@@ -74,10 +95,7 @@ async function main() {
       return { tools: [] };
     }
   });
-  // Sensitive tools wait for the user's approval in King Browser (up to
-  // MCP_APPROVAL_WINDOW_MS + MCP_ACTION_TIMEOUT_MS in src/utils/mcpActionTiming.ts).
-  // The SDK's default 60s request timeout would cut that short.
-  const TOOL_CALL_TIMEOUT_MS = 180000;
+  const TOOL_CALL_TIMEOUT_MS = 18e4;
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       const response = await client.callTool(request.params, void 0, { timeout: TOOL_CALL_TIMEOUT_MS });

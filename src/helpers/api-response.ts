@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z, ZodType } from "zod";
+import { publicErrorMessage } from "../lib/user-facing-error";
 
 export type ApiResponse<Res> =
   | {
@@ -31,10 +32,6 @@ export const executeApi =
     handler: (req: Request, body: z.infer<Req>) => Promise<Res>,
   ) =>
   async (req: Request) => {
-    if (!req.headers.get("content-type")?.toLowerCase().includes("application/json")) {
-      return apiError("أرسل الطلب بصيغة application/json.", 415);
-    }
-
     // JSON تالف أو بيانات مخالفة للمخطط ⇒ 400 برسالة عامة (لا تفاصيل Zod الداخلية)
     const payload = await req.json().catch(() => undefined);
     const parsed = schema.safeParse(payload);
@@ -51,9 +48,14 @@ export const executeApi =
         data: data,
       });
     } catch (err) {
-      // لا نعيد تفاصيل المزوّد أو الخطأ الداخلي إلى العميل.
-      const errorName = err instanceof Error ? err.name : "unknown";
-      console.error(`api: تعذّر تنفيذ الطلب (${errorName})`);
-      return apiError("تعذّر تنفيذ الطلب حالياً.", 502);
+      // نعرض رسائل UserFacingError فقط؛ أي خطأ آخر (SDK، شبكة، Zod) رسالة عامة
+      // والتفاصيل في سجل الخادم وحده
+      console.error("api: فشل المعالِج", (err as Error)?.message);
+      return NextResponse.json(
+        { type: "error", message: publicErrorMessage(err) },
+        {
+          status: 500,
+        },
+      );
     }
   };

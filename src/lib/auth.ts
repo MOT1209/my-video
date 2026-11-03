@@ -3,10 +3,11 @@ import { NextResponse } from "next/server";
 /**
  * طبقة الهوية فوق Clerk:
  * - مفاتيح Clerk موجودة → المصادقة فعّالة: كل مسار محمي يرفض غير المسجّل.
- * - لا مفاتيح خارج الإنتاج → وضع محلي بمعرّف ثابت للحفاظ على التطوير.
- * - الإنتاج بلا المفتاحين → لا مستخدم؛ كل عملية محمية أو مكلفة تُرفض.
+ * - لا مفاتيح (تطوير محلي) → وضع محلي بمعرّف ثابت: يبقى التطبيق قابلاً
+ *   للاستعمال بلا حساب، ويظل الكريدت غير مفروض (نفس سلوك ما قبل المرحلة 4).
  *
- * غياب الإعدادات في الإنتاج إعداد غير آمن، وليس سبباً للتحول إلى مستخدم محلي.
+ * قرار مقصود: غياب المفاتيح لا يُعطّل التطبيق ولا يُسقطه بـ 500 — فقط
+ * يرفع ميزات الحساب عن الطريق.
  */
 
 export interface RequestUser {
@@ -51,23 +52,6 @@ export function isAuthConfigured(): boolean {
   );
 }
 
-let productionAuthWarningLogged = false;
-
-/** Warn once when production is deliberately using unauthenticated paid routes. */
-export function warnIfUnauthenticatedProduction(): void {
-  if (process.env.NODE_ENV === "production" && !isAuthConfigured()) {
-    if (process.env.ALLOW_ANONYMOUS_PAID_ROUTES !== "true") {
-      return;
-    }
-    if (!productionAuthWarningLogged) {
-      productionAuthWarningLogged = true;
-      console.warn(
-        "Paid routes are enabled without Clerk authentication via ALLOW_ANONYMOUS_PAID_ROUTES.",
-      );
-    }
-  }
-}
-
 /** بيانات المستخدم من Clerk — يُستدعى فقط عند وجود المفاتيح. */
 async function readClerkUser(): Promise<RequestUser | null> {
   const { auth } = await withClerkTimeout(
@@ -86,19 +70,60 @@ async function readClerkUser(): Promise<RequestUser | null> {
 /**
  * المستخدم الحالي للطلب.
  * - مفاتيح موجودة وغير مسجّل → null (المسار يرد 401).
- * - الإنتاج بلا مفاتيح → null (يفشل مغلقاً).
- * - خارج الإنتاج بلا مفاتيح → مستخدم محلي للتطوير.
+ * - بلا مفاتيح → مستخدم محلي (المسار يعمل كالسابق).
  */
 export async function getRequestUser(): Promise<RequestUser | null> {
   if (!isAuthConfigured()) {
-    if (process.env.NODE_ENV === "production") {
-      return null;
-    }
     return { clerkId: LOCAL_USER_ID, email: null, authenticated: false };
   }
   return readClerkUser();
 }
 
+export function unauthorizedResponse(): NextResponse {
+  return NextResponse.json(
+    { type: "error", message: "سجّل الدخول للمتابعة." },
+    { status: 401 },
+  );
+}
+
+let authModeWarned = false;
+
+/**
+ * تحذير مرة واحدة عندما يستقبل مسار مكلف طلباً غير مصادَق في الإنتاج:
+ * يعني ذلك أن مفاتيح Clerk غائبة وأن التصيير مفتوح لأي زائر (خطر تكلفة).
+ * في التطوير المحلي لا تحذير — الوضع المفتوح مقصود هناك.
+ */
+export function warnIfUnauthenticatedProduction(): void {
+  if (authModeWarned) {
+    return;
+  }
+  if (process.env.NODE_ENV === "production" && !isAuthConfigured()) {
+    authModeWarned = true;
+    console.warn(
+      "auth: يعمل /api/render بلا مصادقة (مفاتيح Clerk غائبة) — التصيير مفتوح لأي زائر. أضف مفاتيح Clerk لحماية التكلفة.",
+    );
+  }
+}
+
+/** للاختبار فقط — يُصفّر علم التحذير لمرة واحدة. */
+export function resetAuthModeWarningForTests(): void {
+  authModeWarned = false;
+}
+
+/** ميزات الحساب (مشاريع/سجل/رصيد) في الإنتاج بلا Clerk: لا حساب مشترك. */
+export function accountsDisabledResponse(): NextResponse {
+  return NextResponse.json(
+    {
+      type: "error",
+      message:
+        "ميزات الحساب معطّلة حتى تُفعَّل المصادقة: أضف مفاتيح Clerk (NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY و CLERK_SECRET_KEY).",
+    },
+    { status: 503 },
+  );
+}
+
+/** رد واضح عند طلب ميزة تحتاج قاعدة بيانات غير مهيأة. */
+/** رد واضح عند فشل التحقق من الهوية مؤقتاً (Clerk بطيء أو متعذر). */
 export function authServiceUnavailableResponse(): NextResponse {
   return NextResponse.json(
     {
@@ -107,13 +132,6 @@ export function authServiceUnavailableResponse(): NextResponse {
       message: "تعذّرت خدمة المصادقة مؤقتاً. حاول لاحقاً.",
     },
     { status: 503 },
-  );
-}
-
-export function unauthorizedResponse(): NextResponse {
-  return NextResponse.json(
-    { type: "error", message: "سجّل الدخول للمتابعة." },
-    { status: 401 },
   );
 }
 
@@ -168,25 +186,8 @@ export function paidRoutesDisabledResponse(): NextResponse {
 export async function guardPaidRoute(): Promise<
   { user: RequestUser } | { response: NextResponse }
 > {
-  let user: RequestUser | null;
-  try {
-    user = await getRequestUser();
-  } catch (error) {
-    console.error(
-      "auth: Clerk request authentication failed",
-      error instanceof Error ? error.name : "unknown",
-    );
-    return { response: authServiceUnavailableResponse() };
-  }
+  const user = await getRequestUser();
   if (!user) {
-    if (process.env.NODE_ENV === "production" && !isAuthConfigured()) {
-      if (!allowAnonymousPaidRoutes()) {
-        return { response: paidRoutesDisabledResponse() };
-      }
-      return {
-        user: { clerkId: LOCAL_USER_ID, email: null, authenticated: false },
-      };
-    }
     return { response: unauthorizedResponse() };
   }
   if (!user.authenticated && !allowAnonymousPaidRoutes()) {

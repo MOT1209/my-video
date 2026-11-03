@@ -1,5 +1,6 @@
 import type { NextResponse } from "next/server";
 import {
+  accountsDisabledResponse,
   authServiceUnavailableResponse,
   databaseNotConfiguredResponse,
   databaseUnavailableResponse,
@@ -8,6 +9,7 @@ import {
 } from "./auth";
 import { getDb, isDatabaseConfigured, type Db } from "./db/client";
 import { ensureUser, type UserRow } from "./db/repository";
+import { signupCreditsResolver } from "./signup-guard";
 
 /**
  * حارس المسارات المحمية: مصادقة + قاعدة بيانات + صف المستخدم.
@@ -40,6 +42,11 @@ export async function requireSession(): Promise<SessionResult> {
   if (!requestUser) {
     return { ok: false, response: unauthorizedResponse() };
   }
+  // بلا Clerk في الإنتاج يتشارك كل الزوار صف `local-dev-user` نفسه: أي
+  // زائر يقرأ ويحذف مشاريع الآخرين وسجل تصييرهم. الحساب المحلي للتطوير فقط.
+  if (!requestUser.authenticated && process.env.NODE_ENV === "production") {
+    return { ok: false, response: accountsDisabledResponse() };
+  }
   if (!isDatabaseConfigured()) {
     return { ok: false, response: databaseNotConfiguredResponse() };
   }
@@ -61,6 +68,7 @@ export async function requireSession(): Promise<SessionResult> {
     user = await ensureUser(db, {
       clerkId: requestUser.clerkId,
       email: requestUser.email,
+      signupCredits: signupCreditsResolver(requestUser.email),
     });
   } catch (error) {
     console.error(

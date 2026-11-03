@@ -1,15 +1,16 @@
+import { matchSavedCredentials } from '../utils/passwordMatch';
 import React, { useRef, useEffect, useState, useCallback, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Moon, Zap, Key } from 'lucide-react';
 import { Tab, HistoryItem, UserSettings } from '../types/browser';
 import type { DownloadItemPage } from './DownloadsPage';
 import { tabThumbnailCache } from '../services/thumbnailCache';
-import {
-  getExtractTextNodesScript,
-  getApplyTranslationScript,
-  getRestoreOriginalScript
-} from '../services/translationService';
+import { getExtractTextNodesScript, getApplyTranslationScript, getRestoreOriginalScript } from '../services/translationService';
 import { isSafeNavigationUrl } from '../utils/safeNavigation';
+import { AGENT_PARTITION, AGENT_PERSIST_PARTITION } from '../utils/appConstants';
+import { recordConsoleMessage, clearConsoleMessages } from '../utils/consoleBuffer';
+import { useTranslation } from '../services/i18n';
+import { siteZoomFor } from '../utils/siteZoom';
 
 const PasswordPromptModal = lazy(() => import('./PasswordPromptModal').then(m => ({ default: m.PasswordPromptModal })));
 const AILinkPreview = lazy(() => import('./AILinkPreview').then(m => ({ default: m.AILinkPreview })));
@@ -288,6 +289,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
   onPerformSync,
   isDemo = false
 }) => {
+  const { l } = useTranslation();
   const webviewRef = useRef<any>(null);
 
   const getSafeUrl = (u?: string) => {
@@ -455,6 +457,12 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
     latestTabRef.current = tab;
   }, [tab]);
 
+  // A closed tab's console output is not kept.
+  useEffect(() => {
+    const id = tab?.id;
+    return () => { if (id) clearConsoleMessages(id); };
+  }, [tab?.id]);
+
   // Security: Harden per-tab incognito partition as soon as incognito tab mounts
   useEffect(() => {
     if (isIncognito && tab?.id) {
@@ -479,7 +487,15 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
 
       try {
         const currentTab = latestTabRef.current;
-        if (currentTab?.zoomFactor !== undefined) {
+        // A factor the user chose for this site wins over the tab's own and the default.
+        const rememberedZoom = siteZoomFor(
+          (typeof webview.getURL === 'function' ? webview.getURL() : '') || currentTab?.url,
+          currentTab?.isIncognito
+        );
+        if (rememberedZoom !== undefined) {
+          webview.setZoomFactor(rememberedZoom);
+          if (rememberedZoom !== currentTab?.zoomFactor) onUpdateTab(tab.id, { zoomFactor: rememberedZoom });
+        } else if (currentTab?.zoomFactor !== undefined) {
           webview.setZoomFactor(currentTab.zoomFactor);
         } else {
           const zoomMap = { small: 0.85, medium: 1.0, large: 1.25 };
@@ -696,7 +712,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
       isWebviewReady.current = false;
       setCrashInfo({ crashed: true, reason: 'crashed' });
       if (tab?.id) {
-        onUpdateTab(tab.id, { isLoading: false, title: 'Page Crashed' });
+        onUpdateTab(tab.id, { isLoading: false, title: l({ en: 'Page Crashed', ar: 'تعطّلت الصفحة', de: 'Seite abgestürzt' }) });
         console.error('[Webview] Crashed on tab:', tab.id, 'URL:', tab?.url);
       }
     };
@@ -818,26 +834,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
           if (!raw) return;
           try {
             const all = JSON.parse(raw);
-            const matching = all.filter((p: any) => {
-              if (!p.username || !p.password) return false;
-              // 1. Exact origin match
-              if (p.origin) {
-                return p.origin === actualOrigin;
-              }
-              // 2. Legacy record without origin:
-              // Strictly refuse releasing HTTPS-saved credentials to plain HTTP
-              if (actualOrigin.startsWith('http://')) return false;
-              // Only offer on standard HTTPS (port 443) on that hostname
-              if (actualOrigin.startsWith('https://') && p.hostname === actualHostname) {
-                try {
-                  const parsedOrigin = new URL(actualOrigin);
-                  if (!parsedOrigin.port || parsedOrigin.port === '443') {
-                    return true;
-                  }
-                } catch (_) {}
-              }
-              return false;
-            });
+            const matching = matchSavedCredentials<{ username: string; password: string; origin?: string; hostname?: string }>(all, actualOrigin, actualHostname);
 
             if (matching.length > 0) {
               setAutofillMenu({
@@ -881,7 +878,18 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
       }
     };
 
+    // Feeds the agent's browser_console_messages tool; a new document starts
+    // with an empty console, as in DevTools.
+    const handleConsoleMessage = (e: any) => {
+      if (tab?.id) recordConsoleMessage(tab.id, { level: e?.level, message: e?.message, source: e?.sourceId, line: e?.line });
+    };
+    const handleConsoleReset = (e: any) => {
+      if (tab?.id && e?.isMainFrame !== false && !e?.isInPlace) clearConsoleMessages(tab.id);
+    };
+
     webview.addEventListener('dom-ready', handleDomReady);
+    webview.addEventListener('console-message', handleConsoleMessage);
+    webview.addEventListener('did-start-navigation', handleConsoleReset);
     webview.addEventListener('will-navigate', handleWillNavigate);
     webview.addEventListener('did-start-navigation', handleStartNavigation);
     webview.addEventListener('did-redirect-navigation', handleRedirectNavigation);
@@ -929,6 +937,8 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
       }
       webview.removeEventListener('focus', handleFocus);
       webview.removeEventListener('dom-ready', handleDomReady);
+      webview.removeEventListener('console-message', handleConsoleMessage);
+      webview.removeEventListener('did-start-navigation', handleConsoleReset);
       webview.removeEventListener('will-navigate', handleWillNavigate);
       webview.removeEventListener('did-start-navigation', handleStartNavigation);
       webview.removeEventListener('did-redirect-navigation', handleRedirectNavigation);
@@ -1163,7 +1173,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
           </div>
           <h2 className="text-2xl font-semibold text-white mb-2 line-clamp-1">{tab.title || tab.url}</h2>
           <p className="text-sm text-slate-400 mb-8 leading-relaxed">
-            This tab was suspended to save memory. Click to wake it up instantly.
+            {l({ en: 'This tab was suspended to save memory. Click to wake it up instantly.', ar: 'عُلّق هذا التبويب لتوفير الذاكرة. انقر لإيقاظه فوراً.', de: 'Dieser Tab wurde pausiert, um Speicher zu sparen. Klicken Sie, um ihn sofort zu reaktivieren.' })}
           </p>
           <button
             onClick={(e) => {
@@ -1173,7 +1183,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
             className="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-semibold text-sm transition-all shadow-md shadow-cyan-950/50 flex items-center gap-2 group-hover:scale-[1.02] cursor-pointer"
           >
             <Zap className="w-4 h-4" />
-            Reload Tab
+            {l({ en: 'Reload Tab', ar: 'إعادة تحميل التبويب', de: 'Tab neu laden' })}
           </button>
         </div>
       </div>
@@ -1350,13 +1360,13 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
         {crashInfo.crashed && (
           <div className="absolute inset-x-0 top-0 z-50 bg-red-950/95 border-b border-red-500/40 text-red-200 px-4 py-3 flex items-center justify-between shadow-lg backdrop-blur-sm">
             <div className="flex items-center gap-3">
-              <span className="font-semibold text-white text-sm">This tab has crashed ({crashInfo.reason || 'render process gone'}).</span>
+              <span className="font-semibold text-white text-sm">{l({ en: 'This tab has crashed ({reason}).', ar: 'تعطّل هذا التبويب ({reason}).', de: 'Dieser Tab ist abgestürzt ({reason}).' }, { reason: crashInfo.reason || 'render process gone' })}</span>
             </div>
             <button
               onClick={handleReloadAfterCrash}
               className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded transition-colors shadow-sm cursor-pointer"
             >
-              Reload
+              {l({ en: 'Reload', ar: 'إعادة التحميل', de: 'Neu laden' })}
             </button>
           </div>
         )}
@@ -1365,7 +1375,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
           <webview
             ref={webviewRef}
             data-tab-id={tab.id}
-            partition={isIncognito && tab?.id ? `incognito-${tab.id}` : undefined}
+            partition={isIncognito && tab?.id ? `incognito-${tab.id}` : tab?.isAgentOwned ? (tab.agentPersistent ? AGENT_PERSIST_PARTITION : AGENT_PARTITION) : undefined}
             src={webviewSrc}
             // Lets sign-in popups (window.open) reach setWindowOpenHandler in
             // main. React drops a boolean `true` on this element, so pass a string.
@@ -1447,14 +1457,14 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
               }}
             />
             {isDemo && tab?.url && tab.url.startsWith('http') && (
-              <div className="absolute bottom-3 right-3 z-30 pointer-events-auto">
+              <div className="absolute bottom-3 end-3 z-30 pointer-events-auto">
                 <a
                   href={tab.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700/80 rounded-lg text-xs flex items-center gap-1.5 shadow-xl transition-all backdrop-blur-sm"
                 >
-                  <span>Open in new tab</span>
+                  <span>{l({ en: 'Open in new tab', ar: 'فتح في تبويب جديد', de: 'In neuem Tab öffnen' })}</span>
                   <span className="text-[10px]">↗</span>
                 </a>
               </div>
@@ -1476,7 +1486,7 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
           <div className="px-3 py-2 bg-slate-800/80 border-b border-slate-700/50 flex items-center justify-between text-[11px] font-semibold text-slate-400">
             <span className="flex items-center gap-1.5">
               <Key className="w-3.5 h-3.5 text-blue-400" />
-              Saved Accounts ({autofillMenu.accounts.length})
+              {l({ en: 'Saved Accounts ({n})', ar: 'الحسابات المحفوظة ({n})', de: 'Gespeicherte Konten ({n})' }, { n: autofillMenu.accounts.length })}
             </span>
             <span className="text-[10px] text-slate-500 font-mono truncate max-w-[100px]">{autofillMenu.hostname}</span>
           </div>
@@ -1489,10 +1499,10 @@ export const BrowserView: React.FC<BrowserViewProps> = React.memo(({
                   e.preventDefault();
                   handleSelectAutofill(acc, autofillMenu.origin, autofillMenu.hostname);
                 }}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-blue-600/20 hover:text-blue-300 text-slate-200 transition-colors flex flex-col gap-0.5"
+                className="w-full text-start px-3 py-2 rounded-lg hover:bg-blue-600/20 hover:text-blue-300 text-slate-200 transition-colors flex flex-col gap-0.5"
               >
                 <span className="font-medium text-slate-100">{acc.username || 'Unnamed Account'}</span>
-                <span className="text-[10px] text-slate-400">Click to fill password</span>
+                <span className="text-[10px] text-slate-400">{l({ en: 'Click to fill password', ar: 'انقر لتعبئة كلمة المرور', de: 'Zum Ausfüllen des Passworts klicken' })}</span>
               </button>
             ))}
           </div>

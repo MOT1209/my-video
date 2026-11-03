@@ -47,12 +47,29 @@ export function inMemoryCheckRateLimit(
   };
 }
 
-export function clientIp(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
+/**
+ * موضوع حد المعدل: معرّف المستخدم المصادَق إن وُجد، وإلا الـ IP.
+ * الحد بالـ IP وحده يتجاوزه من يبدّل عناوينه، ويحجب مستخدمين حقيقيين
+ * خلف NAT واحد.
+ */
+export function rateLimitSubject(
+  req: Request,
+  user: { authenticated: boolean; clerkId: string },
+): string {
+  return user.authenticated ? `user:${user.clerkId}` : `ip:${clientIp(req)}`;
+}
+
+/** IP العميل من ترويسات الطلب (`x-forwarded-for` ثم `x-real-ip`). */
+export function ipFromHeaders(headers: Headers): string {
+  const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
     return forwarded.split(",")[0]?.trim() || "unknown";
   }
-  return req.headers.get("x-real-ip")?.trim() || "unknown";
+  return headers.get("x-real-ip")?.trim() || "unknown";
+}
+
+export function clientIp(req: Request): string {
+  return ipFromHeaders(req.headers);
 }
 
 /**

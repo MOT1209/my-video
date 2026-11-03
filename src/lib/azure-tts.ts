@@ -1,5 +1,6 @@
-import { createHash } from "node:crypto";
 import type { WordCaption } from "../../types/shorts";
+import { UserFacingError } from "./user-facing-error";
+import { escapeSsml } from "./ssml";
 
 /**
  * Azure Speech الرسمي — fallback لنقطة ضعف Edge-TTS غير الرسمية
@@ -23,14 +24,6 @@ export interface AzureSynthesis {
 }
 
 /** escape SSML الأساسي (نفس تعليمة Edge-TTS) */
-function escapeSsml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
 
 /** يرجع null إن لم تكن مُهيأة المفاتيح. */
 export async function azureToken(
@@ -46,7 +39,7 @@ export async function azureToken(
     headers: { "Ocp-Apim-Subscription-Key": key },
   });
   if (!res.ok) {
-    throw new Error(`فشل الحصول على توكن Azure Speech (${res.status}).`);
+    throw new UserFacingError(`فشل الحصول على توكن Azure Speech (${res.status}).`);
   }
   return res.text();
 }
@@ -67,13 +60,13 @@ export async function synthesizeAzure(
 ): Promise<AzureSynthesis> {
   const token = await azureToken(fetchImpl);
   if (!token) {
-    throw new Error(
+    throw new UserFacingError(
       "Azure Speech مُفتاحان غير مُهيأين (AZURE_SPEECH_KEY / AZURE_SPEECH_REGION).",
     );
   }
   const region = process.env.AZURE_SPEECH_REGION!;
-  const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${voiceId.slice(0, 5)}'>
-    <voice name='${voiceId}'>${escapeSsml(text)}</voice>
+  const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${escapeSsml(voiceId.slice(0, 5))}'>
+    <voice name='${escapeSsml(voiceId)}'>${escapeSsml(text)}</voice>
   </speak>`;
 
   const res = await fetchImpl(`https://${AZURE_TTS_HOST(region)}/cognitiveservices/v1`, {
@@ -90,11 +83,11 @@ export async function synthesizeAzure(
     const detail = await res.text().catch(() => "");
     // نص رد المزوّد يُسجَّل في الخادم فقط — قد يحمل تفاصيل داخلية لا تخصّ العميل
     console.warn("azure-tts: رد غير ناجح", res.status, detail.slice(0, 200));
-    throw new Error(`فشل Azure TTS (${res.status}).`);
+    throw new UserFacingError(`فشل Azure TTS (${res.status}).`);
   }
   const audio = Buffer.from(await res.arrayBuffer());
   if (audio.length === 0) {
-    throw new Error("Azure TTS أعاد صوتاً فارغاً.");
+    throw new UserFacingError("Azure TTS أعاد صوتاً فارغاً.");
   }
 
   // تقدير المدة من الحجم بخط bitrate الثابت 48kbps — دقيق بما يكفي للتوقيت
@@ -108,14 +101,6 @@ export async function synthesizeAzure(
   }));
 
   return { audio, captions, durationSec };
-}
-
-/** هاش مزج للكاش — مُختلف عن edge-tts لنفس ال voiceId (بديل في الغالب). */
-export function azureNarrationHash(text: string, voiceId: string): string {
-  return createHash("sha256")
-    .update(`azure::${voiceId}::${text}`)
-    .digest("hex")
-    .slice(0, 32);
 }
 
 /** هل المفتاحان مهيأتان؟ — للاستخدام الخارجي. */

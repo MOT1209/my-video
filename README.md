@@ -6,9 +6,9 @@
 
 [![CI](https://github.com/MOT1209/my-video/actions/workflows/root-app-ci.yml/badge.svg)](https://github.com/MOT1209/my-video/actions/workflows/root-app-ci.yml)
 [![CodeQL](https://github.com/MOT1209/my-video/actions/workflows/codeql.yml/badge.svg)](https://github.com/MOT1209/my-video/actions/workflows/codeql.yml)
-![Next.js](https://img.shields.io/badge/Next.js-16.4.3-000000?logo=nextdotjs&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16.4-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=white)
-![Remotion](https://img.shields.io/badge/Remotion-4.0.538-0b84f3)
+![Remotion](https://img.shields.io/badge/Remotion-4.0.540-0b84f3)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind-4.2-38bdf8?logo=tailwindcss&logoColor=white)
 
@@ -87,10 +87,11 @@ npm run dev            # http://localhost:3000
 |---|---|
 | `npm run dev` | خادم التطوير |
 | `npm run build` | بناء الإنتاج (Next.js) |
-| `npm test` | الاختبارات عبر `bun test --parallel` على `src/` |
+| `npm test` | الاختبارات عبر `bun test` على `src/` |
 | `npm run lint` | فحص ESLint للتطبيق |
 | `npx remotion studio` | استوديو Remotion |
-| `npm run cleanup-blobs` | عرض الملفات الأقدم من 30 يوماً في Blob (تجريبي، لا يحذف) |
+| `npm run db:generate` / `db:migrate` / `db:push` | توليد ترحيلات Drizzle من المخطط، تطبيقها على `DATABASE_URL`، أو دفع المخطط مباشرة لقاعدة التطوير |
+| `npm run cleanup-blobs` | عرض الملفات الأقدم من 30 يوماً في Blob: الأصوات والـ snapshots وفيديوهات الكاش وصور الخلفيات (تجريبي، لا يحذف) |
 | `npm run cleanup-blobs -- --delete --older-than-days=7` | حذف فعلي |
 
 ## متغيرات البيئة
@@ -105,9 +106,10 @@ npm run dev            # http://localhost:3000
 | `ALLOW_ANONYMOUS_PAID_ROUTES` | اختياري، **بحذر** | `true` يفتح تلك المسارات لأي زائر بلا Clerk، ويسمح بالتصيير بلا فرض كريدت إن غابت `DATABASE_URL` (أداة شخصية فقط) |
 | `DATABASE_URL` (Neon) | **نعم للتصيير في الإنتاج** | المشاريع والكريدت وسجل التصييرات. بدونها يُرفض التصيير في الإنتاج 503 (لا تصيير مجاني بصمت) إلا مع `ALLOW_ANONYMOUS_PAID_ROUTES=true` |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | اختياري | شراء حزم الكريدت |
-| `CRON_SECRET` | مطلوب لتشغيل الطابور | حسم التصييرات العالقة وإعادة محاولتها (`/api/cron/retry-renders`) |
+| `CRON_SECRET` | اختياري | إعادة محاولة التصييرات الفاشلة (`/api/cron/retry-renders`) وتفاصيل `/api/health` |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | **نعم في الإنتاج** | حد المعدل والقفل الموزّعان. بدونهما (أو عند تعطّل Upstash) تُغلق المسارات المكلفة في الإنتاج 503؛ محلياً يعمل بديل الذاكرة |
 | `RATE_LIMIT_ALLOW_IN_MEMORY` | اختياري، **بحذر** | `true` يقبل عدّاد الذاكرة (لكل نسخة على حدة) بديلاً في الإنتاج — لا يحمي التكلفة عبر النسخ |
+| `SIGNUP_FREE_PER_IP_PER_DAY` | اختياري (الافتراضي 3) | أقصى عدد حسابات جديدة تُمنح كريدت الترحيب المجاني من نفس IP كل 24 ساعة. ما فوقه يُنشأ حسابه برصيد 0 (يستطيع الشراء). `0` يمنع المجاني تماماً |
 | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` | اختياري | البديل الرسمي للصوت (يبقى Edge-TTS المجاني) |
 
 بعد ضبط `DATABASE_URL` طبّق الهجرات: `npx drizzle-kit migrate` (بعد كل ترقية تضيف ملفاً في `drizzle/`). تفاصيل المرحلة 5 وترتيب النشر: [`docs/audits/PHASE_5_PRODUCTION_READINESS.md`](docs/audits/PHASE_5_PRODUCTION_READINESS.md).
@@ -192,19 +194,32 @@ npm test                         # اختباراته الخاصة (esbuild + No
 
 </details>
 
+## فحص الجاهزية
+
+`GET /api/health` يرد `{"status":"ok"}` لأي طالب (يصلح لمراقب uptime). مع الترويسة `Authorization: Bearer <CRON_SECRET>` يعيد قائمة المتغيرات الناقصة وأثر كل منها، ورمز **503** إن نقص شيء مطلوب للإنتاج (Blob وقاعدة البيانات وClerk وUpstash). يعرض أسماء المتغيرات وحالتها فقط، لا قيماً.
+
+```bash
+curl -s -H "Authorization: Bearer $CRON_SECRET" https://<موقعك>/api/health
+```
+
+يُنصح بتشغيله بعد كل نشر، فغياب متغير بيئة يعطّل ميزة بلا خطأ واضح.
+
 ## النشر على Vercel
 
 1. من لوحة Vercel: **Storage ← Create ← Blob**، بإعداد **public** (الفيديوهات والصوتيات تُخدم بروابط عامة)، واربطه بالمشروع. يُضاف `BLOB_READ_WRITE_TOKEN` تلقائياً.
 2. أضف بقية [المتغيرات](#متغيرات-البيئة) التي تحتاجها ثم أعد النشر.
-3. للـ Cron: `vercel.json` يعرّف تشغيل `/api/cron/retry-renders` كل ساعة لحسم التصييرات العالقة وإعادة المحاولات (على Vercel Pro؛ خطة Hobby لا تسمح إلا بتشغيل يومي). اضبط `CRON_SECRET`.
+3. للـ Cron: `vercel.json` يعرّف مهمة يومية على `/api/cron/retry-renders`، وتحتاج `CRON_SECRET`.
+
+> [!IMPORTANT]
+> **حماية التسجيل من البوتات:** كل حساب جديد يأخذ كريدتات مجانية تُصرف على تصيير حقيقي. التطبيق يحجب الكريدت المجاني عن البريد المؤقت المعروف وعن ما يتجاوز `SIGNUP_FREE_PER_IP_PER_DAY` من نفس الـ IP، لكن هذا طبقة ثانية فقط. **فعّل أيضاً من لوحة Clerk** ← Configure ← Attack protection: **Bot sign-up protection** (CAPTCHA) وفرض **تأكيد البريد**، فهما الحماية الأساسية ولا يمكن ضبطهما من الكود.
 
 > [!WARNING]
-> **قبل الإنتاج:** فعّل [Vercel Spend Management](https://vercel.com/docs/accounts/spend-management)، وأضف مفاتيح **Clerk** (وإلا بقي التصيير مفتوحاً للجميع)، ونظّف الـ snapshots والفيديوهات القديمة دورياً بـ `npm run cleanup-blobs -- --delete`.
+> **قبل الإنتاج:** فعّل [Vercel Spend Management](https://vercel.com/docs/accounts/spend-management)، وأضف مفاتيح **Clerk** (بدونها تُغلق المسارات المكلفة وميزات الحساب في الإنتاج برد 503)، ونظّف الـ snapshots والفيديوهات القديمة دورياً بـ `npm run cleanup-blobs -- --delete`.
 
 ## توثيق إضافي
 
-- [`report.html`](report.html): تقرير المراجعة والتطوير الكامل (يُفتح في المتصفح).
-- [`plan.md`](plan.md): خارطة الطريق التنفيذية.
+- [`docs/report.html`](docs/report.html): تقرير المراجعة والتطوير الكامل (يُفتح في المتصفح).
+- [`docs/plan.md`](docs/plan.md): خارطة الطريق التنفيذية.
 - [Remotion on Vercel](https://remotion.dev/docs/vercel-sandbox) · [Discord](https://remotion.dev/discord)
 
 ## الرخصة

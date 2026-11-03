@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { Tab } from '../types/browser';
 import { copyTextToClipboard } from '../utils/clipboard';
+import { useTranslation } from '../services/i18n';
+import { reopenClosedAt, useRecentlyClosed } from '../services/closedTabsStore';
 
 /**
  * Which menu item a navigation key moves to, or `null` for a key the menu does
@@ -79,6 +81,8 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
   isBookmarked = false,
   totalTabs
 }) => {
+  const { l } = useTranslation();
+  const recentlyClosed = useRecentlyClosed();
   const menuRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -157,7 +161,7 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
         <motion.div
           ref={menuRef}
           role="menu"
-          aria-label="Tab options"
+          aria-label={l({ en: 'Tab options', ar: 'خيارات التبويب', de: 'Tab-Optionen' })}
           aria-orientation="vertical"
           tabIndex={-1}
           initial={{ opacity: 0, scale: 0.95, y: -4 }}
@@ -171,13 +175,13 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
         <button
           role="menuitem"
           tabIndex={-1}
-          aria-label="New tab to the right"
+          aria-label={l({ en: 'New tab to the right', ar: 'تبويب جديد على الجانب', de: 'Neuer Tab rechts' })}
           onClick={() => { onNewTabRight(tab.id); onClose(); }}
-          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-left cursor-pointer"
+          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-start cursor-pointer"
         >
           <span className="flex items-center gap-2">
             <Plus className="w-3.5 h-3.5 opacity-70" />
-            New tab to the right
+            {l({ en: 'New tab to the right', ar: 'تبويب جديد على الجانب', de: 'Neuer Tab rechts' })}
           </span>
         </button>
 
@@ -185,13 +189,13 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
         <button
           role="menuitem"
           tabIndex={-1}
-          aria-label="Reload tab"
+          aria-label={l({ en: 'Reload tab', ar: 'إعادة تحميل التبويب', de: 'Tab neu laden' })}
           onClick={() => { onReloadTab(tab.id); onClose(); }}
-          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-left cursor-pointer"
+          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-start cursor-pointer"
         >
           <span className="flex items-center gap-2">
             <RotateCw className="w-3.5 h-3.5 opacity-70" />
-            Reload
+            {l({ en: 'Reload', ar: 'إعادة التحميل', de: 'Neu laden' })}
           </span>
           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{isMac ? '⌘R' : 'Ctrl+R'}</span>
         </button>
@@ -200,13 +204,13 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
         <button
           role="menuitem"
           tabIndex={-1}
-          aria-label="Duplicate tab"
+          aria-label={l({ en: 'Duplicate tab', ar: 'تكرار التبويب', de: 'Tab duplizieren' })}
           onClick={() => { onDuplicateTab(tab.id); onClose(); }}
-          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-left cursor-pointer"
+          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-start cursor-pointer"
         >
           <span className="flex items-center gap-2">
             <Copy className="w-3.5 h-3.5 opacity-70" />
-            Duplicate tab
+            {l({ en: 'Duplicate tab', ar: 'تكرار التبويب', de: 'Tab duplizieren' })}
           </span>
         </button>
 
@@ -214,13 +218,13 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
         <button
           role="menuitem"
           tabIndex={-1}
-          aria-label={tab.isPinned ? 'Unpin tab' : 'Pin tab'}
+          aria-label={tab.isPinned ? l({ en: 'Unpin tab', ar: 'إلغاء تثبيت التبويب', de: 'Tab lösen' }) : l({ en: 'Pin tab', ar: 'تثبيت التبويب', de: 'Tab anheften' })}
           onClick={() => { onTogglePinTab(tab.id); onClose(); }}
-          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-left cursor-pointer"
+          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-start cursor-pointer"
         >
           <span className="flex items-center gap-2">
             {tab.isPinned ? <PinOff className="w-3.5 h-3.5 text-cyan-500" /> : <Pin className="w-3.5 h-3.5 opacity-70" />}
-            {tab.isPinned ? 'Unpin tab' : 'Pin tab'}
+            {tab.isPinned ? l({ en: 'Unpin tab', ar: 'إلغاء تثبيت التبويب', de: 'Tab lösen' }) : l({ en: 'Pin tab', ar: 'تثبيت التبويب', de: 'Tab anheften' })}
           </span>
         </button>
 
@@ -228,13 +232,13 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
         <button
           role="menuitem"
           tabIndex={-1}
-          aria-label={tab.isMuted ? 'Unmute site' : 'Mute site'}
+          aria-label={tab.isMuted ? l({ en: 'Unmute site', ar: 'إلغاء كتم الموقع', de: 'Website-Ton an' }) : l({ en: 'Mute site', ar: 'كتم صوت الموقع', de: 'Website stummschalten' })}
           onClick={() => { onToggleMuteTab(tab.id); onClose(); }}
-          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-left cursor-pointer"
+          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-start cursor-pointer"
         >
           <span className="flex items-center gap-2">
             {tab.isMuted ? <Volume2 className="w-3.5 h-3.5 text-cyan-500" /> : <VolumeX className="w-3.5 h-3.5 opacity-70" />}
-            {tab.isMuted ? 'Unmute site' : 'Mute site'}
+            {tab.isMuted ? l({ en: 'Unmute site', ar: 'إلغاء كتم الموقع', de: 'Website-Ton an' }) : l({ en: 'Mute site', ar: 'كتم صوت الموقع', de: 'Website stummschalten' })}
           </span>
         </button>
 
@@ -242,13 +246,13 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
         <button
           role="menuitem"
           tabIndex={-1}
-          aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark tab'}
+          aria-label={isBookmarked ? l({ en: 'Remove bookmark', ar: 'إزالة الإشارة المرجعية', de: 'Lesezeichen entfernen' }) : l({ en: 'Bookmark tab', ar: 'إضافة إلى الإشارات المرجعية', de: 'Tab als Lesezeichen speichern' })}
           onClick={() => { onBookmarkTab(tab); onClose(); }}
-          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-left cursor-pointer"
+          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-start cursor-pointer"
         >
           <span className="flex items-center gap-2">
             <Bookmark className={`w-3.5 h-3.5 ${isBookmarked ? 'text-amber-500 fill-amber-500' : 'opacity-70'}`} />
-            {isBookmarked ? 'Remove bookmark' : 'Bookmark tab'}
+            {isBookmarked ? l({ en: 'Remove bookmark', ar: 'إزالة الإشارة المرجعية', de: 'Lesezeichen entfernen' }) : l({ en: 'Bookmark tab', ar: 'إضافة إلى الإشارات المرجعية', de: 'Tab als Lesezeichen speichern' })}
           </span>
           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{isMac ? '⌘D' : 'Ctrl+D'}</span>
         </button>
@@ -257,7 +261,7 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
         <button
           role="menuitem"
           tabIndex={-1}
-          aria-label="Copy page link"
+          aria-label={l({ en: 'Copy page link', ar: 'نسخ رابط الصفحة', de: 'Seitenlink kopieren' })}
           onClick={() => {
             if (tab.url && tab.url !== 'king://newtab') {
               // `navigator.clipboard.writeText` rejects outright in a non-secure
@@ -268,11 +272,11 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
             }
             onClose();
           }}
-          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-left cursor-pointer"
+          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-start cursor-pointer"
         >
           <span className="flex items-center gap-2">
             <Link className="w-3.5 h-3.5 opacity-70" />
-            Copy page link
+            {l({ en: 'Copy page link', ar: 'نسخ رابط الصفحة', de: 'Seitenlink kopieren' })}
           </span>
         </button>
 
@@ -282,13 +286,13 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
         <button
           role="menuitem"
           tabIndex={-1}
-          aria-label="Close tab"
+          aria-label={l({ en: 'Close tab', ar: 'إغلاق التبويب', de: 'Tab schließen' })}
           onClick={() => { onCloseTab(tab.id); onClose(); }}
-          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-colors text-left cursor-pointer"
+          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-colors text-start cursor-pointer"
         >
           <span className="flex items-center gap-2">
             <X className="w-3.5 h-3.5 opacity-70" />
-            Close tab
+            {l({ en: 'Close tab', ar: 'إغلاق التبويب', de: 'Tab schließen' })}
           </span>
           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{isMac ? '⌘W' : 'Ctrl+W'}</span>
         </button>
@@ -298,13 +302,13 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
           <button
             role="menuitem"
             tabIndex={-1}
-            aria-label="Close other tabs"
+            aria-label={l({ en: 'Close other tabs', ar: 'إغلاق التبويبات الأخرى', de: 'Andere Tabs schließen' })}
             onClick={() => { onCloseOtherTabs(tab.id); onClose(); }}
-            className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-colors text-left cursor-pointer"
+            className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-colors text-start cursor-pointer"
           >
             <span className="flex items-center gap-2">
               <Trash2 className="w-3.5 h-3.5 opacity-70" />
-              Close other tabs
+              {l({ en: 'Close other tabs', ar: 'إغلاق التبويبات الأخرى', de: 'Andere Tabs schließen' })}
             </span>
           </button>
         )}
@@ -314,13 +318,13 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
           <button
             role="menuitem"
             tabIndex={-1}
-            aria-label="Close tabs to the right"
+            aria-label={l({ en: 'Close tabs to the right', ar: 'إغلاق التبويبات التالية', de: 'Tabs rechts schließen' })}
             onClick={() => { onCloseTabsToRight(tab.id); onClose(); }}
-            className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-colors text-left cursor-pointer"
+            className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-red-500/10 hover:text-red-500 transition-colors text-start cursor-pointer"
           >
             <span className="flex items-center gap-2">
               <ArrowRightToLine className="w-3.5 h-3.5 opacity-70" />
-              Close tabs to the right
+              {l({ en: 'Close tabs to the right', ar: 'إغلاق التبويبات التالية', de: 'Tabs rechts schließen' })}
             </span>
           </button>
         )}
@@ -332,16 +336,35 @@ export const TabContextMenu: React.FC<TabContextMenuProps> = React.memo(({
             <button
               role="menuitem"
               tabIndex={-1}
-              aria-label="Reopen closed tab"
+              aria-label={l({ en: 'Reopen closed tab', ar: 'إعادة فتح التبويب المغلق', de: 'Geschlossenen Tab wieder öffnen' })}
               onClick={() => { onReopenClosedTab(); onClose(); }}
-              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-left cursor-pointer text-cyan-600 dark:text-cyan-400"
+              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors text-start cursor-pointer text-cyan-600 dark:text-cyan-400"
             >
               <span className="flex items-center gap-2 font-semibold">
                 <Undo2 className="w-3.5 h-3.5" />
-                Reopen closed tab
+                {l({ en: 'Reopen closed tab', ar: 'إعادة فتح التبويب المغلق', de: 'Geschlossenen Tab wieder öffnen' })}
               </span>
               <span className="text-[10px] font-mono opacity-80">{isMac ? '⇧⌘T' : 'Ctrl+Shift+T'}</span>
             </button>
+            {recentlyClosed.length > 0 && (
+              <div role="group" aria-label={l({ en: 'Recently closed', ar: 'أُغلقت مؤخرا', de: 'Zuletzt geschlossen' })} className="mt-0.5">
+                <div className="px-2.5 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  {l({ en: 'Recently closed', ar: 'أُغلقت مؤخرا', de: 'Zuletzt geschlossen' })}
+                </div>
+                {recentlyClosed.slice(0, 8).map(entry => (
+                  <button
+                    key={`${entry.index}-${entry.url}`}
+                    role="menuitem"
+                    tabIndex={-1}
+                    title={entry.url}
+                    onClick={() => { reopenClosedAt(entry.index); onClose(); }}
+                    className="w-full flex items-center px-2.5 py-1.5 rounded-lg hover:bg-cyan-500/10 transition-colors text-start cursor-pointer"
+                  >
+                    <span className="truncate max-w-[220px]" dir="auto">{entry.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </>
         )}
         </motion.div>

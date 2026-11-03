@@ -5,6 +5,8 @@ import {
   type WordCaption,
 } from "../../types/shorts";
 import type { FetchLike } from "./script-generator";
+import { geminiGenerateUrl, geminiHeaders } from "./gemini";
+import { UserFacingError } from "./user-facing-error";
 
 /**
  * نسخ الملفات الصوتية المرفوعة (بند ASR من المرحلة 2) عبر Gemini نفسه
@@ -17,7 +19,6 @@ import type { FetchLike } from "./script-generator";
  *   مدة الصوت المعروفة للعميل (نفس أسلوب `distributeCaptionsEvenly`).
  */
 
-const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
 /** هامش تحت حد الطلب المضمّن عند Gemini (~20MB). */
 export const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
@@ -80,20 +81,20 @@ export async function transcribeAudio(
 ): Promise<TranscribeResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error(
+    throw new UserFacingError(
       "GEMINI_API_KEY غير مُهيأ. أضف مفتاح Google AI Studio إلى متغيرات البيئة (خادم فقط).",
     );
   }
   if (input.audio.byteLength === 0) {
-    throw new Error("الملف الصوتي فارغ.");
+    throw new UserFacingError("الملف الصوتي فارغ.");
   }
   if (input.audio.byteLength > MAX_AUDIO_BYTES) {
-    throw new Error(
+    throw new UserFacingError(
       `حجم الملف يتجاوز الحد المسموح (${Math.round(MAX_AUDIO_BYTES / (1024 * 1024))} ميجابايت).`,
     );
   }
   if (!isSupportedAudioType(input.mimeType)) {
-    throw new Error(`صيغة صوتية غير مدعومة: ${input.mimeType || "غير معروفة"}.`);
+    throw new UserFacingError(`صيغة صوتية غير مدعومة: ${input.mimeType || "غير معروفة"}.`);
   }
 
   const model =
@@ -102,10 +103,10 @@ export async function transcribeAudio(
     "gemini-2.0-flash";
 
   const response = await fetchImpl(
-    `${GEMINI_ENDPOINT}/${model}:generateContent?key=${apiKey}`,
+    geminiGenerateUrl(model),
     {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: geminiHeaders(apiKey),
       body: JSON.stringify({
         contents: [
           {
@@ -129,7 +130,7 @@ export async function transcribeAudio(
     const detail = await response.text().catch(() => "");
     // نص رد المزوّد يُسجَّل في الخادم فقط — قد يحمل تفاصيل داخلية لا تخصّ العميل
     console.warn("transcribe: رد Gemini غير ناجح", response.status, detail.slice(0, 300));
-    throw new Error(`فشل استدعاء Gemini (${response.status}).`);
+    throw new UserFacingError(`فشل استدعاء Gemini (${response.status}).`);
   }
 
   const payload = (await response.json()) as {
@@ -142,7 +143,7 @@ export async function transcribeAudio(
     .replace(/\s+/g, " ")
     .trim();
   if (!text) {
-    throw new Error("لم يُرجع النموذج نصاً منطوقاً — قد يكون الملف صامتاً أو غير مفهوم.");
+    throw new UserFacingError("لم يُرجع النموذج نصاً منطوقاً — قد يكون الملف صامتاً أو غير مفهوم.");
   }
 
   const durationSec = input.durationSec ?? 0;

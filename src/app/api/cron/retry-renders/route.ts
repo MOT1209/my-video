@@ -1,4 +1,3 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { apiError } from "../../../../helpers/api-response";
 import { getDb } from "../../../../lib/db/client";
@@ -6,6 +5,7 @@ import { MAX_RENDER_ATTEMPTS } from "../../../../lib/db/repository";
 import { findCachedRender } from "../../../../lib/render-cache";
 import { resolveStaleRenders, retryFailedRenders } from "../../../../lib/render-recovery";
 import { runRenderOnce } from "../../../../lib/render-runner";
+import { secretMatches } from "../../../../lib/secret";
 
 /**
  * طابور التصيير (بند #3 من المرحلة 3) — يُنادى من Vercel Cron.
@@ -18,24 +18,13 @@ import { runRenderOnce } from "../../../../lib/render-runner";
  * 2) **إعادة محاولة الفاشل** ذي المدخلات المحفوظة، بحدّ `MAX_RENDER_ATTEMPTS`،
  *    مع فحص الكاش أولاً (قد يكون التصيير نجح فعلاً في محاولة سابقة).
  *
- * ملاحظة كلفة: إعادة المحاولة مجانية للمستخدم — الكريدت يُرجع أصلاً عند
- * فشل التصيير، وهذا الطابور تعويض بنائي محدود (≤ 3 محاولات لكل صف فاشل)
- * يمنع بقاء المستخدم بلافيديو بلا سبب.
+ * ملاحظة كلفة: إعادة المحاولة مجانية للمستخدم (الكريدت أُرجع عند الفشل)،
+ * فلا يدخل الطابور إلا فشل البنية (sandbox توقف، snapshot غائب، شبكة عابرة)
+ * بحد ≤ 3 محاولات للصف. فشل المحتوى نهائي — انظر `isRetryableRenderError`.
  *
  * الحماية: `CRON_SECRET` إلزامي (Vercel يرسل `Authorization: Bearer …`).
  */
 export const maxDuration = 300;
-
-/** مقارنة بزمن ثابت كي لا يتسرّب السر عبر زمن الرد. */
-function secretMatches(received: string | null, expected: string): boolean {
-  if (received === null) {
-    return false;
-  }
-  const encoder = new TextEncoder();
-  const a = encoder.encode(received);
-  const b = encoder.encode(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;

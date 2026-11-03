@@ -4,7 +4,6 @@ import { generateId } from '../utils/idGenerator';
 import { isSafeNavigationUrl } from '../utils/safeNavigation';
 import { reorderTabsWithinGroup } from '../utils/verticalTabs';
 import { tabThumbnailCache } from '../services/thumbnailCache';
-import { aiAgent } from '../services/aiAgent';
 import { getElectronAPI } from '../utils/electronBridge';
 import { showAlert } from '../utils/confirmDialog';
 import { logger } from '../utils/logger';
@@ -90,6 +89,8 @@ export function useTabOperations({
     tabThumbnailCache.clear();
     // 3. Terminate background AI worker and release GPU VRAM
     try {
+      // Loaded on demand: the agent is not part of the startup bundle.
+      const { aiAgent } = await import('../services/aiAgent');
       await aiAgent.unload();
     } catch (err) {
       console.warn('Purge AI worker error:', err);
@@ -437,7 +438,7 @@ export function useTabOperations({
     }
   }, [activeTabId]);
 
-  const handleNewTab = useCallback((url?: string | any, sourceTabId?: string, opts?: { reuseBlank?: boolean; isIncognito?: boolean }) => {
+  const handleNewTab = useCallback((url?: string | any, sourceTabId?: string, opts?: { reuseBlank?: boolean; isIncognito?: boolean; agentOwned?: boolean; agentPersistent?: boolean }) => {
     let finalUrl = typeof url === 'string' ? url : 'king://newtab';
 
     // Security: Block malicious protocols (shared blocklist — see safeNavigation.ts)
@@ -496,6 +497,10 @@ export function useTabOperations({
       canGoForward: false,
       workspaceId: activeWorkspaceId,
       isIncognito: isIncognitoTab,
+      // Links and popups opened from an agent tab stay in the agent's session.
+      isAgentOwned: !isIncognitoTab && (opts?.agentOwned ?? Boolean(sourceTabId && currentTarget?.isAgentOwned)) ? true : undefined,
+      agentPersistent: !isIncognitoTab && (opts?.agentOwned ?? Boolean(sourceTabId && currentTarget?.isAgentOwned))
+        && (opts?.agentPersistent ?? Boolean(sourceTabId && currentTarget?.agentPersistent)) ? true : undefined,
       lastAccessed: Date.now()
     };
     setTabs(prev => [...prev, newTab]);

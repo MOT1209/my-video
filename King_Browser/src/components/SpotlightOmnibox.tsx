@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Globe, Plus, X } from 'lucide-react';
+import { Search, Globe, X } from 'lucide-react';
 import { Tab, UserSettings } from '../types/browser';
 import { formatSearchUrl, getSearchEngineName } from '../utils/searchEngine';
 import { useModalFocusTrap } from '../hooks/useModalFocusTrap';
 import { getClientCachedSuggestions, setClientCachedSuggestions } from '../utils/suggestionCache';
-import { getLocale, getLanguage, useTranslation } from '../services/i18n';
+import { getLocale, getLanguage, useTranslation, l } from '../services/i18n';
 import { useDialogA11y } from '../hooks/useDialogA11y';
 
 interface SpotlightOmniboxProps {
@@ -226,7 +226,7 @@ export const SpotlightOmnibox: React.FC<SpotlightOmniboxProps> = React.memo(({
               <input
                 ref={inputRef}
                 type="text"
-                aria-label="Spotlight search and command bar"
+                aria-label={l({ en: 'Spotlight search and command bar', ar: 'شريط البحث والأوامر', de: 'Such- und Befehlsleiste' })}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => {
@@ -282,7 +282,7 @@ export const SpotlightOmnibox: React.FC<SpotlightOmniboxProps> = React.memo(({
                   Press Enter to search with {getSearchEngineName(searchEngine)}
                 </div>
               ) : (
-                <div className="space-y-1" role="listbox" aria-label="Omnibox results">
+                <div className="space-y-1" role="listbox" aria-label={l({ en: 'Omnibox results', ar: 'نتائج البحث', de: 'Suchergebnisse' })}>
                   {items.map((item, idx) => {
                     const isSelected = selectedIndex === idx;
 
@@ -312,9 +312,9 @@ export const SpotlightOmnibox: React.FC<SpotlightOmniboxProps> = React.memo(({
                             ) : (
                               <Globe className={`w-4 h-4 shrink-0 ${isSelected ? 'text-cyan-500' : 'text-slate-400'}`} />
                             )}
-                            <span className="truncate text-sm font-medium">{item.tab.title || item.tab.url || 'Tab'}</span>
+                            <span dir="auto" className="truncate text-sm font-medium">{item.tab.title || item.tab.url || 'Tab'}</span>
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <div className="flex items-center gap-1.5 shrink-0 ms-2">
                             <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
                               Switch
                             </span>
@@ -326,7 +326,7 @@ export const SpotlightOmnibox: React.FC<SpotlightOmniboxProps> = React.memo(({
                                   onCloseTab(item.tab.id);
                                 }}
                                 className="p-1.5 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/20 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-                                title="Close Tab"
+                                title={l({ en: 'Close Tab', ar: 'إغلاق التبويب', de: 'Tab schließen' })}
                               >
                                 <X className="w-4 h-4" />
                               </button>
@@ -354,7 +354,7 @@ export const SpotlightOmnibox: React.FC<SpotlightOmniboxProps> = React.memo(({
                           <Search className={`w-4 h-4 shrink-0 ${isSelected ? 'text-cyan-500' : 'text-slate-400'}`} />
                           <span className="truncate text-sm font-medium">{item.text}</span>
                         </div>
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0 ml-2">
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0 ms-2">
                           Search
                         </span>
                       </div>

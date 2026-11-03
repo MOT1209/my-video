@@ -38,7 +38,15 @@ import {
   rateLimitRejection,
   rateLimitedResponse,
 } from "../../../lib/rate-limit";
+import { assertPublicMediaUrls } from "../../../lib/safe-fetch";
+import { publicErrorMessage } from "../../../lib/user-facing-error";
 import { formatSSE, type RenderProgress } from "./helpers";
+
+/**
+ * حد صريح لمدة الدالة: التصيير يبث SSE ثم يكمل في `waitUntil`، والاعتماد
+ * على افتراضي المنصة قد يقطع التصيير في منتصفه (فيُحسم من الطابور لاحقاً).
+ */
+export const maxDuration = 300;
 
 /**
  * مسار التصيير — SSE تفاعلي.
@@ -122,6 +130,24 @@ export async function POST(req: Request) {
       return apiError("مدخلات الفيديو غير صالحة.", 400);
     }
     inputProps = shortProps.data;
+    // في الإنتاج: كل رابط وسائط سيجلبه متصفح التصيير يجب أن يكون عاماً
+    // (لا عناوين داخلية/metadata من شبكة الـ sandbox) — قبل الخصم وأي sandbox.
+    if (isProductionRuntime()) {
+      const props = shortProps.data;
+      try {
+        await assertPublicMediaUrls([
+          props.backgroundMedia?.url,
+          props.audioUrl,
+          props.musicUrl,
+          ...props.scenes.map((scene) => scene.imageUrl),
+        ]);
+      } catch (err) {
+        return apiError(
+          publicErrorMessage(err, "رابط وسائط غير مسموح: استخدم رابط http(s) عاماً."),
+          400,
+        );
+      }
+    }
   } else if (body.id === COMP_NAME) {
     compositionId = COMP_NAME;
     const compProps = CompositionProps.safeParse(body.inputProps);
@@ -152,19 +178,23 @@ export async function POST(req: Request) {
 
   /** قفل موزّع: موضوع واحد = تصيير واحد نشط في كل نسخ الخادم. */
   const lockKey = `render-lock:${subject}`;
-  let lockOwner: string | null;
-  try {
-    lockOwner = await acquireRenderLock(lockKey);
-  } catch (err) {
-    console.error("render: تعذّر التحقق من قفل التصيير", err instanceof Error ? err.name : "unknown");
-    return apiError("التصيير غير متاح مؤقتاً: تعذّر التحقق من القفل.", 503);
-  }
-  if (!lockOwner) {
+  const lock = await acquireRenderLock(lockKey);
+  if (!lock.acquired) {
+    if (lock.reason === "unavailable") {
+      console.error(
+        "render: تعذّر التحقق من قفل التصيير",
+      );
+      return apiError(
+        "التصيير متوقف مؤقتاً: خدمة القفل الموزّع غير متاحة. حاول بعد دقيقة.",
+        503,
+      );
+    }
     return rateLimitedResponse(
       RENDER_LOCK_RETRY_SEC,
       "لديك عملية تصيير جارية حالياً — انتظر انتهاءها أولاً.",
     );
   }
+  const lockToken = lock.token;
 
   /** مفتاح حتمي لناتج التصيير: نفس التكوين = نفس الفيديو = رابط جاهز. */
   const cachePath = renderCachePath(
@@ -218,10 +248,13 @@ export async function POST(req: Request) {
       blobBytes: size,
       estimatedCostUsd,
     });
-    return {
-      sandboxWallSeconds,
-      estimatedCostUsd: Number(estimatedCostUsd.totalUsd.toFixed(5)),
-    };
+    // الكلفة تُسجَّل دائماً، وتُرسل للعميل خارج الإنتاج فقط (تفصيل بنية داخلي)
+    return isProd
+      ? { sandboxWallSeconds }
+      : {
+          sandboxWallSeconds,
+          estimatedCostUsd: Number(estimatedCostUsd.totalUsd.toFixed(5)),
+        };
   };
 
   /** تسجيل مقاييس عملية فاشلة — خسارة الـ sandbox يجب ألا تُختفي من الحساب. */
@@ -266,7 +299,7 @@ export async function POST(req: Request) {
       });
     } finally {
       // القفل يُستهلك فقط أثناء التصيير الفعلي — يُحرَّر دائماً هنا
-      await releaseRenderLock(lockKey, lockOwner).catch((err: unknown) => {
+      await releaseRenderLock(lockKey, lockToken).catch((err: unknown) => {
         console.error("render: تعذّر تحرير قفل التصيير", err);
       });
       // إغلاق واحد آمن حتى مع عبارات return الداخلية

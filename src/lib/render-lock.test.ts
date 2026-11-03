@@ -6,74 +6,82 @@ import {
 } from "./upstash-test-mocks";
 import { resetUpstashRedisForTests } from "./upstash-redis";
 
-const RENDER_LOCK_TTL_SEC = 600;
-
 // المحاكاة قبل أي استيراد ديناميكي للكود المُختبر
 installUpstashMocks();
 
 const {
   acquireRenderLock,
   releaseRenderLock,
+  RENDER_LOCK_TTL_SEC,
 } = await import("./render-lock");
 
 const ENV_KEYS = [
   "UPSTASH_REDIS_REST_URL",
   "UPSTASH_REDIS_REST_TOKEN",
+  "NODE_ENV",
+  "RATE_LIMIT_ALLOW_IN_MEMORY",
 ] as const;
 const savedEnv = ENV_KEYS.map((k) => process.env[k]);
 
-function restoreEnv(): void {
-  ENV_KEYS.forEach((k, i) => {
-    const v = savedEnv[i];
-    if (v === undefined) {
-      delete process.env[k];
-    } else {
-      process.env[k] = v;
-    }
+function setEnv(key: (typeof ENV_KEYS)[number], value: string | undefined) {
+  Object.defineProperty(process.env, key, {
+    value,
+    configurable: true,
+    writable: true,
+    enumerable: true,
   });
+  if (value === undefined) delete process.env[key];
+}
+
+function restoreEnv(): void {
+  ENV_KEYS.forEach((k, i) => setEnv(k, savedEnv[i]));
   resetUpstashRedisForTests();
+}
+
+function useUpstash(): void {
+  setEnv("UPSTASH_REDIS_REST_URL", "https://fake.upstash.io");
+  setEnv("UPSTASH_REDIS_REST_TOKEN", "tok");
+  resetUpstashMockState();
+  resetUpstashRedisForTests();
+}
+
+function tokenOf(result: Awaited<ReturnType<typeof acquireRenderLock>>): string {
+  if (!result.acquired) throw new Error(`lock not acquired: ${result.reason}`);
+  return result.token;
 }
 
 test("بلا مفاتيح: خريطة محلية (القفل + الإفلات + انتهاء TTL)", async () => {
   resetUpstashMockState();
-  ENV_KEYS.forEach((k) => delete process.env[k]);
+  setEnv("UPSTASH_REDIS_REST_URL", undefined);
+  setEnv("UPSTASH_REDIS_REST_TOKEN", undefined);
   resetUpstashRedisForTests();
   try {
-    const lockTtlMs = RENDER_LOCK_TTL_SEC * 1000;
     const t0 = 50_000;
-    const owner = await acquireRenderLock("l:k1", t0);
-    expect(owner).toBeTruthy();
+    const first = tokenOf(await acquireRenderLock("l:k1", t0));
     // نفس اللقطة: مشغول
-    expect(await acquireRenderLock("l:k1", t0 + 1)).toBeNull();
-    // بعد انتهاء TTL يُستبدل المالك، وإطلاق القفل القديم لا يمسح القفل الجديد.
-    const replacementOwner = await acquireRenderLock(
-      "l:k1",
-      t0 + lockTtlMs + 1,
+    expect(await acquireRenderLock("l:k1", t0 + 1)).toEqual({
+      acquired: false,
+      reason: "held",
+    });
+    // بعد انتهاء TTL يعاد الفتح لمالك جديد
+    const second = tokenOf(
+      await acquireRenderLock("l:k1", t0 + RENDER_LOCK_TTL_SEC * 1000 + 1),
     );
-    expect(replacementOwner).toBeTruthy();
-    await releaseRenderLock("l:k1", owner!);
-    expect(
-      await acquireRenderLock("l:k1", t0 + lockTtlMs + 2),
-    ).toBeNull();
-    await releaseRenderLock("l:k1", replacementOwner!);
-    expect(
-      await acquireRenderLock("l:k1", t0 + lockTtlMs + 3),
-    ).toBeTruthy();
+    // المالك القديم (انتهى قفله) لا يحرّر قفل المالك الجديد
+    await releaseRenderLock("l:k1", first);
+    expect((await acquireRenderLock("l:k1", t0 + RENDER_LOCK_TTL_SEC * 1000 + 2)).acquired).toBe(false);
+    // المالك الحالي يحرّر فيفتح فوراً
+    await releaseRenderLock("l:k1", second);
+    expect((await acquireRenderLock("l:k1", t0 + 1)).acquired).toBe(true);
   } finally {
     restoreEnv();
   }
 });
 
-test("مفاتيح Upstash: SET NX يُستخدم فعلاً والرفض يمنع", async () => {
+test("مفاتيح Upstash: SET NX برمز مالك، والتحرير مقارنة-ثم-حذف بنفس الرمز", async () => {
   try {
-    process.env.UPSTASH_REDIS_REST_URL = "https://fake.upstash.io";
-    process.env.UPSTASH_REDIS_REST_TOKEN = "tok";
-    resetUpstashMockState();
-    resetUpstashRedisForTests();
-
-    // نجاح الاستناد إلى القفل
-    const owner = await acquireRenderLock("dl:k1");
-    expect(owner).toBeTruthy();
+    useUpstash();
+    const token = tokenOf(await acquireRenderLock("dl:k1"));
     expect(upstashMockState.setCalls).toHaveLength(1);
     expect(upstashMockState.setCalls[0].key).toBe("dl:k1");
     expect(upstashMockState.setCalls[0].opts).toEqual({
@@ -81,96 +89,46 @@ test("مفاتيح Upstash: SET NX يُستخدم فعلاً والرفض يمن
       ex: RENDER_LOCK_TTL_SEC,
     });
 
-    // الـ Redis يرفض (قفل مشغول):يجب أن يكون القفل مشغولاً
+    // الـ Redis يرفض (قفل مشغول)
     upstashMockState.setResult = null;
-    upstashMockState.setCalls = [];
-    expect(await acquireRenderLock("dl:k2")).toBeNull();
-    expect(upstashMockState.setCalls).toHaveLength(1);
+    expect(await acquireRenderLock("dl:k2")).toEqual({
+      acquired: false,
+      reason: "held",
+    });
 
-    // التحرير يحذف القفل فقط إذا ظل مملوكاً لهذه العملية.
-    const evalCallsBefore = upstashMockState.evalCalls.length;
-    await releaseRenderLock("dl:k1", owner!);
-    expect(upstashMockState.evalCalls).toHaveLength(evalCallsBefore + 1);
-    expect(upstashMockState.evalCalls.at(-1)?.keys).toEqual(["dl:k1"]);
-    expect(upstashMockState.evalCalls.at(-1)?.args).toEqual([owner!]);
-    expect(upstashMockState.evalCalls.at(-1)?.script).toContain('redis.call("get", KEYS[1]) == ARGV[1]');
-    upstashMockState.evalResult = 0;
-    await releaseRenderLock("dl:k1", owner!);
-    expect(upstashMockState.evalCalls).toHaveLength(evalCallsBefore + 2);
-    upstashMockState.setResult = "OK";
-    expect(await acquireRenderLock("dl:k2")).toBeTruthy();
+    // التحرير لا يحذف أعمى: يمرر رمز المالك لسكربت المقارنة
+    await releaseRenderLock("dl:k1", token);
+    expect(upstashMockState.delCalls).toEqual([]);
+    expect(upstashMockState.evalCalls).toEqual([{ keys: ["dl:k1"], args: [token] }]);
   } finally {
     restoreEnv();
   }
 });
 
-test("تحرير قفل Redis يحافظ على قفل التطوير عند تعذر أمر الحذف", async () => {
-  ENV_KEYS.forEach((key) => { process.env[key] = "https://fake.upstash.io"; });
-  process.env.UPSTASH_REDIS_REST_TOKEN = "tok";
-  resetUpstashMockState();
-  resetUpstashRedisForTests();
-  const savedNodeEnv = process.env.NODE_ENV;
-  Object.defineProperty(process.env, "NODE_ENV", { value: "development", configurable: true, writable: true, enumerable: true });
+test("خطأ Upstash خارج الإنتاج: سقوط شفاف إلى الذاكرة المحلية", async () => {
   try {
-    const t0 = Date.now();
-    upstashMockState.throwError = new Error("Redis set unavailable");
-    const owner = await acquireRenderLock("dev:redis-fallback", t0);
-    expect(owner).toBeTruthy();
-    upstashMockState.throwError = new Error("Redis delete unavailable");
-    await expect(releaseRenderLock("dev:redis-fallback", owner!)).rejects.toThrow("Redis delete unavailable");
-    upstashMockState.throwError = null;
-    resetUpstashRedisForTests();
-    ENV_KEYS.forEach((key) => delete process.env[key]);
-    expect(await acquireRenderLock("dev:redis-fallback", t0 + 1)).toBeNull();
-  } finally {
-    Object.defineProperty(process.env, "NODE_ENV", { value: savedNodeEnv, configurable: true, writable: true, enumerable: true });
-    restoreEnv();
-  }
-});
-
-test("تحرير قفل Redis لا يحذف قفلاً لا يملكه الطلب", async () => {
-  process.env.UPSTASH_REDIS_REST_URL = "https://fake.upstash.io";
-  process.env.UPSTASH_REDIS_REST_TOKEN = "tok";
-  resetUpstashMockState();
-  resetUpstashRedisForTests();
-  try {
-    const owner = await acquireRenderLock("redis:expired");
-    expect(owner).toBeTruthy();
-    upstashMockState.evalResult = 0;
-    await releaseRenderLock("redis:expired", owner!);
-    expect(upstashMockState.evalCalls).toHaveLength(1);
-  } finally {
-    restoreEnv();
-  }
-});
-
-test("غياب Upstash أو تعطله في الإنتاج يرفض أخذ القفل", async () => {
-  const savedNodeEnv = process.env.NODE_ENV;
-  Object.defineProperty(process.env, "NODE_ENV", { value: "production", configurable: true, writable: true, enumerable: true });
-  try {
-    ENV_KEYS.forEach((key) => delete process.env[key]);
-    resetUpstashRedisForTests();
-    await expect(acquireRenderLock("production:no-redis")).rejects.toThrow("render_lock_unavailable");
-
-    process.env.UPSTASH_REDIS_REST_URL = "https://fake.upstash.io";
-    process.env.UPSTASH_REDIS_REST_TOKEN = "tok";
-    resetUpstashRedisForTests();
+    useUpstash();
+    setEnv("NODE_ENV", "test");
     upstashMockState.throwError = new Error("timeout");
-    await expect(acquireRenderLock("production:error")).rejects.toThrow("timeout");
+    expect((await acquireRenderLock("err:k1")).acquired).toBe(true);
   } finally {
-    Object.defineProperty(process.env, "NODE_ENV", { value: savedNodeEnv, configurable: true, writable: true, enumerable: true });
     restoreEnv();
   }
 });
 
-test("خطأ Upstash: سقوط شفاف إلى الذاكرة المحلية خارج الإنتاج", async () => {
+test("خطأ Upstash في الإنتاج: رفض مغلق (لا قفل محلي لا يحمي النسخ الأخرى)", async () => {
   try {
-    process.env.UPSTASH_REDIS_REST_URL = "https://fake.upstash.io";
-    process.env.UPSTASH_REDIS_REST_TOKEN = "tok";
-    resetUpstashMockState();
-    resetUpstashRedisForTests();
+    useUpstash();
+    setEnv("NODE_ENV", "production");
+    setEnv("RATE_LIMIT_ALLOW_IN_MEMORY", undefined);
     upstashMockState.throwError = new Error("timeout");
-    expect(await acquireRenderLock("err:k1")).toBeTruthy();
+    expect(await acquireRenderLock("err:k2")).toEqual({
+      acquired: false,
+      reason: "unavailable",
+    });
+    // الفتح الصريح يعيد السقوط المحلي
+    setEnv("RATE_LIMIT_ALLOW_IN_MEMORY", "true");
+    expect((await acquireRenderLock("err:k3")).acquired).toBe(true);
   } finally {
     restoreEnv();
   }

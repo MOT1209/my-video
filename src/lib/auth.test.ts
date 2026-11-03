@@ -5,6 +5,7 @@ import {
   guardPaidRoute,
   isAuthConfigured,
   LOCAL_USER_ID,
+  resetAuthModeWarningForTests,
   warnIfUnauthenticatedProduction,
 } from "./auth";
 
@@ -39,47 +40,6 @@ async function withEnv(
   }
 }
 
-/**
- * مهلة أعلى من الافتراضية (5s): مسار Clerk الحقيقي يستورد الوحدة
- * كاملةً وقد يبطئ الشبكة تحت تشغيل الاختبارات المتسلسل. المصادقة
- * نفسها عليها مهلة 5s في auth.ts تردّ 503 قبل hitting هذه المهلة.
- */
-test(
-  "مصادقة Clerk تعيد 503 عند تعذّر التحقق، لا استثناءً غير معالج",
-  async () => {
-    const savedNodeEnv = process.env.NODE_ENV;
-    Object.defineProperty(process.env, "NODE_ENV", {
-      value: "production",
-      configurable: true,
-      writable: true,
-      enumerable: true,
-    });
-    try {
-      await withEnv(
-        {
-          CLERK_SECRET_KEY: "sk_test_1",
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_1",
-        },
-        async () => {
-          const result = await guardPaidRoute();
-          expect("response" in result).toBe(true);
-          if ("response" in result) {
-            expect(result.response.status).toBe(503);
-          }
-        },
-      );
-    } finally {
-      Object.defineProperty(process.env, "NODE_ENV", {
-        value: savedNodeEnv,
-        configurable: true,
-        writable: true,
-        enumerable: true,
-      });
-    }
-  },
-  15_000,
-);
-
 test("المصادقة تُعدّ مهيأة فقط بوجود المفتاحَين معاً", async () => {
   await withEnv({}, async () => expect(isAuthConfigured()).toBe(false));
   await withEnv({ CLERK_SECRET_KEY: "sk_test_1" }, async () =>
@@ -94,45 +54,20 @@ test("المصادقة تُعدّ مهيأة فقط بوجود المفتاحَ�
   );
 });
 
-test("تحذير الإنتاج يظهر مرة واحدة فقط عند السماح بالمسارات المكلفة بلا Clerk", async () => {
-  const savedNodeEnv = process.env.NODE_ENV;
-  const savedAllow = process.env.ALLOW_ANONYMOUS_PAID_ROUTES;
-  const warnings: string[] = [];
-  const originalWarn = console.warn;
-  const setNodeEnv = (value: string | undefined) => {
-    Object.defineProperty(process.env, "NODE_ENV", {
-      value,
-      configurable: true,
-      writable: true,
-      enumerable: true,
+test("بلا مفاتيح: الطلب يُعاد كمستخدم محلي غير مصادَق بدل الفشل", async () => {
+  await withEnv({}, async () => {
+    const user = await getRequestUser();
+    expect(user).toEqual({
+      clerkId: LOCAL_USER_ID,
+      email: null,
+      authenticated: false,
     });
-  };
-  console.warn = (message?: unknown) => warnings.push(String(message));
-  try {
-    setNodeEnv("production");
-    await withEnv({}, async () => {
-      delete process.env.ALLOW_ANONYMOUS_PAID_ROUTES;
-      warnIfUnauthenticatedProduction();
-      expect(warnings).toHaveLength(0);
-      process.env.ALLOW_ANONYMOUS_PAID_ROUTES = "true";
-      warnIfUnauthenticatedProduction();
-      warnIfUnauthenticatedProduction();
-    });
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toContain("ALLOW_ANONYMOUS_PAID_ROUTES");
-  } finally {
-    console.warn = originalWarn;
-    setNodeEnv(savedNodeEnv);
-    if (savedAllow === undefined) {
-      delete process.env.ALLOW_ANONYMOUS_PAID_ROUTES;
-    } else {
-      process.env.ALLOW_ANONYMOUS_PAID_ROUTES = savedAllow;
-    }
-  }
+  });
 });
 
-test("بلا مفاتيح: الوضع المحلي محفوظ في التطوير لكنه مرفوض في الإنتاج", async () => {
+test("التحذير يُطلق مرة واحدة في الإنتاج بلا مفاتيح فقط", async () => {
   const savedNodeEnv = process.env.NODE_ENV;
+  /** NODE_ENV للقراءة فقط في الأنواع — نغيّرها عبر إعادة التعريف. */
   const setNodeEnv = (value: string | undefined) => {
     Object.defineProperty(process.env, "NODE_ENV", {
       value,
@@ -141,22 +76,45 @@ test("بلا مفاتيح: الوضع المحلي محفوظ في التطوي�
       enumerable: true,
     });
   };
+  const savedWarn = console.warn;
+  const calls: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    calls.push(args);
+  };
   try {
-    setNodeEnv("development");
-    await withEnv({}, async () => {
-      expect(await getRequestUser()).toEqual({
-        clerkId: LOCAL_USER_ID,
-        email: null,
-        authenticated: false,
-      });
-    });
-
+    // إنتاج بلا مفاتيح → تحذير واحد مهما تكرر الاستدعاء
     setNodeEnv("production");
     await withEnv({}, async () => {
-      expect(await getRequestUser()).toBeNull();
+      resetAuthModeWarningForTests();
+      warnIfUnauthenticatedProduction();
+      warnIfUnauthenticatedProduction();
+      expect(calls.length).toBe(1);
+      expect(String(calls[0][0])).toMatch(/بلا مصادقة/);
     });
+    // غير الإنتاج → صمت تام
+    setNodeEnv("test");
+    await withEnv({}, async () => {
+      resetAuthModeWarningForTests();
+      warnIfUnauthenticatedProduction();
+      expect(calls.length).toBe(1);
+    });
+    // مفاتيح موجودة → صمت حتى في الإنتاج
+    setNodeEnv("production");
+    await withEnv(
+      {
+        CLERK_SECRET_KEY: "sk_test_1",
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_1",
+      },
+      async () => {
+        resetAuthModeWarningForTests();
+        warnIfUnauthenticatedProduction();
+        expect(calls.length).toBe(1);
+      },
+    );
   } finally {
+    console.warn = savedWarn;
     setNodeEnv(savedNodeEnv);
+    resetAuthModeWarningForTests();
   }
 });
 

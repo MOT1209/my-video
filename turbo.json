@@ -1,16 +1,29 @@
 {
   "tasks": {
-    "bundle": {
-      "outputs": [".remotion/**"]
-    },
     "build": {
-      "dependsOn": ["bundle"],
-      "outputs": [".next/**", "!.next/cache/**"],
-      "env": ["BLOB_READ_WRITE_TOKEN", "BLOB_STORE_ID", "BLOB_WEBHOOK_PUBLIC_KEY"]
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**"
+      ],
+      "env": [
+        "BLOB_READ_WRITE_TOKEN",
+        "BLOB_STORE_ID",
+        "BLOB_WEBHOOK_PUBLIC_KEY"
+      ]
     },
     "create-snapshot": {
-      "dependsOn": ["bundle"],
-      "env": ["BLOB_READ_WRITE_TOKEN", "BLOB_STORE_ID", "BLOB_WEBHOOK_PUBLIC_KEY"]
+      "env": [
+        "BLOB_READ_WRITE_TOKEN",
+        "BLOB_STORE_ID",
+        "BLOB_WEBHOOK_PUBLIC_KEY"
+      ],
+      "passThroughEnv": [
+        "VERCEL_DEPLOYMENT_ID",
+        "VERCEL_OIDC_TOKEN",
+        "VERCEL_TEAM_ID",
+        "VERCEL_PROJECT_ID"
+      ],
+      "cache": false
     }
   },
   "dangerouslyDisablePackageManagerCheck": true

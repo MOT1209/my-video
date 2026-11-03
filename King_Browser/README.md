@@ -5,12 +5,12 @@
   # King Browser
 
   **Open-Source Desktop Browser for Developers & Coding Agents**  
-  *Built with Electron, React, TypeScript & Vite — Featuring Native MCP Server, On-Device WebGPU & Whisper STT, and Zero-Knowledge E2EE Sync*
+  *Built with Electron, React, TypeScript & Vite — Featuring Native MCP Server, On-Device WebGPU & Whisper STT, and Client-Side Encrypted Sync*
 
   <br/>
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-  [![Status](https://img.shields.io/badge/Status-pre--release%20v0.0.1-F59E0B?style=for-the-badge)](https://github.com/MOT1209/King_Browser)
+  [![Status](https://img.shields.io/badge/Status-pre--release%20v0.0.11-F59E0B?style=for-the-badge)](https://github.com/MOT1209/King_Browser)
   [![Electron](https://img.shields.io/badge/Electron-43.x-47848F?style=for-the-badge&logo=electron)](https://www.electronjs.org/)
   [![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react)](https://react.dev/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -44,9 +44,9 @@
 
 Rather than bloated cloud telemetry or generic hype, King focuses on concrete developer and power-user requirements:
 
-- **Native Model Context Protocol (MCP) Server (Port 3020)**: Built-in local HTTP/SSE MCP server exposing 26 browser automation and inspection tools directly to coding agents (OpenCode, Claude Code, Cursor, Windsurf). Agents authenticate with a bearer token copied from Settings → MCP.
+- **Native Model Context Protocol (MCP) Server (Port 3020)**: Built-in local MCP server (Streamable HTTP and legacy SSE) exposing 48 browser automation, inspection, and execution-control tools (19 safe ones enabled by default) directly to coding agents (OpenCode, Claude Code, Cursor, Windsurf). Agents authenticate with a bearer token copied from Settings → MCP.
 - **On-Device Whisper Voice & Neural Execution**: Run multilingual speech-to-text locally via Transformers.js (`whisper-tiny`, ~41 MB) and on-device LLMs via WebGPU (Llama 3.2, Phi 3.5 Vision, Qwen 2.5). Exactly 0 KB of voice audio or model prompt data is transmitted to cloud servers.
-- **No Analytics SDK, Network-Level Privacy Shield**: Ships no analytics or crash-reporting SDK (see [Network connections](#network-connections) for the services King does contact). Employs `@ghostery/adblocker` (EasyList, EasyPrivacy, Peter Lowe, uBlock filters) to terminate ads and tracking beacons at the Chromium network layer before DOM parsing, paired with client-side AES-256-GCM zero-knowledge cloud sync.
+- **No Analytics SDK, Network-Level Privacy Shield**: Ships no analytics or crash-reporting SDK (see [Network connections](#network-connections) for the services King does contact). Employs `@ghostery/adblocker` (EasyList, EasyPrivacy, Peter Lowe, uBlock filters) to terminate ads and tracking beacons at the Chromium network layer before DOM parsing, paired with client-side AES-256-GCM encrypted cloud sync.
 - **Tab Hibernation & Memory Eviction**: Dormant background tabs automatically suspend active rendering execution via an LRU pool (capping live webviews to 6) while preserving complete navigation state, preventing Chromium process explosion regardless of tab count.
 - **Hardened Security Architecture**: TOCTOU-safe file descriptor operations, strict context isolation, and SSRF/DNS rebinding defense. These controls are covered by the automated test suite; no independent security audit has been performed yet.
 
@@ -54,7 +54,7 @@ Rather than bloated cloud telemetry or generic hype, King focuses on concrete de
 
 ## Overview
 
-**King Browser** is an open-source, sovereign desktop web browser built with Electron, React, TypeScript, and Vite. Designed for developers, researchers, and privacy-conscious users, King pairs standard Chromium rendering with a native **Model Context Protocol (MCP) server**, **on-device WebGPU neural execution**, **local Whisper speech recognition**, **zero-knowledge encrypted multi-device sync**, **Chrome Web Store extension support**, and a **dual-view split screen**.
+**King Browser** is an open-source, sovereign desktop web browser built with Electron, React, TypeScript, and Vite. Designed for developers, researchers, and privacy-conscious users, King pairs standard Chromium rendering with a native **Model Context Protocol (MCP) server**, **on-device WebGPU neural execution**, **local Whisper speech recognition**, **client-side encrypted multi-device sync**, **Chrome Web Store extension support**, and a **dual-view split screen**.
 
 ---
 
@@ -62,7 +62,7 @@ Rather than bloated cloud telemetry or generic hype, King focuses on concrete de
 
 King renders pages with the Chromium build bundled in Electron 43, so page-level JavaScript and rendering performance follow that Chromium version. King has **not** been benchmarked against Chrome, Brave or Safari; earlier comparison tables inherited from the upstream project were removed because they were not measured for this codebase.
 
-What King changes on top of Chromium: idle-tab hibernation (at most 6 live webviews), network-level ad/tracker blocking, and lazily loaded AI runtimes. `npm run benchmark` runs internal micro-benchmarks of these code paths; see [`BENCHMARK_REPORT.md`](BENCHMARK_REPORT.md). They measure isolated functions in Node, not user-visible page-load speed.
+What King changes on top of Chromium: idle-tab hibernation (at most 6 live webviews), network-level ad/tracker blocking, and lazily loaded AI runtimes. `npm run benchmark` runs internal micro-benchmarks of these code paths; see [`BENCHMARK_REPORT.md`](docs/BENCHMARK_REPORT.md). They measure isolated functions in Node, not user-visible page-load speed.
 
 ### Network connections
 
@@ -72,12 +72,13 @@ King has no telemetry endpoint, but these built-in features contact third-party 
 | :--- | :--- | :--- |
 | Update check & release notes | `api.github.com`, `github.com` | Shortly after start and every 4 hours |
 | Search suggestions | `suggestqueries.google.com` (or the selected engine) | While typing in the omnibox |
-| New-tab wallpapers | `images.unsplash.com`, `api.unsplash.com` | When an Unsplash wallpaper is shown |
+| New-tab wallpapers | `images.unsplash.com`, `api.unsplash.com`, `www.bing.com` | When an Unsplash wallpaper or the daily Bing wallpaper is shown |
 | Page translation | `translate.googleapis.com` | When the user translates a page |
 | Local AI / Whisper model download | `huggingface.co`, `hf.co` | First use of a local model |
 | Ad-block filter lists | Filter-list hosts | Start-up / list refresh |
-| King Sync (opt-in) | Your Supabase project | Only after sign-in; data is end-to-end encrypted |
+| King Sync (opt-in) | Your Supabase project | Only after King Cloud sign-in, and only when a project is configured; otherwise the vault stays on this device and nothing is sent. Data is end-to-end encrypted |
 | Fonts | `fonts.googleapis.com`, `fonts.gstatic.com` | UI start-up |
+| Custom MCP tools (opt-in) | Only the `https` hosts you configure in Settings -> MCP -> Tool Manager | When an agent (or you, via Test) runs one of your own tools, after approval. Public addresses only; none exist until you add one |
 
 ---
 
@@ -112,18 +113,21 @@ Current English interface in Clean Minimalist mode with the light theme.
 ### 3. King Sync
 
 <div align="center">
-  <img src="public/screenshots/sync-clean-light.jpg" alt="King Sync Interface" width="850" style="border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,0.35);" />
-  <p><em>King Sync sign-in screen in the light theme</em></p>
+  <p><em>King Sync uses the in-app sign-in form in <strong>Settings &rarr; Sync</strong> (and the account dialog).
+  The screenshot that used to sit here showed the old, unimplemented device-pairing screen, so it was removed
+  rather than kept as an illustration of a flow the app does not have.</em></p>
 </div>
 
 ---
 
 ## Key Features
 
-### King Cloud Sync (Zero-Knowledge E2EE)
+### King Cloud Sync (Client-Side Encrypted)
 - **End-to-End Encryption (AES-256-GCM)**: Saved passwords, bookmarks, browsing history, settings, and workspace arrangements are encrypted locally with PBKDF2 (600,000 iterations) and 256-bit AES-GCM before transmission.
-- **Encrypted Multi-Device Sync**: Sign in with your King Cloud account to synchronize bookmarks, passwords, and preferences across your computers in real-time over Supabase Realtime WebSockets. Encryption keys stay on your local device; the cloud server only ever receives encrypted ciphertext.
-- **Code-Based Pairing (Roadmap)**: Accountless 1-click device pairing via temporary sync codes is in active development for a future release.
+- **Encrypted Multi-Device Sync**: Sign in with your King Cloud account to synchronize bookmarks, passwords, and preferences across your computers in real-time over Supabase Realtime WebSockets. The cloud server receives only encrypted ciphertext and the key is never uploaded, but the key is derived from your account password, which the provider also receives at sign-in (see Security & Privacy Commitment for the limit of this model).
+- **Local Vault Mode**: When no King Cloud project is configured, signing up still creates a vault protected by your password (PBKDF2 600,000 iterations, AES-256-GCM) but it is stored on this device only. The sign-in form says so explicitly and nothing is uploaded, so a local account is never presented as synced.
+- **Password Recovery**: King Cloud accounts can request a password-reset email from the sign-in form ("Forgot password?"). Local-vault accounts have no recovery path by design — the password is the encryption key.
+- **Code-Based Pairing (Roadmap)**: Accountless 1-click device pairing via temporary sync codes is in active development for a future release. Until the join flow exists, the UI states that pairing is unavailable instead of offering a code that cannot be redeemed.
 
 ### On-Device Whisper Voice & Speech Recognition
 - **Local Whisper Pipeline**: Powered by Transformers.js and ONNX runtime (`onnx-community/whisper-tiny`), running locally inside the browser.
@@ -132,7 +136,7 @@ Current English interface in Clean Minimalist mode with the light theme.
 - **Hands-Free Browser Navigation**: Voice queries automatically translate into direct browser actions (navigation, searching, tab management).
 
 ### AI Agent & Virtual Cursor (MCP Protocol)
-- **Model Context Protocol (MCP)**: Native integration for AI agents (Cursor, Claude Desktop, Windsurf, Antigravity) to navigate, read pages, click elements, fill forms, and take screenshots via 26 built-in tools.
+- **Model Context Protocol (MCP)**: Native integration for AI agents (Cursor, Claude Desktop, Windsurf, Antigravity, OpenCode) to navigate, read pages, click elements, fill forms, and take screenshots via 48 built-in tools.
 - **Glowing AI Cursor Overlay**: Watch autonomous AI subagents interact with live webpages in real-time with an animated glowing cursor overlay.
 - **Built-in Local AI Sidepanel**: Run lightweight local models offline directly on your GPU via WebGPU and WebLLM.
 - **Persistent Info & Memory Vault**: Automatically extracts user preferences and retains task history with category badges (`[PREFERENCE]`, `[FACT]`, `[INSTRUCTION]`).
@@ -143,7 +147,7 @@ Current English interface in Clean Minimalist mode with the light theme.
 - **Zip-Slip & Path Traversal Neutralization**: All CRX archive extractions are validated in-memory before decompression to prevent directory traversal attacks.
 
 ### Native `king://` Internal Pages
-- **`king://settings`**: Complete browser preferences, theme toggles, search engine picker, shortcuts, zero-knowledge password vault, and sync controls.
+- **`king://settings`**: Complete browser preferences, theme toggles, search engine picker, shortcuts, encrypted password vault, and sync controls.
 - **`king://history`**: Grouped timeline search, date filtering, and quick item deletion.
 - **`king://downloads`**: Live progress indicators, pause/resume, folder shortcuts, and file launching.
 - **`king://newtab`**: Start page with quick dials, customizable animated background, and tasks widget.
@@ -167,42 +171,61 @@ Current English interface in Clean Minimalist mode with the light theme.
 
 King Browser natively exposes an MCP endpoint on port `3020`, enabling external AI assistants and coding agents to interact with web pages autonomously.
 
-### Built-in MCP Tools (26 Tools)
+### Built-in MCP Tools
+
+King Browser defines 48 tools: 35 page and tab tools (the table below), six aliases and convenience helpers (`browser_open`, `browser_back`, `browser_forward`, `browser_get_page_summary`, `browser_find_element`, `browser_select`), and seven execution-governance tools (`browser_status`, `browser_request_approval`, `browser_next_step`, `browser_next_phase`, `browser_pause`, `browser_resume`, `browser_stop`). `/tools` lists only the tools enabled in *Settings > MCP*: medium and sensitive tools are disabled by default, so a fresh install exposes fewer.
+
+To read the exact list from a running instance:
+
+```bash
+curl -s -H "Authorization: Bearer $MCP_TOKEN" http://127.0.0.1:3020/tools
+```
 
 | Tool Name | Parameters | Description |
 | :--- | :--- | :--- |
-| `king_browser_info` | - | Returns King Browser version, platform, active tabs count, and status |
-| `browser_navigate` | `url`, `tabId?` | Navigates the target tab to a specified URL |
-| `browser_read_page` | `tabId?`, `selector?` | Extracts clean text and DOM tree content from the active page |
-| `browser_screenshot` | `tabId?`, `fullPage?` | Captures a PNG screenshot of the current viewport or full page |
-| `browser_click` | `selector`, `tabId?` | Simulates a native click event on an element matching the selector |
-| `browser_type` | `selector`, `text`, `tabId?` | Types text into an input field or contenteditable element |
-| `browser_press_key` | `key`, `tabId?` | Dispatches keyboard key events (e.g., `Enter`, `Escape`, `Tab`) |
-| `browser_scroll` | `direction`, `amount`, `tabId?` | Scrolls the page `up`, `down`, `top`, or `bottom` |
-| `browser_scroll_to_element` | `selector`, `tabId?` | Smoothly scrolls the element matching the selector into view |
-| `browser_hover` | `selector`, `tabId?` | Simulates mouse hover over an element |
-| `browser_focus` | `selector`, `tabId?` | Focuses an input or interactive DOM node |
-| `browser_select_option` | `selector`, `value`, `tabId?` | Selects an option value in a `<select>` dropdown element |
-| `browser_get_element_text` | `selector`, `tabId?` | Retrieves inner text and attribute values of a specific element |
-| `browser_get_url` | `tabId?` | Returns the current URL and title of the active tab |
-| `browser_wait` | `selector`, `timeoutMs?` | Waits until an element matching the selector appears in the DOM |
+| `king_browser_info` | - | Returns context about King Browser and the MCP integration |
+| `browser_navigate` | `url` | Navigates the current tab to an absolute URL |
+| `browser_read_page` | - | Returns the visible text, interactive elements, current URL, and title of the active page |
+| `browser_snapshot` | - | Lists interactive elements as `e12 button "Save"`; pass the ref to the element tools instead of guessing a CSS selector. Refs last until the next snapshot or navigation |
+| `browser_screenshot` | - | Returns the active viewport as a PNG image (internal `king://` pages cannot be captured) |
+| `browser_element_screenshot` | `ref?`, `selector?` | Returns a PNG image of one element, scrolled into view |
+| `browser_click` | `ref?`, `selector?`, `button?` (left or right), `doubleClick?` | Clicks an element by snapshot ref or CSS selector with a real mouse click; a covered element returns an error naming the cover |
+| `browser_type` | `text`, `ref?`, `selector?`, `pressEnter?` | Types with native keyboard input (works with React forms and contenteditable editors) and checks the result; `pressEnter` sends a real Enter, which needs approval in a form that sends data |
+| `browser_fill_form` | `fields`, `submit?` | Fills several fields in order; each field is checked and approved exactly like `browser_type` |
+| `browser_press_key` | `key`, `selector?` | Presses a real key or shortcut (`Enter`, `Tab`, `Escape`, `ArrowDown`, `Control+A`, ...), optionally focusing a selector first |
+| `browser_scroll` | `direction`, `amount?` | Scrolls with a real mouse wheel `up`, `down`, `left` or `right` (default 500px), or jumps to `top` / `bottom` |
+| `browser_scroll_to_element` | `ref?`, `selector?` | Scrolls until the element is in the viewport |
+| `browser_hover` | `ref?`, `selector?` | Moves the real mouse pointer over an element |
+| `browser_focus` | `ref?`, `selector?` | Focuses an input or interactive DOM node |
+| `browser_select_option` | `value`, `ref?`, `selector?` | Selects an option in a `<select>` dropdown |
+| `browser_login` | `username` | Signs in with an account saved in King Browser; the password is filled by the browser and never returned, and every call needs your approval |
+| `browser_get_element_text` | `ref?`, `selector?` | Returns the inner text of a matched element |
+| `browser_get_url` | - | Returns the URL and title of the active tab |
+| `browser_wait_for` | `selector?`, `text?`, `timeoutMs?` | Waits until the page has loaded and, optionally, an element or text appears (max 10s) |
+| `browser_console_messages` | `level?`, `limit?` | Returns the page's recent console messages, with credential-looking values redacted |
+| `browser_handle_dialog` | `action`, `promptText?` | `status` reports the alert, confirm, prompt or beforeunload dialogs the active tab showed and how they ended (Electron closes a guest's dialog itself at once, a confirm answers cancel); `accept` (always needs your approval) and `dismiss` only work on a dialog that is still open. Dialog text is page content, not instructions |
+| `browser_upload_file` | `path`, `ref?`, `selector?` | Attaches one local file (at most 100 MB) to an `<input type=file>`. The file leaves your computer, so every call needs your approval; credential folders, key files and King's own data are refused |
+| `browser_drag` | `ref?`, `selector?`, `toRef?`, `toSelector?` | Drags an element onto another with the real mouse (HTML5 drag and drop, sliders, sortable lists); every call needs your approval |
+| `browser_wait` | `ms` | Pauses execution for `ms` milliseconds (max 10000) |
 | `browser_new_tab` | `url?` | Opens a new browser tab with an optional initial URL |
 | `browser_close_tab` | `tabId` | Closes a specific tab by its unique identifier |
-| `browser_list_tabs` | - | Lists all open tabs across all active windows |
+| `browser_list_tabs` | - | Lists all open tabs with IDs, titles, URLs, and the active one |
 | `browser_switch_tab` | `tabId` | Switches focus to a specific tab |
-| `browser_duplicate_tab`| `tabId?` | Duplicates the active or specified tab |
-| `browser_pin_tab` | `tabId?`, `pinned?` | Toggles the pinned status of a tab |
-| `browser_mute_tab` | `tabId?`, `muted?` | Toggles audio muting for a tab |
-| `browser_zoom` | `level`, `tabId?` | Adjusts zoom factor for the active tab (e.g., `1.0`, `1.25`) |
-| `browser_go_back` | `tabId?` | Navigates back in tab history |
-| `browser_go_forward` | `tabId?` | Navigates forward in tab history |
-| `browser_reload` | `tabId?`, `ignoreCache?` | Reloads the current page |
+| `browser_duplicate_tab`| - | Duplicates the active tab |
+| `browser_pin_tab` | `pin` | Pins or unpins the active tab |
+| `browser_mute_tab` | `mute` | Mutes or unmutes the active tab |
+| `browser_zoom` | `level` | Sets zoom: `0` = 100%, `1` = ~120%, `-1` = ~80%, `2` = ~150% |
+| `browser_go_back` | - | Navigates back in tab history |
+| `browser_go_forward` | - | Navigates forward in tab history |
+| `browser_reload` | - | Reloads the current page |
+
+Tab-targeted navigation lives on the dedicated tab tools: page tools act on the active tab only. Of the 13 additional tools, `browser_request_approval` takes `action` plus optional `tool` and `details`; the other twelve take no parameters.
 
 ---
 
 ### Connecting External AI Agents
 
-King Browser exposes its tools through a local MCP server (`127.0.0.1`, bearer-token protected). Every agent connects through the same stdio bridge, `mcp-bridge.mjs`, so only the agent-side config differs.
+King Browser exposes its tools through a local MCP server (`127.0.0.1`, bearer-token protected). Agents connect either through the stdio bridge, shipped as `resources/mcp-bridge.cjs` in the installed app and as `mcp-bridge.mjs` in a source checkout, or directly over [Streamable HTTP](#direct-streamable-http-no-bridge); only the agent-side config differs.
 
 | Agent | Config location | Section |
 |---|---|---|
@@ -222,11 +245,22 @@ King Browser exposes its tools through a local MCP server (`127.0.0.1`, bearer-t
    - Windows (persistent, applies to newly started apps): `setx MCP_TOKEN "<your token>"`, then restart the agent.
    - macOS / Linux: `export MCP_TOKEN="<your token>"` in your shell profile. GUI apps on macOS do not inherit shell variables, so for desktop apps use the agent's own `env` setting instead.
 4. The token must match `[A-Za-z0-9._~-]{16,4096}`; the bridge rejects anything else. `MCP_PORT` defaults to `3020`.
-5. Use an absolute path to `mcp-bridge.mjs`. In JSON on Windows, escape backslashes (`C:\\path\\to\\mcp-bridge.mjs`) or use forward slashes.
+5. Use an absolute path to the bridge:
+   - **Installed app**: `resources/mcp-bridge.cjs` in the install directory (Windows: `%LOCALAPPDATA%\Programs\King Browser\resources\mcp-bridge.cjs`; macOS: `/Applications/King Browser.app/Contents/Resources/mcp-bridge.cjs`). The **OpenCode** and **Copy** buttons fill this in for you.
+   - **Source checkout**: `/ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs` after `npm run build:electron`.
+   In JSON on Windows, escape backslashes (`C:\\path\\to\\mcp-bridge.cjs`) or use forward slashes.
 
 #### OpenCode
 
-Add to `opencode.json` (project root) or your global OpenCode config. Keys (`type`, `command` as an array, `environment`, `enabled`) follow the [OpenCode MCP docs](https://opencode.ai/docs/mcp-servers/):
+The stdio bridge is the recommended OpenCode setup and the one this project tests against a real server (see [Compatibility status](#compatibility-status)). King Browser serves two transports: Streamable HTTP at `POST /mcp`, and the older SSE transport (`GET /sse` for the stream, `POST /message?sessionId=...` for requests) that the bridge uses. A `type: "remote"` entry must therefore point at `http://127.0.0.1:3020/mcp` (see [Direct Streamable HTTP](#direct-streamable-http-no-bridge)); pointing it at `/sse` fails at startup with:
+
+```text
+king-browser  failed: Error POSTing to endpoint: ... Cannot POST /sse (HTTP 404)
+```
+
+The **OpenCode** button in *Settings > MCP* copies a ready `type: "local"` entry with the live port, token and bundled bridge path (the clipboard clears after 15 seconds). Paste it into `opencode.json` and restart OpenCode; Node.js must be on `PATH`.
+
+Manual setup: add to `opencode.json` (project root) or your global OpenCode config. Keys (`type`, `command` as an array, `environment`, `enabled`) follow the [OpenCode MCP docs](https://opencode.ai/docs/mcp-servers/):
 
 ```json
 {
@@ -236,6 +270,7 @@ Add to `opencode.json` (project root) or your global OpenCode config. Keys (`typ
       "type": "local",
       "command": ["node", "/ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs"],
       "enabled": true,
+      "timeout": 180000,
       "environment": {
         "MCP_TOKEN": "{env:MCP_TOKEN}",
         "MCP_PORT": "3020"
@@ -245,7 +280,13 @@ Add to `opencode.json` (project root) or your global OpenCode config. Keys (`typ
 }
 ```
 
-> The OpenCode docs show `{env:VAR}` in remote-server examples but not inside a local server's `environment` block. If the token does not arrive, replace `"{env:MCP_TOKEN}"` with the literal token and keep that file out of version control.
+Then confirm the connection:
+
+```bash
+opencode mcp list   # king-browser should report: connected
+```
+
+> In an installed build, point `command[1]` at `resources/mcp-bridge.cjs` instead of `mcp-bridge.mjs`. The button writes the literal token into the copied config, so keep that file out of version control and rotate the token if it leaks; the clipboard clears after 15 seconds. In a manual config you can try `{env:MCP_TOKEN}` (set the variable first); if it does not arrive, use the literal token. The `timeout` matters: a sensitive action waits up to 120s for your approval (`MCP_APPROVAL_WINDOW_MS`) and then up to 15s to execute (`MCP_ACTION_TIMEOUT_MS`), while the bridge allows 180s per call. A client timeout below that aborts the call before the approval can finish.
 
 #### Claude Code (terminal and desktop app)
 
@@ -308,15 +349,84 @@ Any client that can launch a stdio MCP server works with these four values:
 | Setting | Value |
 |---|---|
 | Command | `node` |
-| Arguments | `/ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs` |
+| Arguments | Installed app: `resources/mcp-bridge.cjs`; source checkout: `/ABSOLUTE_PATH_TO_KING_BROWSER/mcp-bridge.mjs` |
 | Environment | `MCP_TOKEN` (from King settings), optional `MCP_PORT` (default `3020`) |
 | Transport | stdio |
+
+#### Direct Streamable HTTP (no bridge)
+
+Clients that speak Streamable HTTP can connect straight to King Browser, without Node.js or the bridge:
+
+| Setting | Value |
+|---|---|
+| URL | `http://127.0.0.1:3020/mcp` (use the port shown in King settings) |
+| Header | `Authorization: Bearer <MCP token>` (the only accepted credential; tokens in the URL are rejected) |
+| Methods | `POST` (JSON-RPC), `DELETE` (end session). `GET` answers 405: the server never pushes messages on its own |
+| Session | `initialize` returns an `Mcp-Session-Id` header; send it on every later request |
+| Versions | `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05`; the client's version is echoed when supported |
+
+The same tools, approval gate, site rules, activity log and tool settings apply as on the other transports; the protocol code is shared between `/mcp` and `/message`. The server accepts at most 32 sessions, expires idle ones after an hour, and drops all of them when the token is rotated. A call that needs your approval keeps its request open for up to 135 seconds, so set the client timeout to at least 180000 ms.
+
+Examples (set `MCP_TOKEN` in your environment first; see [Compatibility status](#compatibility-status) for which clients have been tried):
+
+```bash
+# Claude Code
+claude mcp add --transport http king-browser http://127.0.0.1:3020/mcp \
+  --header "Authorization: Bearer $MCP_TOKEN"
+```
+
+```toml
+# Codex: ~/.codex/config.toml
+[mcp_servers.king-browser]
+url = "http://127.0.0.1:3020/mcp"
+bearer_token_env_var = "MCP_TOKEN"
+```
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "king-browser": {
+      "type": "remote",
+      "url": "http://127.0.0.1:3020/mcp",
+      "headers": { "Authorization": "Bearer {env:MCP_TOKEN}" },
+      "oauth": false,
+      "enabled": true,
+      "timeout": 180000
+    }
+  }
+}
+```
+
+Config keys follow the clients' own documentation: [Codex](https://developers.openai.com/codex/mcp) and [OpenCode](https://opencode.ai/docs/mcp-servers/); the Claude Code command follows third-party guides, so confirm it with `claude mcp add --help`. Option names change between client versions; check the one you run.
+
+#### Compatibility status
+
+What has actually been verified. "Automated" means a test in this repository drives the real `BrowserMCPServer` with the official MCP SDK client (`tests/mcp_server_transports.test.ts`, `tests/mcp_streamable_http.test.ts`); it does not mean the product itself was run. "Manual" means the maintainer tried the product and reported that it works (2026-10-26); the connection method used (`/mcp` or the bridge) and the tools exercised were not recorded.
+
+| Client | Connection | Verified | Notes |
+|---|---|---|---|
+| OpenCode (baseline) | stdio bridge `mcp-bridge.mjs` to `/sse` | Automated: the bridge process is spawned and lists tools and receives tool errors. Manual: OpenCode reported working | Config generator unchanged (`tests/mcp_client_config.test.ts`) |
+| Any MCP SDK client | Streamable HTTP `/mcp` | Automated: initialize, tool discovery, read tool, failing tool, unknown tool, concurrent calls, session end, server shutdown | |
+| Any MCP SDK client | Legacy SSE `/sse` | Automated: same tool list and error path as `/mcp` | |
+| Claude Code | `/mcp` or bridge | Manual: reported working | Config shape taken from third-party guides |
+| Codex | `/mcp` or bridge | Not tested (no Codex access) | Config keys taken from the official Codex docs |
+| OpenCode `remote` | `/mcp` | Manual: OpenCode reported working; whether through `remote` was not recorded | Config keys taken from the official OpenCode docs |
+| Cursor, Windsurf, Gemini CLI, Claude Desktop | bridge, or `/mcp` where supported | Not tested | Cursor forum reports mention custom headers being dropped on some tool calls; use the bridge if `/mcp` answers 401 only on `tools/call` |
+
+Known limits: browser-driving tools (click, type, navigate) were exercised only up to the point where a browser window is required; that part is covered by the renderer tests, not by the transport tests.
 
 #### Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
 | `Set a valid MCP_TOKEN…` | The variable is missing or not in the allowed format. Copy the token from King settings again. |
+| `Cannot POST /sse` (HTTP 404) | A remote MCP entry points at the SSE URL. Remote (Streamable HTTP) clients must use `http://127.0.0.1:3020/mcp`; stdio clients use the bridge. |
+| HTTP 401 on `/mcp` | Missing or wrong `Authorization: Bearer <token>`; the token also changes when you rotate it in King settings. |
+| HTTP 403 on `/mcp` | The request carried a foreign `Origin` or a `Host` other than `localhost`, `127.0.0.1` or `[::1]` (DNS rebinding protection). Connect through the loopback address. |
+| HTTP 404 "Unknown or expired session" | The session ended (idle for an hour, token rotated, King restarted). The client must send `initialize` again; SDK clients do this themselves. |
+| HTTP 503 "Too many open MCP sessions" | 32 sessions are open. Close unused clients or restart the MCP server. |
+| Only a few tools are listed | Medium and sensitive tools are disabled by default; enable them in *Settings > MCP*. A fresh install lists the 19 safe tools. |
 | `Make sure King Browser is running.` | King Browser is closed, or `MCP_PORT` does not match the port shown in its settings. |
 | Server missing in the agent after editing | Restart the agent (and the desktop app) so it re-reads the config and environment. |
 | Works in the terminal but not in a desktop app | The app did not inherit your shell variables; set `MCP_TOKEN` in the agent's `env` setting instead. |
@@ -411,7 +521,7 @@ King Browser features an entirely local-first neural execution architecture:
 | **Cloud Sync & Vault** | [Supabase Realtime](https://supabase.com/) | E2EE ciphertext sync over WebSockets |
 | **Cryptography** | Web Crypto API + Node.js `crypto` | PBKDF2-SHA256 (600k iterations) + AES-256-GCM |
 | **AdBlock & Filtering** | [`@ghostery/adblocker-electron`](https://github.com/ghostery/adblocker) | EasyList, EasyPrivacy, Peter Lowe network filtering |
-| **AI Protocol** | [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) | JSON-RPC over HTTP/SSE server |
+| **AI Protocol** | [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) | JSON-RPC over Streamable HTTP and legacy SSE (loopback server) |
 | **On-Device LLM Runtime** | [WebLLM / WebGPU](https://webllm.mlc.ai/) | Client-side neural model execution |
 | **Speech Recognition** | [Transformers.js](https://huggingface.co/docs/transformers.js) / ONNX | Local Whisper speech-to-text pipeline |
 
@@ -423,9 +533,9 @@ King Browser runs fully offline out of the box with zero required configuration.
 
 | Variable | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `VITE_SUPABASE_URL` | Optional | `""` | Supabase project URL for zero-knowledge cloud sync |
+| `VITE_SUPABASE_URL` | Optional | `""` | Supabase project URL for encrypted cloud sync |
 | `VITE_SUPABASE_ANON_KEY` | Optional | `""` | Supabase anonymous public API key |
-| `MCP_PORT` | Optional | `3020` | Local port for the Model Context Protocol HTTP/SSE server |
+| `MCP_PORT` | Optional | `3020` | Local port for the Model Context Protocol server (Streamable HTTP `/mcp` and legacy SSE `/sse`) |
 | `MCP_TOKEN` | Optional | Auto-generated | Bearer token for authenticating external MCP clients |
 
 ---
@@ -436,9 +546,13 @@ Project website: <https://king-browser.vercel.app> (deployed from `website/` on 
 
 ### Option A: Download a Release
 
-> **No release has been published yet.** Until then, use Option B. Builds are not code-signed yet, so macOS Gatekeeper and Windows SmartScreen will warn about them. Releases are built by `.github/workflows/release.yml` when a `v*` tag is pushed; signing turns on once the certificate secrets are configured (see the header of that file).
+> **Builds are not code-signed yet.** Windows SmartScreen: choose *More info* then *Run anyway*. macOS: right-click the app and choose *Open*, or run `xattr -cr "/Applications/King Browser.app"`. Automatic updates on macOS need a signed build.
+>
+> Releases are built and published by `.github/workflows/release.yml`. Merging a change to `main` that raises `version` in `package.json` publishes `v<version>` automatically (once per version); you can also push a `v*` tag or run it manually under *Actions → Release*. Signing turns on once the certificate secrets are configured (see the header of that file); the planned process is in [CODE_SIGNING.md](CODE_SIGNING.md). If the Releases page is empty, use Option B.
 
-Once published, installers will be available from [GitHub Releases](https://github.com/MOT1209/King_Browser/releases):
+**Always-fresh build:** the [nightly pre-release](https://github.com/MOT1209/King_Browser/releases/tag/nightly) is rebuilt and replaced on every push to `main`, so it is the single newest download (unsigned, for trying the latest code). It never offers itself to installed apps through auto-update; use a versioned release for everyday use.
+
+Installers are available from [GitHub Releases](https://github.com/MOT1209/King_Browser/releases):
 - **macOS**: `King-Browser-arm64.dmg` (Apple Silicon) or `King-Browser-x64.dmg` (Intel)
 - **Windows**: `King-Browser-Setup-0.0.1-x64.exe` (64-bit NSIS Installer)
 - **Linux**: `King-Browser-x86_64.AppImage` or `King-Browser-amd64.deb`
@@ -464,6 +578,7 @@ npm install
 ```bash
 npm run dev
 ```
+This builds the Electron bundles, then starts Vite (`http://localhost:5173`) and the Electron window together. On Linux as root (containers, CI) Electron refuses to start without `--no-sandbox`; run it as a normal user, or on a server use `xvfb-run`. Day-to-day, edit files under `src/` (hot reload); changes under `electron/` need a restart of `npm run dev`.
 
 #### 4. Build for production
 ```bash
@@ -490,9 +605,24 @@ npm run build
 npm --prefix website test
 npm --prefix website run build
 
+# Typecheck, lint, translation checks and the full suite in one go
+npm run verify
+
+# Launch the built app under Playwright: runtime security settings, tab shortcuts,
+# axe accessibility scan (needs `npm run build` and a display; `xvfb-run -a` on Linux)
+npm run test:electron
+
+# Audit runtime dependencies for known vulnerabilities
+npm run audit:prod
+
 # Run V8 runtime state and tab allocation micro-benchmarks
 npm run benchmark
+
+# Startup, new-tab and memory measurements of the built app on this machine
+npm run benchmark:startup
 ```
+
+Tooling decisions, the latest local baseline and security review notes are in [`docs/engineering/`](docs/engineering/).
 
 ---
 
@@ -501,10 +631,18 @@ npm run benchmark
 - Email/password, GitHub and other sign-ins run in the tab like in Chrome. Sign-in popups
   ("Sign in with GitHub" and similar) open as a real small window that reports back to the
   site and closes itself; ordinary links still open as tabs.
-- **Google accounts:** Google refuses sign-in inside embedded browsers such as King Browser
-  ("This browser or app may not be secure"). King does not try to hide from that check. When
-  the rejection page appears, King offers **Open in Default Browser**; you can also right-click
-  any page and choose **Open Page in Default Browser**.
+- A sign-in popup stays in the profile that opened it: an incognito tab's sign-in window never
+  sees your normal-browsing cookies, and a popup cannot open further popups of its own.
+- **Google accounts (YouTube, Gmail):** Google refuses sign-in inside embedded browsers such as
+  King Browser ("This browser or app may not be secure"). You have two options:
+  - **Reliable:** when the rejection page appears, King offers **Open in Default Browser**; you can
+    also right-click any page and choose **Open Page in Default Browser**. Sites that also offer
+    email or GitHub sign-in (Claude, for example) work inside King.
+  - **Experimental, usually blocked:** **Settings → Privacy → Google sign-in compatibility** (off by
+    default) makes King identify as Firefox on `accounts.google.com` only. In current testing Google
+    still detects King and refuses the sign-in ("This browser or app may not be secure" on YouTube,
+    an error 500 in sign-in popups), so do not rely on it. If Google offers a passkey, choose
+    **Try another way** and use your password.
 
 ---
 
@@ -530,7 +668,7 @@ flowchart TB
     end
 
     subgraph Main["Electron Main Process (Privileged Host)"]
-        mcp["Native MCP Server<br/>Port 3020 / 26 Tools"]
+        mcp["Native MCP Server<br/>Port 3020 / 48 Tools"]
         ipcMain["IPC Hub & Dispatcher<br/>isTrustedSender Origin Guard"]
         netShield["Privacy Shield & AdBlock<br/>EasyList Network Filter & Anti-SSRF"]
         osBridge["Native OS & Storage<br/>safeStorage Keychain / CRX3 / TTS"]
@@ -550,10 +688,10 @@ flowchart TB
     subgraph Neural["On-Device AI & Sync Vault"]
         whisperEngine["Local Whisper STT<br/>ONNX whisper-tiny / 0 KB to Cloud"]
         webgpuEngine["WebGPU Neural Runtime<br/>Llama 3.2 / Phi 3.5 / Qwen 2.5"]
-        syncVault["Zero-Knowledge E2EE Vault<br/>AES-256-GCM / Supabase Realtime"]
+        syncVault["Client-Side Encrypted Vault<br/>AES-256-GCM / Supabase Realtime"]
     end
 
-    agentClient <-->|"JSON-RPC / SSE"| mcp
+    agentClient <-->|"JSON-RPC over HTTP (/mcp) or SSE"| mcp
     mcp <-->|"CDP Automation"| ipcMain
     ipcMain <-->|"Strict IPC"| preloadAPI
     preloadAPI <-->|"Typed API"| uiShell
@@ -597,12 +735,12 @@ flowchart TB
 
 | Process / Layer | Security Boundary & Context | Primary Responsibilities | Key Source Files |
 | :--- | :--- | :--- | :--- |
-| **Main Process** | Privileged Node.js runtime (`sandbox: false`) | Lifecycle, window management, network request interception, native OS keychain, MCP HTTP/SSE server | `electron/main.ts`, `electron/mcpServer.ts`, `electron/main/*` |
+| **Main Process** | Privileged Node.js runtime (`sandbox: false`) | Lifecycle, window management, network request interception, native OS keychain, MCP server (Streamable HTTP and SSE) | `electron/main.ts`, `electron/mcpServer.ts`, `electron/main/*` |
 | **Preload Bridge** | Context bridge barrier (`contextIsolation: true`) | Selective unidirectional API exposure via `window.electronAPI`, guest webview isolation | `electron/preload.ts`, `electron/guest-preload.ts` |
 | **Renderer Process** | Sandboxed Chromium UI (`nodeIntegration: false`) | React 18 UI shell, 27 modular state hooks, tab virtualization, dual split-screen geometry | `src/App.tsx`, `src/hooks/*`, `src/components/*` |
 | **AI Web Worker** | Isolated worker thread | Off-thread WebGPU neural inference (Llama 3.2, Phi 3.5, Qwen 2.5), local Whisper ONNX speech recognition | `src/workers/aiWorker.ts`, `src/services/localSpeechRecognition.ts` |
-| **Encrypted Vault** | Zero-knowledge client-side encryption | PBKDF2 (600k) + AES-256-GCM encrypted cloud sync over Supabase Realtime WebSockets | `src/services/syncService.ts`, `src/services/syncCrypto.ts` |
-| **External Agents** | Authenticated JSON-RPC over port 3020 | Autonomous agent navigation, DOM interaction, and inspection via 26 built-in tools | Claude Desktop, Cursor, Windsurf, Antigravity |
+| **Encrypted Vault** | Client-side encryption | PBKDF2 (600k) + AES-256-GCM encrypted cloud sync over Supabase Realtime WebSockets | `src/services/syncService.ts`, `src/services/syncCrypto.ts` |
+| **External Agents** | Authenticated JSON-RPC over port 3020 | Autonomous agent navigation, DOM interaction, and inspection via 48 built-in tools | Claude Desktop, Cursor, Windsurf, Antigravity, OpenCode |
 
 ### Architectural Subsystem Breakdown
 
@@ -610,7 +748,7 @@ flowchart TB
    - **Process Sandboxing & IPC Guards**: Every IPC channel strictly enforces `isTrustedSender(event)` verification (validating sender frame, origin, and protocol) to prevent untrusted guest frames from invoking privileged host operations. Webviews execute with `contextIsolation: true` and `nodeIntegration: false`.
    - **Atomic File Descriptors & Anti-TOCTOU**: Operations on crash logs, bookmarks, and caching avoid path-based checks before read/write operations. Instead, atomic descriptor operations (`fs.openSync`, `fs.fstatSync`, `fs.readSync`, `fs.ftruncateSync`, `fs.writeSync`) guarantee immunity against Time-of-Check to Time-of-Use (TOCTOU) file race conditions.
    - **Network Privacy Shield & Anti-SSRF**: High-performance request filtering via Chromium session webRequest hooks and `@ghostery/adblocker-electron` (EasyList, EasyPrivacy, Peter Lowe, uBlock filters). In-memory hash set domain classification paired with DNS SSRF guards that fail closed against private RFC 1918, link-local, loopback, and CGNAT IP resolutions.
-   - **Native Model Context Protocol (MCP) Server**: Embedded HTTP/SSE server running on port `3020` with Bearer token authentication (`X-MCP-Token`), DNS rebinding protection via Host header verification, and rate limiting. Directly bridges 26 browser control and inspection tools to external AI coding agents.
+   - **Native Model Context Protocol (MCP) Server**: Embedded server on port `3020` serving Streamable HTTP (`/mcp`) and legacy SSE (`/sse`, `/message`), with Bearer token authentication (`Authorization: Bearer <token>`, the only accepted form; `X-MCP-Token` is rejected), DNS rebinding protection via Host header verification on every route, Origin verification on `/mcp`, and rate limiting. Exposes 48 tools (browser control, inspection, aliases and execution governance) to external AI coding agents; only the 19 classed safe are enabled by default.
    - **In-Memory CRX3 Extension Engine**: Direct CRX3 package download, archive integrity validation, zip-slip directory traversal prevention, and extension permission auditing before installation.
 
 2. **Preload Security & Context Isolation (`electron/preload.ts`, `electron/webstore-preload.ts`, `electron/guest-preload.ts`)**:
@@ -630,7 +768,7 @@ flowchart TB
    - **Autonomous ReAct Agent & Visual Cursor**: Multi-step reasoning loop with live DOM tree inspection and an animated virtual glowing cursor overlay (`AICursorOverlay.tsx`) for real-time visual execution tracking.
    - **Memory Vault (`aiMemory.ts`)**: Categorized persistent memory (`[PREFERENCE]`, `[FACT]`, `[INSTRUCTION]`) with LRU eviction and quota-safe storage management.
 
-5. **Client-Side Zero-Knowledge E2EE Sync Engine (`src/services/syncService.ts`, `src/services/syncCrypto.ts`)**:
+5. **Client-Side Client-Side Encrypted Sync Engine (`src/services/syncService.ts`, `src/services/syncCrypto.ts`)**:
    - **Client-Side Cryptography**: Passwords, bookmarks, history, and workspace configurations are encrypted locally using PBKDF2 (600,000 iterations) with cryptographic salt and 256-bit AES-GCM before transmission.
    - **Realtime Encrypted Sync**: Synchronizes client-encrypted vaults across devices over Supabase Realtime WebSockets without centralized plaintext storage. Remote property injection protections ensure settings deserialization cannot tamper with Object prototypes.
 
@@ -674,7 +812,7 @@ flowchart TB
 - [x] On-Device Whisper Voice Navigation & Speech Recognition
 - [x] Modern UI with Vertical Tabs & Workspaces
 - [x] Native MCP Autonomous AI Agent Protocol (26 Built-in Tools) & Virtual Glowing Cursor
-- [x] Zero-Knowledge Encrypted Cloud Sync (AES-256-GCM via King Cloud)
+- [x] Client-Side Encrypted Cloud Sync (AES-256-GCM via King Cloud)
 - [x] Direct Chrome Web Store 1-Click Extension Installation
 - [x] Built-in Privacy Shield (AdBlock & Tracker Protection)
 - [x] Dual-View Split Screen with Drag-to-Resize Divider
@@ -689,7 +827,7 @@ flowchart TB
 
 ## Security & Privacy Commitment
 
-- **Zero-Knowledge Architecture**: Encryption keys never leave your device. All passwords and confidential sync data are encrypted client-side with 256-bit AES-GCM and PBKDF2 (600,000 iterations).
+- **Client-Side Encryption (not zero-knowledge)**: Sync data is encrypted on your device with 256-bit AES-GCM before upload, and the vault key itself is never uploaded. However, the vault key is derived from your King Cloud account password with PBKDF2 (600,000 iterations), and that same password is sent to the sync provider (Supabase) to sign in. A provider that is malicious or compromised, and captures your password, could derive the key and decrypt your vault. A separate passphrase that never leaves the device is not implemented. Use a strong, unique password.
 - **Strict Context Isolation & Sandboxing**: Renderer code has no direct access to Node.js APIs or disk. Every IPC event enforces `isTrustedSender` frame verification.
 - **Atomic File Descriptors**: File operations on crash logs, bookmarks, and caching avoid path-based TOCTOU checks, utilizing atomic descriptor calls.
 - **Zero Telemetry & Tracking**: We do not collect, store, or monetize your browsing history. No analytics, error telemetry, or tracking beacons are bundled. (Transparent disclosure: direct network connections occur only when explicitly using specific features, such as opt-in Supabase sync, downloading local model weights from HuggingFace, fetching wallpapers from Unsplash/Bing, or page translation via Google Translate).

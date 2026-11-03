@@ -30,11 +30,14 @@ export default function RootLayout({
 }: {
   children: ReactNode;
 }) {
-  return (
+  const page = (
     <html lang="ar">
       <body className="bg-background text-foreground">
         {clerkEnabled ? <ClerkProvider>{children}</ClerkProvider> : children}
       </body>
     </html>
   );
+  // بلا مفاتيح Clerk (تطوير محلي) لا مزوّد — المزوّد يرمي عند غياب المفتاح العام.
+  // مع المفاتيح يجب أن يلفّ التطبيق كله حتى تتجدد جلسة المحرّر وطلبات الـ API.
+  return clerkEnabled ? <ClerkProvider>{page}</ClerkProvider> : page;
 }
