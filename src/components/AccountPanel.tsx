@@ -6,6 +6,7 @@ import type { ShortProps } from "../../types/shorts";
 import { Button } from "./Button";
 import { InputContainer } from "./Container";
 import { ErrorComp } from "./Error";
+import { LowCreditNotice } from "./LowCreditNotice";
 import { Spacing } from "./Spacing";
 
 /**
@@ -265,6 +266,12 @@ export const AccountPanel: React.FC<{
           {info.renderCost}
         </div>
       </div>
+
+      <LowCreditNotice
+        credits={info.credits}
+        renderCost={info.renderCost}
+        billingEnabled={info.billingEnabled}
+      />
 
       {info.usage.length > 0 ? (
         <div className="text-xs opacity-60">
