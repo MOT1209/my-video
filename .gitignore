@@ -8,6 +8,7 @@ out/
 # misc
 .DS_Store
 *.pem
+*.stackdump
 # debug
 npm-debug.log*
 yarn-debug.log*

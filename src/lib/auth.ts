@@ -20,6 +20,31 @@ export interface RequestUser {
 /** معرّف الجلسة المحلية — صف واحد ثابت في قاعدة البيانات عند التطوير. */
 export const LOCAL_USER_ID = "local-dev-user";
 
+/**
+ * مهلة استدعاء Clerk (استيراد الوحدة أو auth() نفسه): تجاوزها يفشل
+ * المسار إلى 503 سريعاً بدل تعليق الطلب عند بطء أو انقسام الشبكة.
+ */
+const CLERK_AUTH_TIMEOUT_MS = 5_000;
+
+async function withClerkTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label}: exceeded ${CLERK_AUTH_TIMEOUT_MS}ms`)),
+          CLERK_AUTH_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 export function isAuthConfigured(): boolean {
   return Boolean(
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY,
@@ -45,8 +70,11 @@ export function warnIfUnauthenticatedProduction(): void {
 
 /** بيانات المستخدم من Clerk — يُستدعى فقط عند وجود المفاتيح. */
 async function readClerkUser(): Promise<RequestUser | null> {
-  const { auth } = await import("@clerk/nextjs/server");
-  const { userId, sessionClaims } = await auth();
+  const { auth } = await withClerkTimeout(
+    import("@clerk/nextjs/server"),
+    "clerk module import",
+  );
+  const { userId, sessionClaims } = await withClerkTimeout(auth(), "clerk auth()");
   if (!userId) {
     return null;
   }

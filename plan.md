@@ -1,6 +1,6 @@
 # خارطة الطريق التنفيذية — my-video
 
-> تاريخ التحديث: 2026-10-19
+> تاريخ التحديث: 2026-11-02
 > الحالة: المنتج SaaS قيد التشغيل التطويري؛ النشر الإنتاجي يتطلب تهيئة Clerk + Neon + Upstash + Blob والتحقق من التشغيل الحي.
 
 ---
@@ -9,7 +9,7 @@
 
 | المحور | الحالة |
 |---|---|
-| التصيير | Remotion 4.0.535 + Vercel Sandbox مع **snapshot cache** وكاش ناتج حتمي (`src/lib/render-cache.ts`) وقياس $/video (`src/lib/render-metrics.ts`) و SSE للتقدم |
+| التصيير | Remotion 4.0.538 + Vercel Sandbox مع **snapshot cache** وكاش ناتج حتمي (`src/lib/render-cache.ts`) وقياس $/video (`src/lib/render-metrics.ts`) و SSE للتقدم |
 | TTS | Edge-TTS + كاش بالـ hash + **WordBoundary events** تنتج `WordCaption[]` بالتوقيت (`src/lib/edge-tts.ts:129`) + **fallback رسمي** عبر Azure Speech (`src/lib/azure-tts.ts`) |
 | الكابشن | ✅ متحرك (4 أنماط: pop/karaoke/slide-up/glow عبر `spring` + `createTikTokStyleCaptions`) |
 | الخلفيات | 5 ثيمات CSS + Ken Burns للصور/الفيديو + **صور AI** عبر `/api/image` (Gemini + كاش content-hash) |
@@ -211,6 +211,9 @@ UsageEvent (id, userId, kind: tts|image|render, units, at)
 | 2026-10-16 | المرحلة 3 — ضبط ‏`concurrency/jpegQuality` حسب vCPU (بند #6) | ✅ منجز |
 | 2026-10-16 | المرحلة 4 — حفظ/تحميل حالة المحرّر محلياً (شريحة أولى من "حفظ المشاريع") | ✅ منجز |
 | 2026-10-16 | المرحلة 4 — SaaS الخادم (Drizzle + billing/credits/projects/renders/transcribe + sign-in) | ✅ منجز (ملتزَم) |
+| 2026-11-02 | مراجعة كاملة موثّقة في `report.html` — التحقق الكامل أُعيد تشغيله بنجاح | ✅ |
+| 2026-11-02 | صيانة المصادقة — مهلة 5s لمكالمة Clerk (`auth.ts`) + مهلة اختبار عالية | ✅ منجز |
+| 2026-11-02 | صيانة المستودع — حذف `bash.exe.stackdump` + نمط `*.stackdump` في `.gitignore` | ✅ منجز |
 
 ### ملاحظات التنفيذ (المرحلة 4 — SaaS الخادم)
 

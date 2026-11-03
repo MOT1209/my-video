@@ -39,37 +39,46 @@ async function withEnv(
   }
 }
 
-test("مصادقة Clerk تعيد 503 عند تعذّر التحقق، لا استثناءً غير معالج", async () => {
-  const savedNodeEnv = process.env.NODE_ENV;
-  Object.defineProperty(process.env, "NODE_ENV", {
-    value: "production",
-    configurable: true,
-    writable: true,
-    enumerable: true,
-  });
-  try {
-    await withEnv(
-      {
-        CLERK_SECRET_KEY: "sk_test_1",
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_1",
-      },
-      async () => {
-        const result = await guardPaidRoute();
-        expect("response" in result).toBe(true);
-        if ("response" in result) {
-          expect(result.response.status).toBe(503);
-        }
-      },
-    );
-  } finally {
+/**
+ * مهلة أعلى من الافتراضية (5s): مسار Clerk الحقيقي يستورد الوحدة
+ * كاملةً وقد يبطئ الشبكة تحت تشغيل الاختبارات المتسلسل. المصادقة
+ * نفسها عليها مهلة 5s في auth.ts تردّ 503 قبل hitting هذه المهلة.
+ */
+test(
+  "مصادقة Clerk تعيد 503 عند تعذّر التحقق، لا استثناءً غير معالج",
+  async () => {
+    const savedNodeEnv = process.env.NODE_ENV;
     Object.defineProperty(process.env, "NODE_ENV", {
-      value: savedNodeEnv,
+      value: "production",
       configurable: true,
       writable: true,
       enumerable: true,
     });
-  }
-});
+    try {
+      await withEnv(
+        {
+          CLERK_SECRET_KEY: "sk_test_1",
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_1",
+        },
+        async () => {
+          const result = await guardPaidRoute();
+          expect("response" in result).toBe(true);
+          if ("response" in result) {
+            expect(result.response.status).toBe(503);
+          }
+        },
+      );
+    } finally {
+      Object.defineProperty(process.env, "NODE_ENV", {
+        value: savedNodeEnv,
+        configurable: true,
+        writable: true,
+        enumerable: true,
+      });
+    }
+  },
+  15_000,
+);
 
 test("المصادقة تُعدّ مهيأة فقط بوجود المفتاحَين معاً", async () => {
   await withEnv({}, async () => expect(isAuthConfigured()).toBe(false));

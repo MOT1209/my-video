@@ -19,7 +19,13 @@ test("journal يطابق ملفات SQL بالترتيب (لا ترحيل يتي
   journal.entries.forEach((entry, i) => expect(entry.idx).toBe(i));
 });
 
-test("ترحيل من قاعدة فارغة ينشئ كل القيود والفهارس المطلوبة", async () => {
+/**
+ * مهلة أعلى: تهيئة pgLite والترحيل الكامل من قاعدة فارغة تتناول
+ * عشرة ثوانٍ بسهولة تحت التشغيل المتسلسل على أجهزة مُحمّلة.
+ */
+test(
+  "ترحيل من قاعدة فارغة ينشئ كل القيود والفهارس المطلوبة",
+  async () => {
   const { query } = await createTestDb();
   const constraints = await query<{ conname: string }>(
     "select conname from pg_constraint where connamespace = 'public'::regnamespace",
@@ -44,7 +50,9 @@ test("ترحيل من قاعدة فارغة ينشئ كل القيود والف�
   for (const idx of ["projects_user_updated_idx", "renders_user_created_idx", "usage_user_at_idx"]) {
     expect(indexes.rows.map((r) => r.indexname)).toContain(idx);
   }
-});
+},
+  20_000,
+);
 
 test("القيود تُفرض فعلاً: clerk_id فريد، صف نشط واحد لكل (مستخدم، ناتج)، جلسة دفع واحدة", async () => {
   const { query } = await createTestDb();

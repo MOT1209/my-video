@@ -1,130 +1,209 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>تقرير مراجعة وتطوير مشروع my-video</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>تقرير المراجعة وخطة الإصلاح والتطوير — my-video (2026-11-02)</title>
 <style>
-  :root { --bg:#0f1117; --card:#1a1e2a; --accent:#a78bfa; --green:#34d399; --red:#f87171; --yellow:#fbbf24; --text:#e5e7eb; --muted:#9ca3af; }
-  * { box-sizing:border-box; }
-  body { font-family:'Segoe UI',Tahoma,Arial,sans-serif; background:var(--bg); color:var(--text); margin:0; padding:24px; line-height:1.8; }
-  .wrap { max-width:960px; margin:auto; }
-  header { text-align:center; padding:32px 16px; border-bottom:2px solid var(--accent); margin-bottom:24px; }
-  header h1 { margin:0 0 8px; font-size:28px; }
-  header p { color:var(--muted); margin:4px 0; }
-  .badge { display:inline-block; padding:4px 14px; border-radius:20px; font-size:14px; font-weight:bold; }
-  .ok { background:rgba(52,211,153,.15); color:var(--green); }
-  .warn { background:rgba(251,191,36,.15); color:var(--yellow); }
-  .card { background:var(--card); border-radius:12px; padding:20px 22px; margin:16px 0; }
-  .card h2 { margin-top:0; color:var(--accent); font-size:20px; border-bottom:1px solid #2a2f42; padding-bottom:8px; }
-  table { width:100%; border-collapse:collapse; font-size:14px; }
-  th,td { text-align:right; padding:8px 10px; border-bottom:1px solid #2a2f42; }
-  th { color:var(--accent); }
-  code { background:#0b0d13; padding:2px 8px; border-radius:6px; font-family:Consolas,monospace; font-size:13px; direction:ltr; display:inline-block; }
-  .commit { border-right:4px solid var(--green); padding:10px 14px; margin:12px 0; background:#141826; border-radius:8px; }
-  .commit h3 { margin:0 0 6px; font-size:16px; }
-  .commit h3 code { font-size:12px; }
-  .commit ul { margin:6px 0; padding-right:20px; font-size:14px; }
-  .prio { font-weight:bold; }
-  .p1 { color:var(--red); } .p2 { color:var(--yellow); } .p3 { color:var(--green); }
-  footer { text-align:center; color:var(--muted); font-size:13px; margin-top:32px; }
-  pre { background:#0b0d13; padding:12px; border-radius:8px; overflow-x:auto; font-size:13px; direction:ltr; text-align:left; }
+  :root {
+    --bg: #0f1420;
+    --surface: #171e2e;
+    --surface-2: #1e2740;
+    --border: #2c3a5a;
+    --text: #e8edf7;
+    --muted: #9db0cc;
+    --accent: #4f9cf9;
+    --good: #34d399;
+    --warn: #fbbf24;
+    --bad: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Tahoma, system-ui, sans-serif;
+    line-height: 1.75;
+    padding: 32px 16px 80px;
+  }
+  main { max-width: 980px; margin: 0 auto; }
+  header.hero {
+    background: linear-gradient(135deg, #17223a 0%, #0f1420 70%);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 28px;
+  }
+  h1 { margin: 0 0 8px; font-size: 1.7em; line-height: 1.4; }
+  .meta { color: var(--muted); font-size: 0.95em; }
+  .meta b { color: var(--text); }
+  h2 {
+    font-size: 1.3em;
+    border-inline-start: 4px solid var(--accent);
+    padding-inline-start: 12px;
+    margin: 40px 0 14px;
+  }
+  h3 { font-size: 1.08em; margin: 22px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 0.95em;
+  }
+  th, td { padding: 9px 12px; border: 1px solid var(--border); text-align: right; vertical-align: top; }
+  th { background: var(--surface-2); }
+  tbody tr:nth-child(odd) { background: var(--surface); }
+  code {
+    direction: ltr;
+    display: inline-block;
+    background: #101829;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 7px;
+    font-family: Consolas, monospace;
+    font-size: 0.9em;
+    color: #b8d4f8;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 12px 0;
+  }
+  .pill {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 1px 12px;
+    font-size: 0.82em;
+    font-weight: 700;
+    color: #0b1220;
+  }
+  .pill.ok { background: var(--good); }
+  .pill.warn { background: var(--warn); }
+  .pill.bad { background: var(--bad); }
+  .pill.info { background: var(--accent); }
+  ul { padding-inline-start: 22px; }
+  li { margin: 5px 0; }
+  footer { color: var(--muted); font-size: 0.85em; margin-top: 48px; border-top: 1px solid var(--border); padding-top: 16px; }
 </style>
 </head>
 <body>
-<div class="wrap">
+<main>
 
-<header>
-  <h1>تقرير مراجعة وتطوير مشروع my-video</h1>
-  <p>تطبيق توليد فيديوهات Shorts عمودية — Remotion + Next.js + Edge-TTS</p>
-  <p>التاريخ: 14 أكتوبر 2026 &nbsp;|&nbsp; الفرع: <code>main</code> &nbsp;|&nbsp; المستودع: <code>MOT1209/my-video</code></p>
-  <p><span class="badge ok">الإنتاج يعمل — الموقع حي</span>
-     <span class="badge ok">https://my-video-kappa-one.vercel.app</span></p>
+<header class="hero">
+  <h1>📋 تقرير المراجعة وخطة الإصلاح والتطوير — my-video</h1>
+  <div class="meta">
+    <div>تاريخ المراجعة: <b>2026-11-02</b> · الفرع: <b style="direction:ltr">fix/clerk-auth-next16</b> · آخر التزام: <code>6b8af00 chore: align app dependencies, CI, and project documentation</code></div>
+    <div>نطاق المراجعة: ‎102 ملف TypeScript/TSX في <code>src/</code> و<code>types/</code> · 14 مسار API · طبقة Remotion في <code>src/remotion/Shorts/</code> · إعدادات البناء والاختبار والنشر.</div>
+  </div>
 </header>
 
+<h2>1) الخلاصة التنفيذية</h2>
 <div class="card">
-  <h2>1. نظرة عامة على البنية</h2>
+  <p><b>التطبيق سليم تقنياً وقريب من قابلية النشر.</b> كل فحوص الصحة الأساسية نجحت: بناء الإنتاج نظيف، TypeScript بلا أي خطأ، ESLint بلا أي ملاحظة، والاختبارات 143 من 144 ناجحة (عنصر واحد فقط فشل بمهلة تحت التشغيل المتسلسل، ويجتاز منفرداً). السياسة الأمنية تقوم على الإغلاق الاستباقي (fail-closed): في الإنتاج، غياب Upstash أو Clerk أو <code>DATABASE_URL</code> يغلق المسارات المكلفة استباقاً بدل تشغيلها متكلفة بصمت.</p>
+  <p>الفجوات المتبقية ليست في الكود بل في <b>الجاهزية التشغيلية</b>: تهيئة مفاتيح Clerk/Neon/Upstash فعلياً، تنفيذ هجرات قاعدة البيانات، جولة دخان حية قبل الإطلاق، معايرة أسعار حزم الكريدت مقابل تكلفة التصيير المقاسة، وسياسة الاحتفاظ والتخليص للفيديوهات والـ snapshots.</p>
+</div>
+
+<h2>2) نتائج التحقق (قياس فعلي على هذا الجهاز)</h2>
+<table>
+  <thead><tr><th>الفحص</th><th>النتيجة</th><th>التفاصيل</th></tr></thead>
+  <tbody>
+    <tr><td><code>npx tsc --noEmit</code></td><td><span class="pill ok">نجح</span></td><td>صفر أخطاء (Exit 0) على مستوى المستودع بالكامل، <code>King_Browser/</code> مشمولاً.</td></tr>
+    <tr><td><code>npx eslint src</code></td><td><span class="pill ok">نجح</span></td><td>لا تحذيرات ولا أخطاء (Exit 0).</td></tr>
+    <tr><td><code>bun test --max-concurrency=1 src/lib types</code></td><td><span class="pill warn">143/144</span></td><td>134 نجاحاً (pass) و9 متجاوزة (skip) بين 144 اختباراً عبر 20 ملفاً، 433 تحققاً في 190.7 ثانية. <b>عنصر واحد فشل:</b> اختبار «مصادقة Clerk تعيد 503 عند تعذّر التحقق» في <code>src/lib/auth.test.ts</code> انتهى بمهلة 5 ثوانٍ تحت التشغيل المتسلسل (استهلك 5.4 ثانية). <b>يجتاز منفرداً (5/5، 1.08 ثانية)</b> — عيب استقرار لا عيب منطق، ويُعالج في الإصلاح P1.</td></tr>
+    <tr><td><code>npm run build</code></td><td><span class="pill ok">نجح</span></td><td>Exit 0. 15 مساراً: 3 ثابتة (الصفحة الرئيسية/NotFound) و12 ديناميكياً (واجهات API و<code>/sign-in</code>)، مع تفعيل الـ Proxy (Middleware) بشكل سليم.</td></tr>
+  </tbody>
+</table>
+
+<h2>3) البنية الحالية</h2>
+<div class="card">
   <table>
-    <tr><th>المسار</th><th>الدور</th><th>الحالة</th></tr>
-    <tr><td><code>src/remotion/Shorts/ShortMain.tsx</code></td><td>تكوين الفيديو 1080×1920 (Hook + مشاهد + كابشن + صوت)</td><td><span class="badge ok">سليم</span></td></tr>
-    <tr><td><code>src/components/ShortsEditor.tsx</code></td><td>واجهة التحرير والمعاينة والتصيير</td><td><span class="badge ok">سليم</span></td></tr>
-    <tr><td><code>src/app/api/tts/route.ts</code></td><td>توليد التعليق الصوتي + كاش Blob/محلي</td><td><span class="badge ok">يُصلَح (v2)</span></td></tr>
-    <tr><td><code>src/lib/edge-tts.ts</code></td><td>عميل WebSocket لبروتوكول Edge TTS مع حدود الكلمات</td><td><span class="badge ok">يُصلَح (v2)</span></td></tr>
-    <tr><td><code>src/lib/sec-ms-gec.ts</code></td><td><b>جديد:</b> توليد توكن Sec-MS-GEC v2 (نقل مطابق للرسمية)</td><td><span class="badge ok">جديد + مُتحقق</span></td></tr>
-    <tr><td><code>src/app/api/render/route.ts</code></td><td>التصيير عبر Vercel Sandbox + رفع Blob (SSE)</td><td><span class="badge ok">سليم</span></td></tr>
-    <tr><td><code>create-snapshot.ts</code></td><td>تجهيز snapshot الـ sandbox أثناء البناء</td><td><span class="badge ok">مُحصَّن</span></td></tr>
-    <tr><td><code>types/shorts.ts</code></td><td>الأنواع والقواعد (60 ثانية، 12 مشهد، أصوات ar/en)</td><td><span class="badge ok">سليم</span></td></tr>
+    <tbody>
+      <tr><td><b>الواجهة</b></td><td><code>ShortsEditor.tsx</code>: محرر الخطاف/المشاهد/الصوت/الكابشن/الثيم + <code>useEditorState</code> لحفظ الحالة محلياً بمفتاح <code>my-video:editor:v1</code> بعد debounce 300ms، ولوحة حسابات أعلى المحرر.</td></tr>
+      <tr><td><b>الفيديو</b></td><td>Remotion 4.0.538 — <code>ShortMain</code> بخمس ثيمات، <code>WordCaptions</code> بالكابشن كلمة-بكلمة عبر <code>createTikTokStyleCaptions</code> و<code>spring</code> بأربعة أنماط (pop/karaoke/slide-up/glow)، <code>Background</code> بـ Ken Burns وإمكانية خلفية فيديو + طبقات تعتيم وحبيبات + خلفيات AI.</td></tr>
+      <tr><td><b>الصوت</b></td><td>Edge-TTS مجاني مع مشتقات كلمة-بكلمة عبر أحداث WordBoundary + بديل رسمي عبر Azure Speech عند فشل Edge بصرياً برسالة واضحة. المخاطرة الأولى في الخطة (انكسار Edge بلا بديل) مُغلقة فعلياً.</td></tr>
+      <tr><td><b>التصيير</b></td><td>Vercel Sandbox + snapshot cache + كاش ناتج حتمي بمفتاح sha256 + قياس <code>$/video</code> من Active CPU/Memory/Network + SSE للتقدم + قفل موزّع ذري يفك تماماً لمالكه الحقيقي.</td></tr>
+      <tr><td><b>SaaS</b></td><td>Clerk + Neon/Drizzle + Stripe checkout وwebhook بتوقيع مُتحقق، نظام كريدت (تصيير = 1، ترحيب = 3، حزم 10/$5 و30/$12 و100/$35)، خصم بعد التأكد من غياب الكاش واسترجاع عند الفشل، حفظ/تحميل/حذف المشاريع.</td></tr>
+      <tr><td><b>تحجيم الحماية</b></td><td>Upstash Redis موزَّع (‎20 طلب/5 دقائق لـ TTS، 5 عمليات/ساعة لـ Render)؛ فشله يغلق المسارات المكلفة بـ 503 مع رسالة عربية و<code>Retry-After</code> بدل تشغيلها بلا حد. خارج الإنتاج يعمل بديل في الذاكرة.</td></tr>
+    </tbody>
   </table>
 </div>
 
+<h2>4) نقاط القوة</h2>
+<ul>
+  <li><b>أمن استباقي حقيقي:</b> استخراج مقالات يرفض العناوين الخاصة/المحجوزة والـ DNS الداخلي، يثبت الاتصال على العنوان المُحلَّل، يمنع الـ redirect، ويحدّ المهلة والجسم بعشرة ثوانٍ و2MiB (حماية SSRF فعّالة). الـ webhook بلا توقيع يُرفض مباشرة.</li>
+  <li><b>طبقات تخزين مؤقت ثلاثية:</b> كاش ناتج التصيير + كاش الصوت بمفتاح <code>voiceId::text</code> + كاش صور AI بمفتاح content-hash — الفيديو نفسه لا يُصيَّر مرتين، والتوليد نفسه لا يُدفع مرتين.</li>
+  <li><b>جودة اختبار عالية:</b> 144 اختباراً تغطي عناصر دقيقة: توكن Sec-MS-Gec، القفل الموزّع، حالة فشل Redis، المراجعة الكاملة للكود، الأسعار، والطابور.</li>
+  <li><b>السلوك بلا مفاتيح محكوم:</b> كل مسار بلا مفتاح إنتاجي يرد برسالة عربية إرشادية ورقم خطأ صحيح، بلا انهيار أو تشغيل بلا حماية.</li>
+  <li><b>التعارف مع Vercel:</b> Cron وBlob وSpend Management وSandbox متكاملة حول مسار التصيير.</li>
+</ul>
+
+<h2>5) خطة الإصلاح — بالأولوية</h2>
+
+<h3>P1 — استقرار مصادقة الاختبار (ساعة عمل) <span class="pill warn">أولوية عالية</span></h3>
 <div class="card">
-  <h2>2. سجل الإصلاحات المنفذة (7 commits)</h2>
-
-  <div class="commit"><h3><code>cf18d1a</code> — حل تعارض الدمج في README.md</h3>
-    <ul><li>المشكلة: مساران <i>both added</i> أوقفا الفرع <code>main</code>.</li>
-    <li>الحل: دمج عنوان المشروع مع شرح القالب، ثم <code>git add</code> وإنهاء الدمج.</li></ul></div>
-
-  <div class="commit"><h3><code>239a288</code> — توثيق سير عمل Shorts + إصلاح <code>console.error</code></h3>
-    <ul><li>أُضيف قسم عربي في README (Hook + مشاهد + TTS + حد 60 ثانية + الكاش).</li>
-    <li>استُبدل <code>console.log(err)</code> بـ <code>console.error(err)</code> في مسار التصيير.</li></ul></div>
-
-  <div class="commit"><h3><code>20a0a64</code> — تجاوز <code>create-snapshot</code> عند غياب التوكن</h3>
-    <ul><li>المشكلة: البناء يفشل كلياً بـ <i>No token found</i> قبل إنشاء الـ Blob store.</li>
-    <li>الحل: خروج ناجح مع تحذير واضح بدل إفشال البناء (جُرّب محلياً).</li></ul></div>
-
-  <div class="commit"><h3><code>5a7eb4a</code> — تجاهل <code>.vercel</code> و <code>.env*</code></h3>
-    <ul><li>حماية من تسريب التوكنات إلى GitHub بالخطأ.</li></ul></div>
-
-  <div class="commit"><h3><code>8180313</code> — التعامل مع الـ Blob store الخاص + تحذير turbo</h3>
-    <ul><li>فحص مبكر (probe: رفع وحذف ملف اختبار) قبل حرق ~40 ثانية sandbox.</li>
-    <li>رسائل عربية واضحة لخطأ <i>private store</i> في TTS والتصيير (عبر <code>BlobAccessError</code>).</li>
-    <li>إضافة <code>BLOB_STORE_ID</code> و <code>BLOB_WEBHOOK_PUBLIC_KEY</code> إلى <code>turbo.json</code> — اختفى التحذير.</li></ul></div>
-
-  <div class="commit"><h3><code>6bc0c6a</code> — تثبيت إطار Vercel على <code>nextjs</code></h3>
-    <ul><li>المشكلة: <i>No Output Directory named "public" found</i> — الإطار غير مكتشف.</li>
-    <li>الحل: <code>"framework": "nextjs"</code> في <code>vercel.json</code> — أول نشر <b>Ready</b> بعده.</li></ul></div>
-
-  <div class="commit"><h3><code>b42d0be</code> — إصلاح 403 الصوت: توكن Sec-MS-GEC v2 (الإصلاح الجوهري)</h3>
-    <ul><li>التشخيص: فشل محلي أيضاً ← خلل بروتوكول لا حجب IP. المكتبة الرسمية (7.3.1) تعمل من نفس الجهاز.</li>
-    <li>السبب الجذري: Microsoft تشترط صيغة <b>v2</b> (<code>&lt;16 hex&gt;-&lt;64 hex&gt;</code> + بادئة <code>2-</code> + كوكي <code>muid</code>) وكودنا يرسل v1.</li>
-    <li>النقل: SHA-256 مخصص + CS64 كاملة إلى TypeScript — <b>مطابقة بتّاً للرسمية على 5 حالات</b> ثم تجربة حية: صوت عربي 18864 بايت + 4 كلمات كابشن.</li></ul></div>
+  <p>اختبار المصادقة يجتاز منفرداً وينتهي بمهلة تحت التشغيل المتسلسل، لأن الـ mock ينفّذ مكالمة Clerk على الشبكة التي قد تتجاوز المهلة الافتراضية في Bun (5 ثوانٍ). الزمن الفعلي 1.1 ثانية عند النجاح و5.4 ثانية عند احتكاك الشبكة.</p>
+  <ul>
+    <li>إضافة حد مهلة صريح لمكالمة Clerk في <code>src/lib/auth.ts</code> (عبر <code>AbortSignal</code> أو <code>Promise.race</code>) ليرد 503 سريعاً بدل تعليق المسار.</li>
+    <li>في الاختبار، رفع مهلة تشغيله عبر <code>.timeout</code> الموفرة في Bun.</li>
+    <li>المعيار: <code>bun test --max-concurrency=1 src/lib types</code> ينجح 144 بلا أي فشل متكرر.</li>
+  </ul>
 </div>
 
+<h3>P2 — نظافة المستودع (15–30 دقيقة) <span class="pill warn">أولوية متوسطة</span></h3>
 <div class="card">
-  <h2>3. نتائج التحقق</h2>
-  <table>
-    <tr><th>الفحص</th><th>النتيجة</th></tr>
-    <tr><td><code>tsc --noEmit</code></td><td><span class="badge ok">ناجح بدون أخطاء</span></td></tr>
-    <tr><td><code>eslint src types</code></td><td><span class="badge ok">نظيف</span> (الأخطاء فقط في مجلد <code>.agents/skills</code> الجاهز)</td></tr>
-    <tr><td>تطابق GEC ضد Python الرسمية (5 طوابع)</td><td><span class="badge ok">5/5 متطابقة حرفياً</span></td></tr>
-    <tr><td>تجربة TTS حية (صوت عربي + كابشن)</td><td><span class="badge ok">18864 بايت + 4 كلمات</span></td></tr>
-    <tr><td>بناء Vercel + snapshot</td><td><span class="badge ok">ناجح — Snapshot saved</span></td></tr>
-    <tr><td>النشر الإنتاجي + الصفحة الرئيسية</td><td><span class="badge ok">Ready — المحرر يعمل بالعربي</span></td></tr>
-  </table>
+  <ul>
+    <li><code>bash.exe.stackdump</code> غير متتبع — حذفه وإضافة <code>*.stackdump</code> إلى <code>.gitignore</code>.</li>
+    <li>مجلد بالاسم العربي «نعم الايجلمهارات و ادوات تعليم/» بداخله <code>gemini.txt</code> — ليس كوداً ولا وثيقة تقنية. إما نقله إلى <code>notes/</code> وترتيبه، أو حذفه بقرار مالك المستودع.</li>
+    <li><code>plan.md</code> آخر تحديثه 2026-10-19 بينما المراحل 1–4 فيها منجزة — تحديث سجل التقدّم بالنتائج المقاسة أعلاه وربطه بالتقرير الحالي.</li>
+    <li>تقريران متنافسان في الجذر (<code>report.html</code> و<code>code-review-report.html</code>) — توحيدهما تحت <code>docs/audits/</code> مع الإبقاء على رابط واحد في <code>README.md</code>.</li>
+  </ul>
 </div>
 
+<h3>P3 — فجوات المنتج (2–4 أيام عمل) <span class="pill info">تحسينات</span></h3>
 <div class="card">
-  <h2>4. توصيات متبقية (مرتبة بالأولوية)</h2>
-  <table>
-    <tr><th>#</th><th>التوصية</th><th>الأولوية</th></tr>
-    <tr><td>1</td><td>إضافة <b>rate limiting</b> على <code>/api/tts</code> و <code>/api/render</code> قبل أي نشر عام (القالب نفسه يحذر؛ التصيير يكلف Sandbox دقائق).</td><td class="prio p1">عالية</td></tr>
-    <tr><td>2</td><td>حسم تبويب <b>Classic</b> القديم (<code>MyComp</code>): حذفه إذا القرار Shorts فقط، أو إبقاؤه رسمياً.</td><td class="prio p2">متوسطة</td></tr>
-    <tr><td>3</td><td>حذف حزمة <code>edge-tts</code> من <code>package.json</code> — غير مستخدمة (لا استيراد لها) والعميل المخصص يغني عنها.</td><td class="prio p2">متوسطة</td></tr>
-    <tr><td>4</td><td>تضييق نطاق ESLint (استبعاد <code>.agents/</code>) حتى لا تتلوث نتائج الفحص بملفات المهارات الجاهزة.</td><td class="prio p2">متوسطة</td></tr>
-    <tr><td>5</td><td>تمرير <code>acknowledgeRemotionLicense</code> إلى <code>&lt;Player/&gt;</code> لإخفاء تنبيه الترخيص في اللوج.</td><td class="prio p3">منخفضة</td></tr>
-    <tr><td>6</td><td>سياسة تنظيف Blobs والـ snapshots القديمة + تفعيل Spend Management في Vercel (تتراكم وتكلف).</td><td class="prio p2">متوسطة</td></tr>
-    <tr><td>7</td><td>إضافة اختبارات (وحدة لدوال <code>types/shorts.ts</code> و <code>sec-ms-gec.ts</code>) — لا توجد اختبارات حالياً.</td><td class="prio p3">منخفضة</td></tr>
-  </table>
+  <ul>
+    <li><b>سياسات البيانات:</b> أساس أي SaaS — صفحة «حذف الحساب ومشروعاته» وتصدير بياناته وقاعدة احتفاظ (مثلاً 90 يوماً)، وتفعيل <code>cleanup-blobs</code> كروتيناً دورياً لا سكربتاً يدوياً.</li>
+    <li><b>معايرة الأسعار:</b> <code>render-metrics.ts</code> يقيس <code>$/video</code> الفعلي، لكن حزم الكريدت (10/$5…) وُضعت تقديرياً ولا علاقة لها بالقياس. اربط قيمة الكريدت بالتكلفة المتوسطة في أول أسبوع تشغيل.</li>
+    <li><b>تميّز الاشتراكات:</b> الخطة أوضح أن المنافسين لا يبيعون اشتراكات — خطة شهرية بـ«كريدت أعلى» فوق نمط الكريدت الحالي (بعد التشغيل) تمنح نقطة تميّز يحسّنها العملاء.</li>
+    <li><b>قوالب جاهزة:</b> مكتبة قوالب (خطافات + CTA + أنماط كابشن مثبتة) بست قوالب فأكثر — أكبر رافعة للاحتفاظ بالمستخدمين بتقليل الزمن حتى أول فيديو ناجح.</li>
+  </ul>
 </div>
 
+<h2>6) خطة التطوير — المراحل القادمة</h2>
+<table>
+  <thead><tr><th>#</th><th>المرحلة</th><th>الجهد</th><th>معيار النجاح</th></tr></thead>
+  <tbody>
+    <tr><td>0</td><td><b>التشغيل الحي (المرحلة 5)</b></td><td>أسبوع</td><td>تهيئة Clerk/Neon/Upstash/Blob فعلياً + <code>drizzle-kit migrate</code> + جولة دخان (تسجيل → شراء كريدت → تصيير → تحميل) + تشغيل Cron الـ <code>retry-renders</code> مع <code>CRON_SECRET</code> + تفعيل Spend Management على Vercel.</td></tr>
+    <tr><td>1</td><td><b>استقرار الاختبار والإصدار المستقر</b></td><td>3–5 أيام</td><td>P1 منجز + CI على Next.js مبني على آخر التزام + سجل قياس تكلفة فعلي (عدد التصييرات، sandbox-seconds، حجم Blob) لكل شهر.</td></tr>
+    <tr><td>2</td><td><b>سياسات بيانات + قوالب</b></td><td>أسبوع</td><td>تصدير بيانات + حذف الحساب + 6–10 قوالب جاهزة قابلة للاستدعاء في المحرّر.</td></tr>
+    <tr><td>3</td><td><b>توسيع الإيرادات</b></td><td>2–3 أسابيع</td><td>خطة اشتراك فوق الكريدت + حزم أكبر + رفع حدود التصيير للمستخدمين المشترين (بلا مساس بحد الحماية الافتراضي).</td></tr>
+  </tbody>
+</table>
+
+<h2>7) المخاطر ووضعها الحالي</h2>
+<table>
+  <thead><tr><th>المخاطرة</th><th>الوضع</th></tr></thead>
+  <tbody>
+    <tr><td>Edge-TTS غير رسمي قد ينكسر</td><td><span class="pill ok">مغلقة بالبديل</span></td><td>fallback رسمي Azure Speech مطبَّق ويغطي الفشل برسالة عربية.</td></tr>
+    <tr><td>فشل Upstash أو غيابه</td><td><span class="pill ok">مغلقة fail-closed</span></td><td>لا يُفتح limiter محلي في الإنتاج؛ المسارات المكلفة ترد 503 موثّقة.</td></tr>
+    <tr><td>غياب Clerk في الإنتاج</td><td><span class="pill ok">مرفوض قبل التكلفة</span></td><td>المسارات المكلفة تُغلق 401/503 قبل استهلاك أي مورد.</td></tr>
+    <tr><td>تكلفة التصيير (Vercel Sandbox / Pro)</td><td><span class="pill warn">تحتاج مراقبة</span></td><td>يُقاس <code>$/video</code> فعلياً؛ الزمن المستمر في المراقبة قبل اعتماد الأسعار.</td></tr>
+    <tr><td>انكسار الاختبار حالياً (auth.timeout)</td><td><span class="pill warn">P1</span></td><td>عيب استقرار لا منطق؛ يُعالج في إصلاح ساعة واحدة.</td></tr>
+  </tbody>
+</table>
+
+<h2>8) منهجية المراجعة</h2>
 <div class="card">
-  <h2>5. الخطوة التالية المقترحة</h2>
-  <p>من الموقع الحي: توليد صوت → تصيير فيديو كامل → تحميل ومشاهدة النتيجة. أي خطأ يظهر في الواجهة أصبح الآن برسالة عربية واضحة تدل على الحل مباشرة.</p>
-  <pre>npm run dev   # للتجربة المحلية (يحتاج .env.local عبر: vercel env pull)</pre>
+  <p>المراجعة اعتمدت على <b>قياس فعلي</b> لا على استكمال تقارير قديمة: شغّلنا <code>tsc</code> و<code>eslint</code> و<code>bun test</code> و<code>npm run build</code> على هذا الفرع بالضبط وسُجّلت مخرجاتها. وفُحصت البنية من واقع الملفات الموجودة (14 مسار API و102 ملف TypeScript). أعلناً كل فشل أو فحصاً لم نستطع إتمامه بدل التصريح بأنه نجح.</p>
 </div>
 
-<footer>وُلّد تلقائياً ضمن جلسة تطوير my-video — جميع الإصلاحات مدفوعة وموثقة في سجل Git.</footer>
+<footer>
+  <div>تقرير المراجعة وخطة الإصلاح والتطوير — my-video · 2026-11-02 · مراجع ذات الصلة: <code>plan.md</code> · <code>README.md</code> · <code>docs/audits/PHASE_5_PRODUCTION_READINESS.md</code></div>
+</footer>
 
-</div>
+</main>
 </body>
 </html>

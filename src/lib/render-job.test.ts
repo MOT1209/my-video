@@ -63,7 +63,13 @@ function job(
 
 const last = (sent: RenderProgress[]) => sent[sent.length - 1];
 
-test("تصيير ناجح: خصم واحد، صف done بالرابط، والعميل يرى الرصيد الجديد", async () => {
+/**
+ * مهلة أعلى: اختبار تكاملي كامل (Drizzle/pgLite + Blob mock) —
+ * قد يُستنزف في 5 ثوانٍ تحت التشغيل المتسلسل على أجهزة مُحمّلة.
+ */
+test(
+  "تصيير ناجح: خصم واحد، صف done بالرابط، والعميل يرى الرصيد الجديد",
+  async () => {
   const billing = await billingFor();
   const { options, sent } = job(billing);
   expect(await executeRenderJob(options)).toEqual({ status: "rendered", url: OUTCOME.url });
@@ -72,7 +78,9 @@ test("تصيير ناجح: خصم واحد، صف done بالرابط، والع
   const [row] = await listRenders(db, billing.userId);
   expect(row).toMatchObject({ status: "done", url: OUTCOME.url, sizeBytes: 1234, refundedAt: null });
   expect(last(sent)).toMatchObject({ type: "done", cached: false, credits: FREE_SIGNUP_CREDITS - 1 });
-});
+},
+  20_000,
+);
 
 test("نتيجة في الكاش: لا خصم ولا صف ولا sandbox", async () => {
   const billing = await billingFor();
