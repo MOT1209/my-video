@@ -368,3 +368,47 @@ test("المشاريع على قاعدة حقيقية: مستخدم لا يقر�
     resetDbForTests();
   }
 });
+
+test("health: بلا سر ردّ بسيط لا يكشف الإعداد، ومع السر الصحيح قائمة الناقص ورمز 503", async () => {
+  const { GET } = await import("./health/route");
+  setEnv({ NODE_ENV: "production", CRON_SECRET: "hs-secret" });
+
+  for (const headers of [{} as Record<string, string>, { authorization: "Bearer wrong" }]) {
+    const res = await GET(new Request("http://localhost/api/health", { headers }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "ok" });
+  }
+
+  const res = await GET(
+    new Request("http://localhost/api/health", {
+      headers: { authorization: "Bearer hs-secret" },
+    }),
+  );
+  expect(res.status).toBe(503);
+  const body = (await res.json()) as {
+    status: string;
+    missingRequired: string[];
+    checks: Array<{ id: string }>;
+  };
+  expect(body.status).toBe("degraded");
+  expect(body.missingRequired).toEqual(["blob", "database", "clerk", "upstash"]);
+  expect(JSON.stringify(body)).not.toContain("hs-secret");
+
+  // كل المطلوب مضبوط ⇒ 200 جاهز
+  setEnv({
+    NODE_ENV: "production",
+    CRON_SECRET: "hs-secret",
+    BLOB_READ_WRITE_TOKEN: "t",
+    DATABASE_URL: "postgres://x",
+    ...CLERK,
+    UPSTASH_REDIS_REST_URL: "https://u",
+    UPSTASH_REDIS_REST_TOKEN: "t",
+  });
+  const ready = await GET(
+    new Request("http://localhost/api/health", {
+      headers: { authorization: "Bearer hs-secret" },
+    }),
+  );
+  expect(ready.status).toBe(200);
+  expect(((await ready.json()) as { status: string }).status).toBe("ready");
+});
