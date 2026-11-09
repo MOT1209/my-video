@@ -17,7 +17,6 @@ import {
   type ShortProps,
 } from "../../types/shorts";
 import { Main } from "./MyComp/Main";
-import { NextLogo } from "./MyComp/NextLogo";
 import { ShortMain } from "./Shorts/ShortMain";
 
 export const RemotionRoot: React.FC = () => {
@@ -31,17 +30,6 @@ export const RemotionRoot: React.FC = () => {
         width={VIDEO_WIDTH}
         height={VIDEO_HEIGHT}
         defaultProps={defaultMyCompProps}
-      />
-      <Composition
-        id="NextLogo"
-        component={NextLogo}
-        durationInFrames={300}
-        fps={30}
-        width={140}
-        height={140}
-        defaultProps={{
-          outProgress: 0,
-        }}
       />
       <Composition
         id={SHORT_COMP_NAME}

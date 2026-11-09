@@ -1,0 +1,37 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Remotion packages must all share one exact version.
+      remotion:
+        patterns:
+          - "remotion"
+          - "@remotion/*"
+      clerk:
+        patterns:
+          - "@clerk/*"
+      lint-and-types:
+        patterns:
+          - "eslint*"
+          - "@eslint/*"
+          - "@typescript-eslint/*"
+          - "typescript*"
+          - "@types/*"
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Next.js majors are upgraded deliberately, together with Remotion/Clerk.
+      - dependency-name: next
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
