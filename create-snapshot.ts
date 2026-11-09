@@ -46,12 +46,26 @@ try {
   throw err;
 }
 
-const sandbox = await createSandbox({
-  onProgress: ({ progress, message }) => {
-    const pct = Math.round(progress * 100);
-    console.log(`[create-snapshot] ${message} (${pct}%)`);
-  },
-});
+let sandbox: Awaited<ReturnType<typeof createSandbox>>;
+try {
+  sandbox = await createSandbox({
+    onProgress: ({ progress, message }) => {
+      const pct = Math.round(progress * 100);
+      console.log(`[create-snapshot] ${message} (${pct}%)`);
+    },
+  });
+} catch (error) {
+  // نفس سياسة أخطاء الحصة عند أخذ الـ snapshot: الـ snapshot تحسين أداء لا شرط
+  // للنشر، فلا يُفشل حصة Hobby المستنفدة (402) البناء كله. التصيير في الإنتاج
+  // ينشئ sandbox جديداً ويرفع الحزمة لكل جلسة.
+  if (!isSnapshotStorageQuotaError(error)) throw error;
+  console.warn(
+    "[create-snapshot] Skipping: Vercel Snapshot Storage quota is exhausted (Hobby plan, resets monthly). " +
+      "Deployment continues without a snapshot; production rendering will create a fresh sandbox per session. " +
+      "Delete unused snapshots or upgrade to Pro to restore fast renders.",
+  );
+  process.exit(0);
+}
 
 try {
   console.log("[create-snapshot] Adding Remotion bundle...");

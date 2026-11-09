@@ -1,6 +1,6 @@
 # خارطة الطريق التنفيذية — my-video
 
-> تاريخ التحديث: 2026-10-16
+> تاريخ التحديث: 2026-11-09
 > الحالة: المراحل 1–3 منجزة؛ المرحلة 4 (SaaS) قيد التنفيذ
 
 ---
@@ -9,13 +9,13 @@
 
 | المحور | الحالة |
 |---|---|
-| التصيير | Remotion 4.0.535 + Vercel Sandbox مع **snapshot cache** وكاش ناتج حتمي (`src/lib/render-cache.ts`) وقياس $/video (`src/lib/render-metrics.ts`) و SSE للتقدم |
+| التصيير | Remotion 4.0.540 + Vercel Sandbox مع **snapshot cache** وكاش ناتج حتمي (`src/lib/render-cache.ts`) وقياس $/video (`src/lib/render-metrics.ts`) و SSE للتقدم |
 | TTS | Edge-TTS + كاش بالـ hash + **WordBoundary events** تنتج `WordCaption[]` بالتوقيت (`src/lib/edge-tts.ts:129`) + **fallback رسمي** عبر Azure Speech (`src/lib/azure-tts.ts`) |
 | الكابشن | ✅ متحرك (4 أنماط: pop/karaoke/slide-up/glow عبر `spring` + `createTikTokStyleCaptions`) |
 | الخلفيات | 5 ثيمات CSS + Ken Burns للصور/الفيديو + **صور AI** عبر `/api/image` (Gemini + كاش content-hash) |
 | الذكاء الاصطناعي | ✅ `/api/script` (رابط/موضوع → سكربت عبر Gemini) + `/api/image` (خلفيات) + Azure fallback |
 | SaaS | شريحة localStorage + SaaS خادم منجز (Drizzle + billing/credits/projects/renders/transcribe + sign-in) |
-| الاختبارات | `bun test` (**90 اختباراً** عبر 15 ملفاً) |
+| الاختبارات | `bun test` (**255 اختباراً** عبر 29 ملفاً، منها اختبارات على Postgres حقيقي عبر PGlite) |
 | حدود المعدل | `/api/tts` = 20/5 دقائق، `/api/render` = 5/ساعة — عبر **Upstash Redis** (موزّع) مع fallback للذاكرة محلياً |
 
 ---
@@ -64,7 +64,7 @@
 **الحل:**
 
 ```
-تثبيت: @remotion/captions@4.0.535 + @remotion/layout-utils@4.0.535
+تثبيت: @remotion/captions@4.0.540 + @remotion/layout-utils@4.0.540
 ```
 
 | خطوة | التفصيل |
@@ -150,7 +150,7 @@ POST /api/image     → { prompt,theme } → { blobUrl }
 | **تخزين** | Vercel Blob (موجود ✅) | مسار `renders/{userId}/{renderId}.mp4` لعزل المستخدمين |
 | **فوترة** | **Stripe** بنظام **كريدت** (1 تصيير = 1 كريدت) | أسهل نموذج قياس استهلاك |
 | **rate-limit** | Upstash Redis | يعمل عبر كل نسخ Vercel |
-| **المهام** | Vercel Cron + جدول `renders` بحالة | يكفي للحجم الأولي |
+| **المهام** | GitHub Actions (كل ساعة) + جدول `renders` بحالة | يكفي للحجم الأولي |
 
 #### نموذج البيانات المطلوب
 
@@ -213,6 +213,8 @@ UsageEvent (id, userId, kind: tts|image|render, units, at)
 | 2026-10-16 | المرحلة 3 — ضبط ‏`concurrency/jpegQuality` حسب vCPU (بند #6) | ✅ منجز |
 | 2026-10-16 | المرحلة 4 — حفظ/تحميل حالة المحرّر محلياً (شريحة أولى من "حفظ المشاريع") | ✅ منجز |
 | 2026-10-16 | المرحلة 4 — SaaS الخادم (Drizzle + billing/credits/projects/renders/transcribe + sign-in) | ✅ منجز (ملتزَم) |
+| 2026-11-09 | تشغيل طابور إعادة التصيير كل ساعة عبر GitHub Actions بدل Vercel Cron (خطة Hobby تمنع الجداول الأكثر من يومية) | ✅ منجز — يحتاج سرّي `APP_URL` و`CRON_SECRET` |
+| 2026-11-09 | اختبارات `render-recovery` (إرجاع الكريدت مرة واحدة، الكاش أولاً، رسائل خطأ آمنة) ومسارات `credits`/`renders`/`script` | ✅ منجز |
 
 ### ملاحظات التنفيذ (المرحلة 4 — SaaS الخادم)
 
@@ -220,7 +222,7 @@ UsageEvent (id, userId, kind: tts|image|render, units, at)
 - الكريدت (`src/lib/credits.ts` + `billing-session.ts`): تصيير = 1، ترحيب = 3، والحزم 10/$5 و30/$12 و100/$35 عبر `price_data` لحظياً (بلا Products يدوية). الخصم بعد تأكد غياب الكاش، والاسترجاع تلقائي عند الفشل. بلا `DATABASE_URL` → الكريدت غير مفروض + تحذير.
 - قاعدة البيانات (`src/lib/db/` + `drizzle/0000_init.sql`): تُطبَّق بـ `npx drizzle-kit migrate` بعد ضبط `DATABASE_URL`. المسارات بلا قاعدة ترد 503 إرشادياً.
 - الفوترة: الـ webhook يتحقق من التوقيع (`constructEventAsync`) ويرفض غيابه؛ الـ checkout يحتاج `STRIPE_SECRET_KEY`.
-- الطابور (`/api/cron/retry-renders`): `CRON_SECRET` إلزامي (Bearer) وإلا 503 — يُضبط في Vercel Cron.
+- الطابور (`/api/cron/retry-renders`): `CRON_SECRET` إلزامي (Bearer) وإلا 503 — يُستدعى من GitHub Actions (`retry-renders-cron.yml`).
 - بنود مفتوحة: سياسة الاحتفاظ/حذف البيانات، ومعايرة أسعار الحزم مقابل $/video المقاس فعلياً.
 
 ### ملاحظات التنفيذ (المرحلة 4 — شريحة حفظ المشاريع)

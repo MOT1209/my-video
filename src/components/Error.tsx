@@ -4,8 +4,9 @@ export const ErrorComp: React.FC<{
   message: string;
 }> = ({ message }) => {
   return (
-    <div className="text-geist-error font-geist py-geist-half">
+    <div role="alert" className="text-geist-error font-geist py-geist-half">
       <svg
+        aria-hidden="true"
         fill="none"
         shapeRendering="geometricPrecision"
         stroke="currentColor"
@@ -19,7 +20,7 @@ export const ErrorComp: React.FC<{
         <path d="M12 8v4" stroke="currentColor"></path>
         <path d="M12 16h.01" stroke="currentColor"></path>
       </svg>
-      <strong>Error:</strong> {message}
+      <strong>خطأ:</strong> {message}
     </div>
   );
 };

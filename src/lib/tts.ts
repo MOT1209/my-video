@@ -96,6 +96,12 @@ export async function synthesizeNarration(input: {
         input.voiceId,
       );
       const capped = Math.min(durationSec, SHORT_MAX_SECONDS);
+      // إشارة للمراقبة: Edge-TTS (غير الرسمي) فشل وأنقذتنا Azure. تكرار هذا
+      // السطر في السجل يعني أن Edge انكسر ويجب مراجعة src/lib/sec-ms-gec.ts.
+      console.warn(
+        "tts: fallback-to-azure — فشل Edge-TTS ونجحت Azure",
+        (lastError as Error)?.message,
+      );
       return {
         audio,
         captions: captions.filter((c) => c.start < capped),

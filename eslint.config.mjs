@@ -21,7 +21,6 @@ export default [
       "next-env.d.ts",
       "next.config.js",
       // مهارات وملفات مساعدة جاهزة — خارج نطاق فحص كود التطبيق
-      "Skills/**",
       ".agents/**",
       ".claude/**",
       "public/**",

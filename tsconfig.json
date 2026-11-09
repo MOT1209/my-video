@@ -28,5 +28,5 @@
 		".next/types/**/*.ts",
 		".next/dev/types/**/*.ts"
 	],
-	"exclude": ["node_modules", "remotion.config.ts", "Skills", ".agents", ".claude"]
+	"exclude": ["node_modules", "remotion.config.ts", ".agents", ".claude"]
 }

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** طلب render عام: MyComp القديم أو ShortsComp الجديد */
+/** طلب render: المعرّف يحدد التكوين (ShortsComp حالياً) والتحقق من المدخلات في المسار */
 export const AnyRenderRequest = z.object({
   id: z.string(),
   inputProps: z.unknown(),

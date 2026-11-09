@@ -33,6 +33,14 @@ import { ProgressBar } from "./ProgressBar";
 import { Spacing } from "./Spacing";
 import { ShortMain } from "../remotion/Shorts/ShortMain";
 import { SHORT_TEMPLATES, type ShortTemplate } from "../../types/templates";
+import { requestBackground, requestNarration, requestScript } from "../lib/editor-api";
+import {
+  DEFAULT_SCENES_TEXT,
+  isUntouchedDraft,
+  isUrlSource,
+  parseScenes,
+  scenesToText,
+} from "../lib/editor-scenes";
 
 type TtsStatus =
   | { status: "idle" }
@@ -57,9 +65,7 @@ const CAPTION_STYLE_ORDER: CaptionStyle[] = [
 
 export const ShortsEditor: React.FC = () => {
   const [hook, setHook] = useState(defaultShortProps.hook);
-  const [scenesText, setScenesText] = useState(
-    defaultShortProps.scenes.map((s) => s.text).join("\n"),
-  );
+  const [scenesText, setScenesText] = useState(DEFAULT_SCENES_TEXT);
   const [theme, setTheme] = useState<ShortTheme>("dark");
   const [captionStyle, setCaptionStyle] = useState<CaptionStyle>(
     defaultShortProps.captionStyle,
@@ -123,7 +129,7 @@ export const ShortsEditor: React.FC = () => {
   /** يطبّق مشروعاً محمّلاً من حساب المستخدم على المحرّر كاملاً. */
   const applyProject = (props: ShortProps, projectTitle: string) => {
     setHook(props.hook);
-    setScenesText(props.scenes.map((s) => s.text).join("\n"));
+    setScenesText(scenesToText(props.scenes));
     setTheme(props.theme);
     setCaptionStyle(props.captionStyle);
     setVoiceId(props.voiceId);
@@ -143,11 +149,8 @@ export const ShortsEditor: React.FC = () => {
 
   /** يطبّق قالباً جاهزاً: يستبدل النص والإعدادات، ويصفّر الصوت لأنه لم يعد يطابق النص. */
   const applyTemplate = (template: ShortTemplate) => {
-    const untouched =
-      hook === defaultShortProps.hook &&
-      scenesText === defaultShortProps.scenes.map((s) => s.text).join("\n");
     if (
-      !untouched &&
+      !isUntouchedDraft(hook, scenesText) &&
       !window.confirm(`سيستبدل القالب «${template.label}» الخطاف والمشاهد الحالية. المتابعة؟`)
     ) {
       return;
@@ -165,14 +168,7 @@ export const ShortsEditor: React.FC = () => {
     setLoadedTitle(null);
   };
 
-  const scenes = useMemo(() => {
-    return scenesText
-      .split("\n")
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .slice(0, 12)
-      .map((text, i) => ({ id: `s${i + 1}`, text, imageUrl: null }));
-  }, [scenesText]);
+  const scenes = useMemo(() => parseScenes(scenesText), [scenesText]);
 
   const narrationText = useMemo(
     () => buildNarrationText({ hook, scenes }),
@@ -245,23 +241,9 @@ export const ShortsEditor: React.FC = () => {
     }
     setScriptLoading(true);
     try {
-      const isUrl = /^https?:\/\//i.test(src);
-      const res = await fetch("/api/script", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          ...(isUrl ? { url: src } : { topic: src }),
-          lang,
-        }),
-      });
-      const json = (await res.json()) as
-        | { type: "success"; data: { hook: string; scenes: Array<{ text: string }> } }
-        | { type: "error"; message: string };
-      if (json.type !== "success") {
-        throw new Error(json.message);
-      }
-      setHook(json.data.hook);
-      setScenesText(json.data.scenes.map((s) => s.text).join("\n"));
+      const data = await requestScript({ source: src, isUrl: isUrlSource(src), lang });
+      setHook(data.hook);
+      setScenesText(scenesToText(data.scenes));
       // الصوت القديم لم يعد مطابقاً للنص الجديد — يلزم إعادة التوليد
       setTts({ status: "idle" });
     } catch (err) {
@@ -276,22 +258,8 @@ export const ShortsEditor: React.FC = () => {
     setFormError(null);
     setBgStatus({ status: "loading" });
     try {
-      const res = await fetch("/api/image", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt: hook || scenes[0]?.text || "خلفية" }),
-      });
-      const json = (await res.json()) as
-        | { type: "success"; data: { url: string; cached: boolean } }
-        | { type: "error"; message: string };
-      if (json.type !== "success") {
-        throw new Error(json.message);
-      }
-      setBgStatus({
-        status: "ready",
-        cached: json.data.cached,
-        url: json.data.url,
-      });
+      const data = await requestBackground(hook || scenes[0]?.text || "خلفية");
+      setBgStatus({ status: "ready", cached: data.cached, url: data.url });
     } catch (err) {
       setBgStatus({ status: "error", message: (err as Error).message });
     }
@@ -305,21 +273,7 @@ export const ShortsEditor: React.FC = () => {
     }
     setTts({ status: "loading" });
     try {
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: narrationText, voiceId }),
-      });
-      const json = await res.json();
-      if (json.type !== "success") {
-        throw new Error(json.message ?? "فشل توليد الصوت");
-      }
-      const data = json.data as {
-        audioUrl: string;
-        captions: WordCaption[];
-        durationSec: number;
-        cached: boolean;
-      };
+      const data = await requestNarration({ text: narrationText, voiceId });
       setAudioUrl(data.audioUrl);
       setAudioDurationSec(data.durationSec);
       setCaptions(data.captions);
