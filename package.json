@@ -7,7 +7,7 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "@clerk/nextjs": "^7.9.16",
+    "@clerk/nextjs": "^7.9.25",
     "@neondatabase/serverless": "^1.2.0",
     "@remotion/captions": "4.0.540",
     "@remotion/cli": "4.0.540",
