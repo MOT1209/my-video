@@ -481,6 +481,18 @@ export async function listStaleRunning(
     .limit(limit);
 }
 
+/**
+ * مجموع زمن sandbox (ms) للتصييرات المنتهية منذ لحظة معيّنة — أساس حدّ
+ * الميزانية اليومي. الصفوف الجارية لا تُحتسب (لم يُكتب زمنها بعد).
+ */
+export async function sandboxMsSince(db: Db, since: Date): Promise<number> {
+  const rows = await db
+    .select({ total: sql<string>`coalesce(sum(${renders.sandboxMs}), 0)` })
+    .from(renders)
+    .where(gte(renders.createdAt, since));
+  return Number(rows[0]?.total ?? 0);
+}
+
 export async function recordUsage(
   db: Db,
   args: {

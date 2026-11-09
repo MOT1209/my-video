@@ -11,7 +11,9 @@ import {
   openBillingSession,
   type BillingSession,
 } from "../../../lib/billing-session";
+import { getDb } from "../../../lib/db/client";
 import { findCachedRender, renderCachePath } from "../../../lib/render-cache";
+import { checkRenderBudget, dailyBudgetMinutes } from "../../../lib/render-budget";
 import {
   executeRenderJob,
   MAX_RENDER_BODY_BYTES,
@@ -149,6 +151,37 @@ export async function POST(req: Request) {
     }
   } else {
     return apiError("معرّف التكوين غير معروف.", 400);
+  }
+
+  // سقف تكلفة يومي للخدمة (اختياري): قبل أي خصم أو قفل أو sandbox.
+  // الناتج الجاهز في الكاش لا يكلّف sandbox فلا يُحجب بالسقف.
+  const budgetDb = getDb();
+  if (budgetDb && dailyBudgetMinutes() !== null) {
+    try {
+      const alreadyRendered = await findCachedRender(
+        renderCachePath(
+          compositionId,
+          inputProps,
+          requestUser.authenticated ? requestUser.clerkId : undefined,
+        ),
+        blobToken,
+      ).catch(() => null);
+      const budget = alreadyRendered
+        ? { allowed: true, usedMinutes: 0, limitMinutes: null }
+        : await checkRenderBudget(budgetDb);
+      if (!budget.allowed) {
+        console.warn(
+          `render: بلغ سقف الميزانية اليومية (${budget.usedMinutes.toFixed(1)}/${budget.limitMinutes} دقيقة sandbox)`,
+        );
+        return apiError(
+          "بلغت الخدمة حدّ التصيير اليومي. حاول مجدداً لاحقاً (لم يُخصم أي كريدت).",
+          503,
+        );
+      }
+    } catch (err) {
+      // فشل قياس الميزانية لا يُسقط التصيير (الحماية الأخرى قائمة)، لكنه يُسجَّل
+      console.error("render: تعذّر فحص الميزانية اليومية", (err as Error)?.message);
+    }
   }
 
   /**
