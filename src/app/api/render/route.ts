@@ -1,5 +1,4 @@
 import { waitUntil } from "@vercel/functions";
-import { COMP_NAME, CompositionProps } from "../../../../types/constants";
 import { AnyRenderRequest } from "../../../../types/schema";
 import { SHORT_COMP_NAME, ShortProps } from "../../../../types/shorts";
 import { apiError } from "../../../helpers/api-response";
@@ -120,7 +119,7 @@ export async function POST(req: Request) {
   }
   const body = parsedBody.data;
 
-  // تحقق من inputProps حسب التكوين المطلوب (MyComp القديم أو ShortsComp الجديد)
+  // تحقق من inputProps حسب التكوين المطلوب (ShortsComp فقط)
   let compositionId: string;
   let inputProps: unknown;
   if (body.id === SHORT_COMP_NAME) {
@@ -148,13 +147,6 @@ export async function POST(req: Request) {
         );
       }
     }
-  } else if (body.id === COMP_NAME) {
-    compositionId = COMP_NAME;
-    const compProps = CompositionProps.safeParse(body.inputProps);
-    if (!compProps.success) {
-      return apiError("مدخلات الفيديو غير صالحة.", 400);
-    }
-    inputProps = compProps.data;
   } else {
     return apiError("معرّف التكوين غير معروف.", 400);
   }

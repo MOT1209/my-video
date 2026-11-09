@@ -42,7 +42,7 @@ test("نفس المدخلات تعطي نفس مسار الكاش", () => {
 test("inputProps مختلفة تعطي مسارات مختلفة", () => {
   const p1 = renderCachePath("ShortsComp", { hook: "أ", sceneCount: 1 });
   const p2 = renderCachePath("ShortsComp", { hook: "ب", sceneCount: 1 });
-  const p3 = renderCachePath("MyComp", { hook: "أ", sceneCount: 1 });
+  const p3 = renderCachePath("OtherComp", { hook: "أ", sceneCount: 1 });
   expect(p1).not.toBe(p2);
   expect(p1).not.toBe(p3);
 });

@@ -156,8 +156,8 @@ test("render rejects missing production database before any expensive work", asy
     const response = await POST(
       makeRequest(
         JSON.stringify({
-          id: "MyComp",
-          inputProps: { title: "test" },
+          id: "ShortsComp",
+          inputProps: { hook: "test", scenes: [{ id: "s1", text: "مشهد" }] },
         }),
       ),
     );
@@ -201,8 +201,8 @@ test("render rejects missing production billing even when anonymous paid routes 
     const response = await POST(
       makeRequest(
         JSON.stringify({
-          id: "MyComp",
-          inputProps: { title: "test" },
+          id: "ShortsComp",
+          inputProps: { hook: "test", scenes: [{ id: "s1", text: "مشهد" }] },
         }),
       ),
     );
@@ -232,8 +232,8 @@ test("render fails closed when the distributed lock service is unavailable", asy
     const response = await POST(
       makeRequest(
         JSON.stringify({
-          id: "MyComp",
-          inputProps: { title: "test" },
+          id: "ShortsComp",
+          inputProps: { hook: "test", scenes: [{ id: "s1", text: "مشهد" }] },
         }),
       ),
     );
