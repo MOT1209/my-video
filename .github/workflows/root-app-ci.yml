@@ -1,7 +1,6 @@
 name: MY-VIDEO CI
 
-# Root Next.js + Remotion app only. King_Browser has its own jobs in ci.yml,
-# which this workflow does not touch.
+# Root Next.js + Remotion app.
 
 on:
   push:

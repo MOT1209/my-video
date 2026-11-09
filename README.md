@@ -178,22 +178,6 @@ npm run dev            # http://localhost:3000
 
 </details>
 
-<details>
-<summary><b>مشروع <code>King_Browser/</code> داخل المستودع</b></summary>
-
-<br/>
-
-مجلد `King_Browser/` مشروع **منفصل** (متصفح سطح مكتب مبني بـ Electron) يعيش في المستودع نفسه، وله `package.json` واختباراته وإعداد ESLint الخاص به. لا علاقة له بتطبيق الفيديو، وهو مستثنى من فحص `lint` و`tsc` للجذر.
-
-```bash
-cd King_Browser
-npm ci
-npm test                         # اختباراته الخاصة (esbuild + Node)
-../node_modules/.bin/eslint .    # فحص ESLint بإعداده الخاص
-```
-
-</details>
-
 ## فحص الجاهزية
 
 `GET /api/health` يرد `{"status":"ok"}` لأي طالب (يصلح لمراقب uptime). مع الترويسة `Authorization: Bearer <CRON_SECRET>` يعيد قائمة المتغيرات الناقصة وأثر كل منها، ورمز **503** إن نقص شيء مطلوب للإنتاج (Blob وقاعدة البيانات وClerk وUpstash). يعرض أسماء المتغيرات وحالتها فقط، لا قيماً.
@@ -224,7 +208,7 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" https://<موقعك>/api/health
 
 ## الرخصة
 
-كود هذا المشروع مرخّص تحت [رخصة MIT](LICENSE) (مجلد `King_Browser/` له ملف `LICENSE` خاص به). وللمساهمة انظر [CONTRIBUTING.md](CONTRIBUTING.md).
+كود هذا المشروع مرخّص تحت [رخصة MIT](LICENSE). وللمساهمة انظر [CONTRIBUTING.md](CONTRIBUTING.md).
 
 > [!IMPORTANT]
 > رخصة MIT تغطي كود المشروع فقط. **Remotion** له شروطه الخاصة، ولبعض الاستخدامات يلزم ترخيص شركة. [الشروط هنا](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).

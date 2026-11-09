@@ -53,7 +53,7 @@ fix(ui): set the body text colour so dark mode is readable
 
 ## الفحوصات المطلوبة
 
-يشغّل CI على كل Pull Request: **MY-VIDEO — lint, typecheck, migrations, tests, build** (تطبيق الفيديو، ويشمل `npm audit` للاعتماديات)، و**Test & Typecheck** و**Website Build & Test** (نسخة King_Browser)، و**CodeQL**. الدمج بعد نجاحها كلها.
+يشغّل CI على كل Pull Request: **MY-VIDEO — lint, typecheck, migrations, tests, build** (تطبيق الفيديو، ويشمل `npm audit` للاعتماديات)، و**CodeQL**. الدمج بعد نجاحها كلها.
 
 | الأمر | ما يفحصه |
 |---|---|
@@ -62,19 +62,6 @@ fix(ui): set the body text colour so dark mode is readable
 | `npm run build` | بناء Next.js مع فحص الأنواع |
 
 إن غيّرت الواجهة فافحصها فعلاً في المتصفح بعرض **375px** و**1280px** وبالوضعين الفاتح والداكن. نجاح الاختبارات لا يثبت أن التخطيط سليم.
-
-## مشروع `King_Browser/`
-
-المجلد `King_Browser/` مشروع **منفصل** (متصفح Electron) له `package.json` واختباراته وإعداد ESLint الخاص به، وهو مستثنى من `lint` و`tsc` للجذر.
-
-```bash
-cd King_Browser
-npm ci
-npm test
-../node_modules/.bin/eslint .
-```
-
-لا تخلط التعديلات عليه مع تعديلات تطبيق الفيديو في Pull Request واحد.
 
 ## أسلوب الكود
 
@@ -89,6 +76,6 @@ npm test
 
 ## الرخصة
 
-بإرسال مساهمة فإنك توافق على أن تُرخَّص تحت [رخصة MIT](LICENSE) الخاصة بالمشروع. مجلد `King_Browser/` له ملف `LICENSE` الخاص به.
+بإرسال مساهمة فإنك توافق على أن تُرخَّص تحت [رخصة MIT](LICENSE) الخاصة بالمشروع.
 
 لاحظ أن رخصة MIT تغطي **كود هذا المشروع فقط**. استخدام **Remotion** له شروطه الخاصة، ولبعض الاستخدامات يلزم [ترخيص شركة](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
