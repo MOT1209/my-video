@@ -70,3 +70,13 @@ test("recognizes only the Vercel snapshot storage quota 402 response", () => {
     }),
   ).toBe(false);
 });
+
+test("recognizes the sandbox-creation 402 (quota hit before any snapshot is taken)", () => {
+  expect(
+    isSnapshotStorageQuotaError({
+      message: "Status code 402 is not ok",
+      response: { status: 402 },
+      text: '{"error":{"code":"payment_required","message":"Hobby plan usage limit exceeded for Snapshots Storage. Limit will be reset on 2026-12-01T00:00:00.000Z. Please upgrade to a Pro plan to continue using Vercel Sandbox, or delete unused snapshots."}}',
+    }),
+  ).toBe(true);
+});
