@@ -1,10 +1,43 @@
 import { BlobAccessError, del, put } from "@vercel/blob";
 import { addBundleToSandbox, createSandbox } from "@remotion/vercel";
+import { Snapshot } from "@vercel/sandbox";
 import { bundleRemotionProject } from "./src/lib/remotion-bundle";
 import { isSnapshotStorageQuotaError } from "./src/lib/snapshot-errors";
+import { selectSnapshotsToPrune, snapshotsToKeep } from "./src/lib/snapshot-prune";
 
 const getSnapshotBlobKey = () =>
   `snapshot-cache/${process.env.VERCEL_DEPLOYMENT_ID ?? "local"}.json`;
+
+/**
+ * يحذف snapshots النشرات القديمة (كل نشر ينشئ واحدة بلا انتهاء صلاحية فتستنفد
+ * حصة Hobby). في بناء **الإنتاج فقط**: بناء المعاينة لا يحذف أبداً كي لا يحذف
+ * snapshot الإنتاج الحي. الفشل هنا لا يُفشل البناء.
+ */
+async function pruneOldSnapshots(protectedIds: string[] = []) {
+  if (process.env.VERCEL_ENV !== "production") return;
+  // القائمة تُقيَّد صراحةً بهذا المشروع: لا نحذف أبداً snapshots مشروع آخر في الفريق
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  if (!projectId) return;
+  try {
+    const all = await (await Snapshot.list({ projectId })).toArray();
+    const toDelete = selectSnapshotsToPrune(
+      all.map((s) => ({ id: s.id, status: s.status, createdAt: s.createdAt })),
+      snapshotsToKeep(),
+      protectedIds,
+    );
+    for (const id of toDelete) {
+      await (await Snapshot.get({ snapshotId: id })).delete();
+    }
+    if (toDelete.length > 0) {
+      console.log(`[create-snapshot] Pruned ${toDelete.length} old snapshot(s).`);
+    }
+  } catch (error) {
+    console.warn(
+      "[create-snapshot] Snapshot pruning skipped:",
+      (error as Error)?.message,
+    );
+  }
+}
 
 // بدون Blob store لا يمكن حفظ الـ snapshot — نتجاوز بخروج ناجح بدل إفشال البناء كله.
 // ملاحظة: /api/render يحتاج التوكن على أي حال، فاربط Blob store واعمل redeploy للتصيير الفعلي.
@@ -64,6 +97,7 @@ try {
       "Deployment continues without a snapshot; production rendering will create a fresh sandbox per session. " +
       "Delete unused snapshots or upgrade to Pro to restore fast renders.",
   );
+  await pruneOldSnapshots();
   process.exit(0);
 }
 
@@ -94,6 +128,10 @@ try {
     console.log(
       `[create-snapshot] Snapshot saved: ${snapshotId} (never expires)`,
     );
+    await pruneOldSnapshots([snapshotId]);
+  } else {
+    // حصة ممتلئة عند أخذ الـ snapshot: نحرّر المساحة للنشر التالي
+    await pruneOldSnapshots();
   }
 } finally {
   await sandbox.stop().catch(() => {});
