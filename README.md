@@ -192,7 +192,7 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" https://<موقعك>/api/health
 
 1. من لوحة Vercel: **Storage ← Create ← Blob**، بإعداد **public** (الفيديوهات والصوتيات تُخدم بروابط عامة)، واربطه بالمشروع. يُضاف `BLOB_READ_WRITE_TOKEN` تلقائياً.
 2. أضف بقية [المتغيرات](#متغيرات-البيئة) التي تحتاجها ثم أعد النشر.
-3. للـ Cron: `vercel.json` يعرّف مهمة يومية على `/api/cron/retry-renders`، وتحتاج `CRON_SECRET`.
+3. للـ Cron: يشغّله GitHub Actions كل ساعة (`.github/workflows/retry-renders-cron.yml`) لأن خطة Vercel Hobby تسمح بمهمة يومية فقط. أضف في GitHub ← Settings ← Secrets and variables ← Actions السرّين `APP_URL` (مثل `https://موقعك.vercel.app` بلا شرطة أخيرة) و`CRON_SECRET` (القيمة نفسها المضبوطة في Vercel).
 
 > [!IMPORTANT]
 > **حماية التسجيل من البوتات:** كل حساب جديد يأخذ كريدتات مجانية تُصرف على تصيير حقيقي. التطبيق يحجب الكريدت المجاني عن البريد المؤقت المعروف وعن ما يتجاوز `SIGNUP_FREE_PER_IP_PER_DAY` من نفس الـ IP، لكن هذا طبقة ثانية فقط. **فعّل أيضاً من لوحة Clerk** ← Configure ← Attack protection: **Bot sign-up protection** (CAPTCHA) وفرض **تأكيد البريد**، فهما الحماية الأساسية ولا يمكن ضبطهما من الكود.
