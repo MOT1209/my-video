@@ -113,7 +113,7 @@ npm run dev            # http://localhost:3000
 | `SIGNUP_FREE_PER_IP_PER_DAY` | اختياري (الافتراضي 3) | أقصى عدد حسابات جديدة تُمنح كريدت الترحيب المجاني من نفس IP كل 24 ساعة. ما فوقه يُنشأ حسابه برصيد 0 (يستطيع الشراء). `0` يمنع المجاني تماماً |
 | `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` | اختياري | البديل الرسمي للصوت (يبقى Edge-TTS المجاني) |
 
-بعد ضبط `DATABASE_URL` طبّق الهجرات: `npx drizzle-kit migrate` (بعد كل ترقية تضيف ملفاً في `drizzle/`). تفاصيل المرحلة 5 وترتيب النشر: [`docs/audits/PHASE_5_PRODUCTION_READINESS.md`](docs/audits/PHASE_5_PRODUCTION_READINESS.md).
+بعد ضبط `DATABASE_URL` طبّق الهجرات (وبعد كل ترقية تضيف ملفاً في `drizzle/`): من GitHub ← Actions ← **DB Migrate (manual)** ← Run workflow واكتب `migrate` (يحتاج سرّ `DATABASE_URL` في إعدادات المستودع)، أو محلياً `npx drizzle-kit migrate`. تفاصيل المرحلة 5 وترتيب النشر: [`docs/audits/PHASE_5_PRODUCTION_READINESS.md`](docs/audits/PHASE_5_PRODUCTION_READINESS.md).
 
 ## حدود الاستخدام
 

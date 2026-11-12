@@ -1,0 +1,69 @@
+name: DB Migrate (manual)
+
+# Applies the committed Drizzle migrations in drizzle/ to the production
+# database. Runs only when started by hand from the Actions tab, and only when
+# the confirmation input is typed exactly. drizzle-kit records applied
+# migrations in drizzle.__drizzle_migrations, so re-running is a no-op.
+#
+# Setup: add the Neon connection string as the secret DATABASE_URL
+# (Settings → Secrets and variables → Actions, or on the "production"
+# environment). The value is never printed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "migrate" to apply migrations to the production database'
+        required: true
+
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: Apply Drizzle migrations
+    if: github.event.inputs.confirm == 'migrate'
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Require the DATABASE_URL secret
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::The DATABASE_URL secret is not set for this repository or the production environment."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (lockfile)
+        run: npm ci
+
+      - name: Apply migrations
+        run: npx drizzle-kit migrate
+
+      - name: List applied migrations
+        run: |
+          node -e '
+            const { Client } = require("pg");
+            const c = new Client({ connectionString: process.env.DATABASE_URL });
+            c.connect()
+              .then(() => c.query("select id, created_at from drizzle.__drizzle_migrations order by id"))
+              .then((r) => { console.log(`${r.rowCount} migrations applied:`); console.table(r.rows); })
+              .finally(() => c.end());
+          '
